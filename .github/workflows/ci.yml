@@ -33,8 +33,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile=false
-      - name: Lint
-        run: pnpm -r run lint || true
       - name: Typecheck
         run: pnpm -r run typecheck
       - name: Unit tests (vitest)
