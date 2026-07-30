@@ -113,7 +113,7 @@ pmos/
 │   └── docker/              #   Dockerfile'ы, docker-compose, nginx.conf
 ├── frontend/                # React SPA (Vite + React 18 + TypeScript)
 ├── desktop/                 # Tauri v2 desktop app (только Docker lifecycle)
-├── template-service/        # Шаблон для нового сервиса (копируй и меняй)
+├── scripts/                 # Генераторы сервисов (scaffold-services, gen-openapi, gen-schemas, gen-routes)
 ├── tests/                   # Интеграционные и E2E тесты
 │   └── contract/            #   Контрактные тесты (Pact)
 └── docs/                    # Документация
@@ -130,7 +130,7 @@ pmos/
 services/profiles/
 ├── src/
 │   ├── index.ts             # Точка входа — создание HTTP-сервера, подключение к NATS и БД
-│   ├── app.ts               # Express/Fastify роутер
+│   ├── app.ts               # Fastify роутер (роуты монтируются в src/routes/index.ts)
 │   ├── db/
 │   │   └── schema.ts        # Drizzle ORM схема (таблицы сервиса)
 │   ├── events/
@@ -146,7 +146,8 @@ services/profiles/
 └── tsconfig.json            # strict mode
 ```
 
-См. [`template-service/`](../template-service/) — полный шаблон для копирования.
+См. [`scripts/scaffold-services.mjs`](../scripts/scaffold-services.mjs) — генератор всех 16 сервисов.
+Для нового сервиса добавьте запись в массив `SERVICES` в скрипте и запустите `node scripts/scaffold-services.mjs`.
 
 ---
 
@@ -235,17 +236,30 @@ LOG_LEVEL=debug
 
 ## Добавление нового сервиса
 
-Пошаговая инструкция:
-
-### Шаг 1. Скопировать template-service
+Проще всего — добавить запись в массив `SERVICES` в `scripts/scaffold-services.mjs` и
+перегенерировать (это создаст `services/<name>/` со всем каркасом: Fastify, Drizzle-схема,
+NATS publish/subscribe, тесты, Dockerfile, `.env.example`). Скрипт идемпотентен.
 
 ```bash
-cp -r template-service services/<new-service>
+# 1. добавить в scripts/scaffold-services.mjs:
+#   { name: "digests", schema: "digests_", port: 3017, phase: "phase2" }
+node scripts/scaffold-services.mjs
+# 2. (опционально) сгенерировать контракт, схему и роуты
+node scripts/gen-openapi.mjs
+node scripts/gen-schemas.mjs
+node scripts/gen-routes.mjs
+pnpm install
 ```
 
-### Шаг 2. Определить таблицы
+Ручной вариант (если не использовать скрипт):
 
-Отредактировать `src/db/schema.ts`:
+### Шаг 1. Создать каталог и package.json
+Создайте `services/<name>/` с `package.json` (имя `@pmos/<name>`, скрипты `dev/build/typecheck/test/db:generate/db:migrate`,
+deps `fastify`, `@fastify/type-provider-typebox`, `drizzle-orm`, `postgres`, devDeps `typescript`, `vitest`,
+`@pmos/shared`, `@pmos/event-bus`).
+
+### Шаг 2. Определить таблицы
+Отредактируйте `src/db/schema.ts` (схема изолируется по `DATABASE_SCHEMA`, ADR-004):
 
 ```typescript
 // Пример: таблица для сервиса "digests"
@@ -255,43 +269,27 @@ export const digests = pgTable("digests", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: text("title").notNull(),
   body: text("body"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 ```
 
 ### Шаг 3. Настроить сервис
-
-В `src/index.ts` изменить `SERVICE_NAME`:
-
-```typescript
-const serviceName = process.env.SERVICE_NAME ?? "digests";
-```
+В `src/index.ts` задайте `SERVICE_NAME` через env (`process.env.SERVICE_NAME ?? "digests"`).
+`PORT` и `DATABASE_SCHEMA` берутся из `.env` (см. `.env.example`).
 
 ### Шаг 4. Добавить HTTP-роуты
-
-В `src/app.ts` определить эндпоинты. Каждый новый эндпоинт **сначала** описывается в OpenAPI-спецификации (см. `contracts/openapi/`), потом реализуется.
+В `src/routes/index.ts` определите эндпоинты. Каждый эндпоинт **сначала** описывается в OpenAPI
+(`contracts/openapi/<name>.yaml`), потом реализуется (см. `scripts/gen-routes.mjs` как образец).
+Роуты монтируются в `src/app.ts` с префиксом `/api/<name>/v1` (ADR-007 §2).
 
 ### Шаг 5. Добавить события (если нужно)
-
-В `src/events/publish.ts` — функции публикации событий.
-В `src/events/subscribe.ts` — обработчики входящих событий.
-Все события следуют формату из [ADR-003](ADR/ADR-003.md):
-
-```typescript
-interface Event {
-  id: string;
-  type: string;            // "digests.created"
-  source: string;          // SERVICE_NAME
-  timestamp: string;       // ISO 8601
-  data: Record<string, unknown>;
-  correlationId: string;
-  version: number;
-}
-```
+В `src/events/publish.ts` — функции публикации; в `src/events/subscribe.ts` — обработчики.
+Все события следуют `EventEnvelope` из `@pmos/shared` (ADR-003 + ADR-007 §5):
+`{ id, type, source, timestamp, data (camelCase), correlationId, version }`.
 
 ### Шаг 6. Зарегистрировать в docker-compose
-
-В файл `platform/docker/docker-compose.yml` добавить сервис:
+В `platform/docker/docker-compose.yml` добавить сервис (порт из диапазона `3001..3020`,
+см. таблицу портов в `AGENT.md §4` или `scripts/scaffold-services.mjs`):
 
 ```yaml
 services:
@@ -299,7 +297,7 @@ services:
     build:
       context: ../../services/digests
     ports:
-      - "3017:3000"
+      - "3017:3017"
     environment:
       SERVICE_NAME: digests
       DATABASE_SCHEMA: digests_
@@ -307,35 +305,22 @@ services:
       - phase2   # или phase3, или all
 ```
 
-Порт назначить следующий свободный из диапазона `3001..3020` (см. [ADR-001](ADR/ADR-001.md) для маппинга портов).
-
 ### Шаг 7. Добавить в pnpm-workspace.yaml
-
-```yaml
-packages:
-  - "services/*"
-  - "platform/*"
-  # уже есть, если services/* — новый сервис подхватится автоматически
-```
-
-Если у сервиса особое имя, не попадающее под `services/*`, — добавить явно.
+`services/*` уже включает новый сервис автоматически.
 
 ### Шаг 8. Установить зависимости
-
 ```bash
 pnpm install
 ```
 
 ### Шаг 9. Создать миграцию и применить
-
 ```bash
 cd services/digests
 pnpm run db:generate   # генерация SQL-миграции из schema.ts
-pnpm run db:migrate    # применение
+pnpm run db:migrate    # применение (нужен Postgres)
 ```
 
 ### Шаг 10. Запустить и проверить
-
 ```bash
 pnpm run dev
 curl http://localhost:3017/health

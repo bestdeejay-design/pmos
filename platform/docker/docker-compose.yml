@@ -57,9 +57,9 @@ services:
       retries: 5
 
   # ───────────────────────── Service template ─────────────────────────
-  # Copy this block per service (see AGENT.md §4 / template-service).
+  # Copy this block per service (see AGENT.md §4).
   # Each service: build from services/<name>/Dockerfile, internal port 3000,
-  # host port per ADR-007 §7.
+  # host port per AGENT.md §4 table.
   # Example (notes — phase1):
   # notes:
   #   build: { context: ../../services/notes }
