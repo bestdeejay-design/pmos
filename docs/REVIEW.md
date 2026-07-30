@@ -40,11 +40,14 @@
 
 ## 3. Остаточные риски (для строящего агента, не блокируют старт)
 
-- OpenAPI-контракты пока только для `profiles` и `notes` — агент должен дописать остальные 14
-  (шаблон есть в `contracts/openapi/profiles.yaml`).
 - `TEST_CASES.md` покрывает 6 из 16 сервисов — остальные дописываются по ходу.
-- Drizzle-схемы (`schema.ts`) — стабы; реальные колонки берутся из FEATURES/ADR-004 во время фаз.
 - Frontend (React SPA) и desktop (Tauri) — вне backend-DoD; агент фокусируется на бэкенде.
+- Роуты (`src/routes/index.ts`) пока stub (только `/health-check`) — агент реализует их по
+  OpenAPI-контрактам; схемы БД и типы уже готовы как образец.
+
+> **Устранено (commit `e44442b` + последующий):** OpenAPI-контракты теперь для **всех 16** сервисов
+> (генератор `scripts/gen-openapi.mjs`), Drizzle-схемы — полные для **всех 16** сервисов
+> (`scripts/gen-schemas.mjs`, таблицы по ADR-004/FEATURES, включая pgvector для search-rag).
 
 ## 4. Чек-лист готовности к автономной сборке
 
@@ -52,5 +55,7 @@
 - [x] Корень монорепо существует и поддерживает `pnpm install` / `pnpm -r`
 - [x] `@pmos/shared` + `@pmos/event-bus` собираются
 - [x] 16 сервисов имеют тип-checking каркас + health/test
+- [x] **OpenAPI-контракты для всех 16 сервисов** (16/16 валидны, parse-checked)
+- [x] **Drizzle-схемы для всех 16 сервисов** (typecheck 18/18 Done, тесты 16×2 green)
 - [x] docker-compose поднимает инфру + gateway
 - [x] Runbook (AGENT.md) описывает путь до сдачи без участия человека
