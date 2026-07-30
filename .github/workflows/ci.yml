@@ -33,6 +33,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile=false
+      - name: Build platform packages (shared-types, event-bus) — required before typecheck/test
+        run: pnpm --filter "@pmos/shared" --filter "@pmos/event-bus" run build
       - name: Typecheck
         run: pnpm -r run typecheck
       - name: Unit tests (vitest)
