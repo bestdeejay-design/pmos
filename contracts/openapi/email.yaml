@@ -410,35 +410,35 @@ components:
         id:
           type: string
           format: uuid
-        description: 'UUID записи'
+          description: 'UUID записи'
         host:
           type: string
-        description: 'IMAP хост'
+          description: 'IMAP хост'
         port:
           type: integer
-        description: 'IMAP порт'
+          description: 'IMAP порт'
         ssl:
           type: boolean
-        description: 'SSL'
+          description: 'SSL'
         username:
           type: string
-        description: 'Логин'
+          description: 'Логин'
         encryptedPassword:
           type: string
-        description: 'Зашифрованный пароль'
+          description: 'Зашифрованный пароль'
         syncEnabled:
           type: boolean
-        description: 'Синхронизация включена'
+          description: 'Синхронизация включена'
         lastSyncAt:
           type: string
           format: date-time
-        description: 'Последняя синхронизация'
+          description: 'Последняя синхронизация'
         profileIds:
           type: array
           items:
             type: string
             format: uuid
-        description: 'UUID профилей'
+          description: 'UUID профилей'
       example:
         |-
           id: e1a2b3c4-d5e6-7890-abcd-ef1234567890

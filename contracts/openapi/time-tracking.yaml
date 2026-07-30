@@ -449,31 +449,31 @@ components:
         id:
           type: string
           format: uuid
-        description: 'UUID записи'
+          description: 'UUID записи'
         taskId:
           type: string
           format: uuid
-        description: 'UUID задачи'
+          description: 'UUID задачи'
         description:
           type: string
-        description: 'Описание записи'
+          description: 'Описание записи'
         startedAt:
           type: string
           format: date-time
-        description: 'Начало'
+          description: 'Начало'
         endedAt:
           type: string
           format: date-time
-        description: 'Конец'
+          description: 'Конец'
         durationSec:
           type: integer
-        description: 'Длительность в секундах'
+          description: 'Длительность в секундах'
         profileIds:
           type: array
           items:
             type: string
             format: uuid
-        description: 'UUID профилей'
+          description: 'UUID профилей'
       example:
         |-
           id: t1a2b3c4-d5e6-7890-abcd-ef1234567890
@@ -492,27 +492,27 @@ components:
         taskId:
           type: string
           format: uuid
-        description: 'UUID задачи'
+          description: 'UUID задачи'
         description:
           type: string
-        description: 'Описание'
+          description: 'Описание'
         startedAt:
           type: string
           format: date-time
-        description: 'Начало'
+          description: 'Начало'
         endedAt:
           type: string
           format: date-time
-        description: 'Конец'
+          description: 'Конец'
         durationSec:
           type: integer
-        description: 'Длительность'
+          description: 'Длительность'
         profileIds:
           type: array
           items:
             type: string
             format: uuid
-        description: 'UUID профилей'
+          description: 'UUID профилей'
     TimesheetUpdate:
       type: object
       description: Частичное обновление записи
@@ -521,10 +521,10 @@ components:
         endedAt:
           type: string
           format: date-time
-        description: 'Конец'
+          description: 'Конец'
         durationSec:
           type: integer
-        description: 'Длительность'
+          description: 'Длительность'
     Pomodoro:
       type: object
       description: Pomodoro-сессия
@@ -536,28 +536,28 @@ components:
         id:
           type: string
           format: uuid
-        description: 'UUID записи'
+          description: 'UUID записи'
         mode:
           type: string
-        description: 'Режим: pomodoro|flowtime|countdown'
+          description: 'Режим: pomodoro|flowtime|countdown'
         startedAt:
           type: string
           format: date-time
-        description: 'Начало'
+          description: 'Начало'
         endedAt:
           type: string
           format: date-time
-        description: 'Конец'
+          description: 'Конец'
         plannedMin:
           type: integer
-        description: 'Плановые минуты'
+          description: 'Плановые минуты'
         completed:
           type: boolean
-        description: 'Завершён'
+          description: 'Завершён'
         taskId:
           type: string
           format: uuid
-        description: 'UUID задачи'
+          description: 'UUID задачи'
       example:
         |-
           id: p1a2b3c4-d5e6-7890-abcd-ef1234567890
@@ -575,14 +575,14 @@ components:
       properties:
         mode:
           type: string
-        description: 'Режим'
+          description: 'Режим'
         plannedMin:
           type: integer
-        description: 'Плановые минуты'
+          description: 'Плановые минуты'
         taskId:
           type: string
           format: uuid
-        description: 'UUID задачи'
+          description: 'UUID задачи'
     PomodoroUpdate:
       type: object
       description: Обновление сессии
@@ -591,10 +591,10 @@ components:
         endedAt:
           type: string
           format: date-time
-        description: 'Конец'
+          description: 'Конец'
         completed:
           type: boolean
-        description: 'Завершён'
+          description: 'Завершён'
 
   responses:
     ValidationError:

@@ -24,7 +24,7 @@ export const profilesRoutes: FastifyPluginAsync = async (app) => {
 
 
   // ───────────── profiles CRUD ─────────────
-  typed.get("/", {
+  typed.get("/profiles", {
     schema: {
       querystring: Type.Object({
         offset: Type.Optional(Type.Integer({ minimum: 0 })),
@@ -45,31 +45,31 @@ export const profilesRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ data: rows, pagination: { offset, limit, total } });
   });
 
-  typed.post("/", {
+  typed.post("/profiles", {
     schema: { body: Type.Object({
     name: Type.String(),
-  }, { additionalProperties: true }), response: { 201: Type.Any() } },
+  }, { additionalProperties: true }), response: { 201: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.insert(schema.profiles).values(req.body as any).returning();
     return reply.code(201).send(row);
   });
 
-  typed.get("/:id", {
-    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
+  typed.get("/profiles/:id", {
+    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.profiles).where(eq(schema.profiles.id, (req.params as any).id)).limit(1);
     if (!row) return fail(404, "NOT_FOUND", "profiles not found");
     return reply.send(row);
   });
 
-  typed.patch("/:id", {
+  typed.patch("/profiles/:id", {
     schema: { params: Type.Object({ id: Type.String() }), body: Type.Object({
     name: Type.Optional(Type.String()),
     color: Type.Optional(Type.String()),
     description: Type.Optional(Type.String()),
     isDefault: Type.Optional(Type.Boolean()),
     avatarUrl: Type.Optional(Type.String()),
-  }, { additionalProperties: true }), response: { 200: Type.Any() } },
+  }, { additionalProperties: true }), response: { 200: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.update(schema.profiles).set({ ...(req.body as any), updatedAt: new Date() })
       .where(eq(schema.profiles.id, (req.params as any).id)).returning();
@@ -77,8 +77,8 @@ export const profilesRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/:id", {
-    schema: { params: Type.Object({ id: Type.String() }) },
+  typed.delete("/profiles/:id", {
+    schema: { params: Type.Object({ id: Type.String() }) }
   }, async (req, reply) => {
     const [row] = await db.delete(schema.profiles).where(eq(schema.profiles.id, (req.params as any).id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "profiles not found");

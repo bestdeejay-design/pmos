@@ -377,60 +377,60 @@ components:
         id:
           type: string
           format: uuid
-        description: 'UUID записи'
+          description: 'UUID записи'
         title:
           type: string
-        description: 'Заголовок задачи'
+          description: 'Заголовок задачи'
         status:
           type: string
-        description: 'Статус: todo | in_progress | done'
+          description: 'Статус: todo | in_progress | done'
         priority:
           type: integer
-        description: 'Приоритет (вес)'
+          description: 'Приоритет (вес)'
         description:
           type: string
-        description: 'Описание'
+          description: 'Описание'
         assignee:
           type: string
-        description: 'Исполнитель'
+          description: 'Исполнитель'
         deadline:
           type: string
           format: date-time
-        description: 'Дедлайн'
+          description: 'Дедлайн'
         projectId:
           type: string
           format: uuid
-        description: 'UUID проекта'
+          description: 'UUID проекта'
         profileIds:
           type: array
           items:
             type: string
             format: uuid
-        description: 'UUID профилей'
+          description: 'UUID профилей'
         recurrence:
           type: string
-        description: 'Правило рекурренса (RFC5545)'
+          description: 'Правило рекурренса (RFC5545)'
         currentStreak:
           type: integer
-        description: 'Текущая серия выполнений'
+          description: 'Текущая серия выполнений'
         bestStreak:
           type: integer
-        description: 'Лучшая серия'
+          description: 'Лучшая серия'
         completedAt:
           type: string
           format: date-time
-        description: 'Время завершения'
+          description: 'Время завершения'
         isArchived:
           type: boolean
-        description: 'Мягко удалено/в архиве'
+          description: 'Мягко удалено/в архиве'
         createdAt:
           type: string
           format: date-time
-        description: 'Создано'
+          description: 'Создано'
         updatedAt:
           type: string
           format: date-time
-        description: 'Обновлено'
+          description: 'Обновлено'
       example:
         |-
           id: t1a2b3c4-d5e6-7890-abcd-ef1234567890
@@ -456,33 +456,33 @@ components:
       properties:
         title:
           type: string
-        description: 'Заголовок'
+          description: 'Заголовок'
         priority:
           type: integer
-        description: 'Приоритет'
+          description: 'Приоритет'
         description:
           type: string
-        description: 'Описание'
+          description: 'Описание'
         assignee:
           type: string
-        description: 'Исполнитель'
+          description: 'Исполнитель'
         deadline:
           type: string
           format: date-time
-        description: 'Дедлайн'
+          description: 'Дедлайн'
         projectId:
           type: string
           format: uuid
-        description: 'UUID проекта'
+          description: 'UUID проекта'
         profileIds:
           type: array
           items:
             type: string
             format: uuid
-        description: 'UUID профилей'
+          description: 'UUID профилей'
         recurrence:
           type: string
-        description: 'Правило рекурренса'
+          description: 'Правило рекурренса'
     TaskUpdate:
       type: object
       description: Частичное обновление задачи (все поля опциональны)
@@ -490,39 +490,39 @@ components:
       properties:
         title:
           type: string
-        description: 'Заголовок'
+          description: 'Заголовок'
         status:
           type: string
-        description: 'Статус'
+          description: 'Статус'
         priority:
           type: integer
-        description: 'Приоритет'
+          description: 'Приоритет'
         description:
           type: string
-        description: 'Описание'
+          description: 'Описание'
         assignee:
           type: string
-        description: 'Исполнитель'
+          description: 'Исполнитель'
         deadline:
           type: string
           format: date-time
-        description: 'Дедлайн'
+          description: 'Дедлайн'
         projectId:
           type: string
           format: uuid
-        description: 'UUID проекта'
+          description: 'UUID проекта'
         profileIds:
           type: array
           items:
             type: string
             format: uuid
-        description: 'UUID профилей'
+          description: 'UUID профилей'
         recurrence:
           type: string
-        description: 'Правило рекурренса'
+          description: 'Правило рекурренса'
         isArchived:
           type: boolean
-        description: 'В архив'
+          description: 'В архив'
 
   responses:
     ValidationError:

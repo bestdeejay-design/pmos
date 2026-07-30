@@ -178,7 +178,14 @@ const dt = (d) => ({ type: "string", format: "date-time", description: d });
 // Build a schema property block (YAML) from a fields array.
 function q(s) { return "'" + String(s).replace(/'/g, "''") + "'"; }
 function propsYaml(fields) {
-  return fields.map((f) => {
+  // de-duplicate by field name (guard against duplicate keys in generated YAML)
+  const seen = new Set();
+  const uniq = fields.filter((f) => {
+    if (seen.has(f.name)) return false;
+    seen.add(f.name);
+    return true;
+  });
+  return uniq.map((f) => {
     let typeLine;
     if (f.type === "array") {
       typeLine = `          type: array\n          items:\n            type: ${f.items}`;
@@ -187,8 +194,8 @@ function propsYaml(fields) {
       typeLine = `          type: ${f.type}`;
       if (f.format) typeLine += `\n          format: ${f.format}`;
     }
-    // description always on column 8 (inside properties block)
-    return `        ${f.name}:\n${typeLine}\n        description: ${q(f.desc)}`;
+    // description always on column 10 (nested inside the property)
+    return `        ${f.name}:\n${typeLine}\n          description: ${q(f.desc)}`;
   }).join("\n");
 }
 
@@ -201,7 +208,7 @@ function exampleBlock(s) {
 
 // Build a $ref schema for entity with required + properties + example.
 function entitySchema(name, desc, fields, example) {
-  const required = fields.filter((f) => f.required).map((f) => f.name);
+  const required = [...new Set(fields.filter((f) => f.required).map((f) => f.name))];
   const reqBlock = required.length ? `      required:\n${required.map((r) => `        - ${r}`).join("\n")}` : "      required: []";
   return `    ${name}:
       type: object

@@ -377,33 +377,33 @@ components:
         id:
           type: string
           format: uuid
-        description: 'UUID записи'
+          description: 'UUID записи'
         name:
           type: string
-        description: 'Название проекта'
+          description: 'Название проекта'
         description:
           type: string
-        description: 'Описание'
+          description: 'Описание'
         goal:
           type: string
-        description: 'Цель'
+          description: 'Цель'
         status:
           type: string
-        description: 'Статус: active | archived | completed'
+          description: 'Статус: active | archived | completed'
         profileIds:
           type: array
           items:
             type: string
             format: uuid
-        description: 'UUID профилей'
+          description: 'UUID профилей'
         createdAt:
           type: string
           format: date-time
-        description: 'Создано'
+          description: 'Создано'
         updatedAt:
           type: string
           format: date-time
-        description: 'Обновлено'
+          description: 'Обновлено'
       example:
         |-
           id: p1a2b3c4-d5e6-7890-abcd-ef1234567890
@@ -422,22 +422,22 @@ components:
       properties:
         name:
           type: string
-        description: 'Название'
+          description: 'Название'
         description:
           type: string
-        description: 'Описание'
+          description: 'Описание'
         goal:
           type: string
-        description: 'Цель'
+          description: 'Цель'
         status:
           type: string
-        description: 'Статус'
+          description: 'Статус'
         profileIds:
           type: array
           items:
             type: string
             format: uuid
-        description: 'UUID профилей'
+          description: 'UUID профилей'
     ProjectUpdate:
       type: object
       description: Частичное обновление проекта
@@ -445,22 +445,22 @@ components:
       properties:
         name:
           type: string
-        description: 'Название'
+          description: 'Название'
         description:
           type: string
-        description: 'Описание'
+          description: 'Описание'
         goal:
           type: string
-        description: 'Цель'
+          description: 'Цель'
         status:
           type: string
-        description: 'Статус'
+          description: 'Статус'
         profileIds:
           type: array
           items:
             type: string
             format: uuid
-        description: 'UUID профилей'
+          description: 'UUID профилей'
 
   responses:
     ValidationError:

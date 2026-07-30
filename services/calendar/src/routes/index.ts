@@ -24,7 +24,7 @@ export const calendarRoutes: FastifyPluginAsync = async (app) => {
 
 
   // ───────────── meetings CRUD ─────────────
-  typed.get("/", {
+  typed.get("/meetings", {
     schema: {
       querystring: Type.Object({
         offset: Type.Optional(Type.Integer({ minimum: 0 })),
@@ -45,7 +45,7 @@ export const calendarRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ data: rows, pagination: { offset, limit, total } });
   });
 
-  typed.post("/", {
+  typed.post("/meetings", {
     schema: { body: Type.Object({
     title: Type.String(),
     startTime: Type.String(),
@@ -56,21 +56,21 @@ export const calendarRoutes: FastifyPluginAsync = async (app) => {
     recurrence: Type.Optional(Type.String()),
     linkedProjectId: Type.Optional(Type.String({ format: "uuid" })),
     profileIds: Type.Optional(Type.Array(Type.String())),
-  }, { additionalProperties: true }), response: { 201: Type.Any() } },
+  }, { additionalProperties: true }), response: { 201: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.insert(schema.meetings).values(req.body as any).returning();
     return reply.code(201).send(row);
   });
 
-  typed.get("/:id", {
-    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
+  typed.get("/meetings/:id", {
+    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.meetings).where(eq(schema.meetings.id, (req.params as any).id)).limit(1);
     if (!row) return fail(404, "NOT_FOUND", "meetings not found");
     return reply.send(row);
   });
 
-  typed.patch("/:id", {
+  typed.patch("/meetings/:id", {
     schema: { params: Type.Object({ id: Type.String() }), body: Type.Object({
     title: Type.Optional(Type.String()),
     startTime: Type.Optional(Type.String()),
@@ -81,7 +81,7 @@ export const calendarRoutes: FastifyPluginAsync = async (app) => {
     recurrence: Type.Optional(Type.String()),
     linkedProjectId: Type.Optional(Type.String({ format: "uuid" })),
     profileIds: Type.Optional(Type.Array(Type.String())),
-  }, { additionalProperties: true }), response: { 200: Type.Any() } },
+  }, { additionalProperties: true }), response: { 200: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.update(schema.meetings).set({ ...(req.body as any), updatedAt: new Date() })
       .where(eq(schema.meetings.id, (req.params as any).id)).returning();
@@ -89,8 +89,8 @@ export const calendarRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/:id", {
-    schema: { params: Type.Object({ id: Type.String() }) },
+  typed.delete("/meetings/:id", {
+    schema: { params: Type.Object({ id: Type.String() }) }
   }, async (req, reply) => {
     const [row] = await db.delete(schema.meetings).where(eq(schema.meetings.id, (req.params as any).id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "meetings not found");

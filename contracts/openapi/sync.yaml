@@ -290,23 +290,23 @@ components:
         id:
           type: string
           format: uuid
-        description: 'UUID записи'
+          description: 'UUID записи'
         path:
           type: string
-        description: 'Путь к папке на диске'
+          description: 'Путь к папке на диске'
         autoImport:
           type: boolean
-        description: 'Автоимпорт .md → заметки'
+          description: 'Автоимпорт .md → заметки'
         autoExport:
           type: boolean
-        description: 'Автоэкспорт заметок → .md'
+          description: 'Автоэкспорт заметок → .md'
         profileScope:
           type: string
-        description: 'Какие профили синхронизировать (json)'
+          description: 'Какие профили синхронизировать (json)'
         lastScanAt:
           type: string
           format: date-time
-        description: 'Последнее сканирование'
+          description: 'Последнее сканирование'
       example:
         |-
           id: s1a2b3c4-d5e6-7890-abcd-ef1234567890
@@ -323,16 +323,16 @@ components:
       properties:
         path:
           type: string
-        description: 'Путь'
+          description: 'Путь'
         autoImport:
           type: boolean
-        description: 'Автоимпорт'
+          description: 'Автоимпорт'
         autoExport:
           type: boolean
-        description: 'Автоэкспорт'
+          description: 'Автоэкспорт'
         profileScope:
           type: string
-        description: 'Профили'
+          description: 'Профили'
     SyncFolderUpdate:
       type: object
       description: Частичное обновление папки
@@ -340,16 +340,16 @@ components:
       properties:
         path:
           type: string
-        description: 'Путь'
+          description: 'Путь'
         autoImport:
           type: boolean
-        description: 'Автоимпорт'
+          description: 'Автоимпорт'
         autoExport:
           type: boolean
-        description: 'Автоэкспорт'
+          description: 'Автоэкспорт'
         profileScope:
           type: string
-        description: 'Профили'
+          description: 'Профили'
 
   responses:
     ValidationError:

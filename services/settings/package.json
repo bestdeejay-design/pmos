@@ -14,7 +14,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "test:contract": "vitest run test/contract.test.ts"
   },
   "dependencies": {
     "@fastify/type-provider-typebox": "^4.0.0",

@@ -338,52 +338,52 @@ components:
         id:
           type: string
           format: uuid
-        description: 'UUID записи'
+          description: 'UUID записи'
         title:
           type: string
-        description: 'Название встречи'
+          description: 'Название встречи'
         startTime:
           type: string
           format: date-time
-        description: 'Начало'
+          description: 'Начало'
         endTime:
           type: string
           format: date-time
-        description: 'Конец'
+          description: 'Конец'
         allDay:
           type: boolean
-        description: 'Весь день'
+          description: 'Весь день'
         description:
           type: string
-        description: 'Описание'
+          description: 'Описание'
         location:
           type: string
-        description: 'Место'
+          description: 'Место'
         recurrence:
           type: string
-        description: 'Правило recurrence'
+          description: 'Правило recurrence'
         linkedProjectId:
           type: string
           format: uuid
-        description: 'UUID проекта'
+          description: 'UUID проекта'
         profileIds:
           type: array
           items:
             type: string
             format: uuid
-        description: 'UUID профилей'
+          description: 'UUID профилей'
         linkedExternalEventId:
           type: string
           format: uuid
-        description: 'UUID внешнего события'
+          description: 'UUID внешнего события'
         createdAt:
           type: string
           format: date-time
-        description: 'Создано'
+          description: 'Создано'
         updatedAt:
           type: string
           format: date-time
-        description: 'Обновлено'
+          description: 'Обновлено'
       example:
         |-
           id: m1a2b3c4-d5e6-7890-abcd-ef1234567890
@@ -408,37 +408,37 @@ components:
       properties:
         title:
           type: string
-        description: 'Название'
+          description: 'Название'
         startTime:
           type: string
           format: date-time
-        description: 'Начало'
+          description: 'Начало'
         endTime:
           type: string
           format: date-time
-        description: 'Конец'
+          description: 'Конец'
         allDay:
           type: boolean
-        description: 'Весь день'
+          description: 'Весь день'
         description:
           type: string
-        description: 'Описание'
+          description: 'Описание'
         location:
           type: string
-        description: 'Место'
+          description: 'Место'
         recurrence:
           type: string
-        description: 'Правило recurrence'
+          description: 'Правило recurrence'
         linkedProjectId:
           type: string
           format: uuid
-        description: 'UUID проекта'
+          description: 'UUID проекта'
         profileIds:
           type: array
           items:
             type: string
             format: uuid
-        description: 'UUID профилей'
+          description: 'UUID профилей'
     MeetingUpdate:
       type: object
       description: Частичное обновление встречи
@@ -446,37 +446,37 @@ components:
       properties:
         title:
           type: string
-        description: 'Название'
+          description: 'Название'
         startTime:
           type: string
           format: date-time
-        description: 'Начало'
+          description: 'Начало'
         endTime:
           type: string
           format: date-time
-        description: 'Конец'
+          description: 'Конец'
         allDay:
           type: boolean
-        description: 'Весь день'
+          description: 'Весь день'
         description:
           type: string
-        description: 'Описание'
+          description: 'Описание'
         location:
           type: string
-        description: 'Место'
+          description: 'Место'
         recurrence:
           type: string
-        description: 'Правило recurrence'
+          description: 'Правило recurrence'
         linkedProjectId:
           type: string
           format: uuid
-        description: 'UUID проекта'
+          description: 'UUID проекта'
         profileIds:
           type: array
           items:
             type: string
             format: uuid
-        description: 'UUID профилей'
+          description: 'UUID профилей'
 
   responses:
     ValidationError:

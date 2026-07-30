@@ -24,7 +24,7 @@ export const filesRoutes: FastifyPluginAsync = async (app) => {
 
 
   // ───────────── fileMeta CRUD ─────────────
-  typed.get("/", {
+  typed.get("/files", {
     schema: {
       querystring: Type.Object({
         offset: Type.Optional(Type.Integer({ minimum: 0 })),
@@ -45,7 +45,7 @@ export const filesRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ data: rows, pagination: { offset, limit, total } });
   });
 
-  typed.post("/", {
+  typed.post("/files", {
     schema: { body: Type.Object({
     filename: Type.String(),
     mimeType: Type.String(),
@@ -54,21 +54,21 @@ export const filesRoutes: FastifyPluginAsync = async (app) => {
     ownerId: Type.Optional(Type.String({ format: "uuid" })),
     storagePath: Type.String(),
     profileIds: Type.Optional(Type.Array(Type.String())),
-  }, { additionalProperties: true }), response: { 201: Type.Any() } },
+  }, { additionalProperties: true }), response: { 201: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.insert(schema.fileMeta).values(req.body as any).returning();
     return reply.code(201).send(row);
   });
 
-  typed.get("/:id", {
-    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
+  typed.get("/files/:id", {
+    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.fileMeta).where(eq(schema.fileMeta.id, (req.params as any).id)).limit(1);
     if (!row) return fail(404, "NOT_FOUND", "fileMeta not found");
     return reply.send(row);
   });
 
-  typed.patch("/:id", {
+  typed.patch("/files/:id", {
     schema: { params: Type.Object({ id: Type.String() }), body: Type.Object({
     filename: Type.Optional(Type.String()),
     mimeType: Type.Optional(Type.String()),
@@ -77,7 +77,7 @@ export const filesRoutes: FastifyPluginAsync = async (app) => {
     ownerId: Type.Optional(Type.String({ format: "uuid" })),
     storagePath: Type.Optional(Type.String()),
     profileIds: Type.Optional(Type.Array(Type.String())),
-  }, { additionalProperties: true }), response: { 200: Type.Any() } },
+  }, { additionalProperties: true }), response: { 200: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.update(schema.fileMeta).set({ ...(req.body as any), updatedAt: new Date() })
       .where(eq(schema.fileMeta.id, (req.params as any).id)).returning();
@@ -85,8 +85,8 @@ export const filesRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/:id", {
-    schema: { params: Type.Object({ id: Type.String() }) },
+  typed.delete("/files/:id", {
+    schema: { params: Type.Object({ id: Type.String() }) }
   }, async (req, reply) => {
     const [row] = await db.delete(schema.fileMeta).where(eq(schema.fileMeta.id, (req.params as any).id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "fileMeta not found");

@@ -301,31 +301,31 @@ components:
         id:
           type: string
           format: uuid
-        description: 'UUID записи'
+          description: 'UUID записи'
         title:
           type: string
-        description: 'Заголовок сообщения'
+          description: 'Заголовок сообщения'
         body:
           type: string
-        description: 'Тело сообщения'
+          description: 'Тело сообщения'
         type:
           type: string
-        description: 'Тип: digest|trigger|suggestion'
+          description: 'Тип: digest|trigger|suggestion'
         source:
           type: string
-        description: 'Источник (событие)'
+          description: 'Источник (событие)'
         status:
           type: string
-        description: 'Статус: pending|accepted|dismissed'
+          description: 'Статус: pending|accepted|dismissed'
         actions:
           type: array
           items:
             type: object
-        description: 'Предлагаемые действия'
+          description: 'Предлагаемые действия'
         createdAt:
           type: string
           format: date-time
-        description: 'Создано'
+          description: 'Создано'
       example:
         |-
           id: a1b2c3c4-d5e6-7890-abcd-ef1234567890
@@ -348,13 +348,13 @@ components:
         messageId:
           type: string
           format: uuid
-        description: 'UUID сообщения'
+          description: 'UUID сообщения'
         action:
           type: string
-        description: 'accept|reject|reply'
+          description: 'accept|reject|reply'
         reply:
           type: string
-        description: 'Текст ответа (если reply)'
+          description: 'Текст ответа (если reply)'
 
   responses:
     ValidationError:

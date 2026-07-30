@@ -402,23 +402,23 @@ components:
         id:
           type: string
           format: uuid
-        description: 'UUID записи'
+          description: 'UUID записи'
         displayName:
           type: string
-        description: 'Отображаемое имя'
+          description: 'Отображаемое имя'
         provider:
           type: string
-        description: 'Провайдер: google|yandex|ics'
+          description: 'Провайдер: google|yandex|ics'
         syncEnabled:
           type: string
-        description: 'Синхронизация включена'
+          description: 'Синхронизация включена'
         authData:
           type: string
-        description: 'Данные авторизации (token/url)'
+          description: 'Данные авторизации (token/url)'
         lastSyncAt:
           type: string
           format: date-time
-        description: 'Последняя синхронизация'
+          description: 'Последняя синхронизация'
       example:
         |-
           id: c1a2b3c4-d5e6-7890-abcd-ef1234567890
@@ -435,16 +435,16 @@ components:
       properties:
         displayName:
           type: string
-        description: 'Имя'
+          description: 'Имя'
         provider:
           type: string
-        description: 'Провайдер'
+          description: 'Провайдер'
         authData:
           type: string
-        description: 'Данные авторизации'
+          description: 'Данные авторизации'
         syncEnabled:
           type: boolean
-        description: 'Синхронизация'
+          description: 'Синхронизация'
     ExternalCalendarUpdate:
       type: object
       description: Частичное обновление
@@ -452,13 +452,13 @@ components:
       properties:
         displayName:
           type: string
-        description: 'Имя'
+          description: 'Имя'
         authData:
           type: string
-        description: 'Данные авторизации'
+          description: 'Данные авторизации'
         syncEnabled:
           type: boolean
-        description: 'Синхронизация'
+          description: 'Синхронизация'
 
   responses:
     ValidationError:

@@ -24,7 +24,7 @@ export const integrationsRoutes: FastifyPluginAsync = async (app) => {
 
 
   // ───────────── webhooks CRUD ─────────────
-  typed.get("/", {
+  typed.get("/webhooks", {
     schema: {
       querystring: Type.Object({
         offset: Type.Optional(Type.Integer({ minimum: 0 })),
@@ -45,33 +45,33 @@ export const integrationsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ data: rows, pagination: { offset, limit, total } });
   });
 
-  typed.post("/", {
+  typed.post("/webhooks", {
     schema: { body: Type.Object({
     url: Type.String(),
     events: Type.Array(Type.String()),
     secret: Type.Optional(Type.String()),
     active: Type.Optional(Type.Boolean()),
-  }, { additionalProperties: true }), response: { 201: Type.Any() } },
+  }, { additionalProperties: true }), response: { 201: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.insert(schema.webhooks).values(req.body as any).returning();
     return reply.code(201).send(row);
   });
 
-  typed.get("/:id", {
-    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
+  typed.get("/webhooks/:id", {
+    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.webhooks).where(eq(schema.webhooks.id, (req.params as any).id)).limit(1);
     if (!row) return fail(404, "NOT_FOUND", "webhooks not found");
     return reply.send(row);
   });
 
-  typed.patch("/:id", {
+  typed.patch("/webhooks/:id", {
     schema: { params: Type.Object({ id: Type.String() }), body: Type.Object({
     url: Type.Optional(Type.String()),
     events: Type.Optional(Type.Array(Type.String())),
     secret: Type.Optional(Type.String()),
     active: Type.Optional(Type.Boolean()),
-  }, { additionalProperties: true }), response: { 200: Type.Any() } },
+  }, { additionalProperties: true }), response: { 200: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.update(schema.webhooks).set({ ...(req.body as any), updatedAt: new Date() })
       .where(eq(schema.webhooks.id, (req.params as any).id)).returning();
@@ -79,8 +79,8 @@ export const integrationsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/:id", {
-    schema: { params: Type.Object({ id: Type.String() }) },
+  typed.delete("/webhooks/:id", {
+    schema: { params: Type.Object({ id: Type.String() }) }
   }, async (req, reply) => {
     const [row] = await db.delete(schema.webhooks).where(eq(schema.webhooks.id, (req.params as any).id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "webhooks not found");

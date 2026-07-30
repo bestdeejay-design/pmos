@@ -24,7 +24,7 @@ export const emailRoutes: FastifyPluginAsync = async (app) => {
 
 
   // ───────────── imapAccounts CRUD ─────────────
-  typed.get("/", {
+  typed.get("/imap", {
     schema: {
       querystring: Type.Object({
         offset: Type.Optional(Type.Integer({ minimum: 0 })),
@@ -45,7 +45,7 @@ export const emailRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ data: rows, pagination: { offset, limit, total } });
   });
 
-  typed.post("/", {
+  typed.post("/imap", {
     schema: { body: Type.Object({
     host: Type.String(),
     port: Type.Optional(Type.Integer()),
@@ -54,21 +54,21 @@ export const emailRoutes: FastifyPluginAsync = async (app) => {
     encryptedPassword: Type.String(),
     syncEnabled: Type.Optional(Type.Boolean()),
     profileIds: Type.Optional(Type.Array(Type.String())),
-  }, { additionalProperties: true }), response: { 201: Type.Any() } },
+  }, { additionalProperties: true }), response: { 201: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.insert(schema.imapAccounts).values(req.body as any).returning();
     return reply.code(201).send(row);
   });
 
-  typed.get("/:id", {
-    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
+  typed.get("/imap/:id", {
+    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.imapAccounts).where(eq(schema.imapAccounts.id, (req.params as any).id)).limit(1);
     if (!row) return fail(404, "NOT_FOUND", "imapAccounts not found");
     return reply.send(row);
   });
 
-  typed.patch("/:id", {
+  typed.patch("/imap/:id", {
     schema: { params: Type.Object({ id: Type.String() }), body: Type.Object({
     host: Type.Optional(Type.String()),
     port: Type.Optional(Type.Integer()),
@@ -77,7 +77,7 @@ export const emailRoutes: FastifyPluginAsync = async (app) => {
     encryptedPassword: Type.Optional(Type.String()),
     syncEnabled: Type.Optional(Type.Boolean()),
     profileIds: Type.Optional(Type.Array(Type.String())),
-  }, { additionalProperties: true }), response: { 200: Type.Any() } },
+  }, { additionalProperties: true }), response: { 200: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.update(schema.imapAccounts).set({ ...(req.body as any), updatedAt: new Date() })
       .where(eq(schema.imapAccounts.id, (req.params as any).id)).returning();
@@ -85,8 +85,8 @@ export const emailRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/:id", {
-    schema: { params: Type.Object({ id: Type.String() }) },
+  typed.delete("/imap/:id", {
+    schema: { params: Type.Object({ id: Type.String() }) }
   }, async (req, reply) => {
     const [row] = await db.delete(schema.imapAccounts).where(eq(schema.imapAccounts.id, (req.params as any).id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "imapAccounts not found");

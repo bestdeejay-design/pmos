@@ -24,7 +24,7 @@ export const notesRoutes: FastifyPluginAsync = async (app) => {
 
 
   // ───────────── notes CRUD ─────────────
-  typed.get("/", {
+  typed.get("/notes", {
     schema: {
       querystring: Type.Object({
         offset: Type.Optional(Type.Integer({ minimum: 0 })),
@@ -45,7 +45,7 @@ export const notesRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ data: rows, pagination: { offset, limit, total } });
   });
 
-  typed.post("/", {
+  typed.post("/notes", {
     schema: { body: Type.Object({
     title: Type.String(),
     bodyMd: Type.Optional(Type.String()),
@@ -54,21 +54,21 @@ export const notesRoutes: FastifyPluginAsync = async (app) => {
     linkedProjectId: Type.Optional(Type.String({ format: "uuid" })),
     linkedMeetingId: Type.Optional(Type.String({ format: "uuid" })),
     linkedTaskId: Type.Optional(Type.String({ format: "uuid" })),
-  }, { additionalProperties: true }), response: { 201: Type.Any() } },
+  }, { additionalProperties: true }), response: { 201: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.insert(schema.notes).values(req.body as any).returning();
     return reply.code(201).send(row);
   });
 
-  typed.get("/:id", {
-    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
+  typed.get("/notes/:id", {
+    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.notes).where(eq(schema.notes.id, (req.params as any).id)).limit(1);
     if (!row) return fail(404, "NOT_FOUND", "notes not found");
     return reply.send(row);
   });
 
-  typed.patch("/:id", {
+  typed.patch("/notes/:id", {
     schema: { params: Type.Object({ id: Type.String() }), body: Type.Object({
     title: Type.Optional(Type.String()),
     bodyMd: Type.Optional(Type.String()),
@@ -78,7 +78,7 @@ export const notesRoutes: FastifyPluginAsync = async (app) => {
     linkedMeetingId: Type.Optional(Type.String({ format: "uuid" })),
     linkedTaskId: Type.Optional(Type.String({ format: "uuid" })),
     isArchived: Type.Optional(Type.Boolean()),
-  }, { additionalProperties: true }), response: { 200: Type.Any() } },
+  }, { additionalProperties: true }), response: { 200: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.update(schema.notes).set({ ...(req.body as any), updatedAt: new Date() })
       .where(eq(schema.notes.id, (req.params as any).id)).returning();
@@ -86,8 +86,8 @@ export const notesRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/:id", {
-    schema: { params: Type.Object({ id: Type.String() }) },
+  typed.delete("/notes/:id", {
+    schema: { params: Type.Object({ id: Type.String() }) }
   }, async (req, reply) => {
     const [row] = await db.delete(schema.notes).where(eq(schema.notes.id, (req.params as any).id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "notes not found");

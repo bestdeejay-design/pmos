@@ -199,13 +199,13 @@ components:
       properties:
         format:
           type: string
-        description: 'Формат: text|json'
+          description: 'Формат: text|json'
         content:
           type: string
-        description: 'Содержимое для импорта'
+          description: 'Содержимое для импорта'
         target:
           type: string
-        description: 'Цель: note|task|calendar'
+          description: 'Цель: note|task|calendar'
 
   responses:
     ValidationError:

@@ -24,7 +24,7 @@ export const tasksRoutes: FastifyPluginAsync = async (app) => {
 
 
   // ───────────── tasks CRUD ─────────────
-  typed.get("/", {
+  typed.get("/tasks", {
     schema: {
       querystring: Type.Object({
         offset: Type.Optional(Type.Integer({ minimum: 0 })),
@@ -45,7 +45,7 @@ export const tasksRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ data: rows, pagination: { offset, limit, total } });
   });
 
-  typed.post("/", {
+  typed.post("/tasks", {
     schema: { body: Type.Object({
     title: Type.String(),
     status: Type.Optional(Type.String()),
@@ -56,21 +56,21 @@ export const tasksRoutes: FastifyPluginAsync = async (app) => {
     projectId: Type.Optional(Type.String({ format: "uuid" })),
     profileIds: Type.Optional(Type.Array(Type.String())),
     recurrence: Type.Optional(Type.String()),
-  }, { additionalProperties: true }), response: { 201: Type.Any() } },
+  }, { additionalProperties: true }), response: { 201: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.insert(schema.tasks).values(req.body as any).returning();
     return reply.code(201).send(row);
   });
 
-  typed.get("/:id", {
-    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
+  typed.get("/tasks/:id", {
+    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, (req.params as any).id)).limit(1);
     if (!row) return fail(404, "NOT_FOUND", "tasks not found");
     return reply.send(row);
   });
 
-  typed.patch("/:id", {
+  typed.patch("/tasks/:id", {
     schema: { params: Type.Object({ id: Type.String() }), body: Type.Object({
     title: Type.Optional(Type.String()),
     status: Type.Optional(Type.String()),
@@ -82,7 +82,7 @@ export const tasksRoutes: FastifyPluginAsync = async (app) => {
     profileIds: Type.Optional(Type.Array(Type.String())),
     recurrence: Type.Optional(Type.String()),
     isArchived: Type.Optional(Type.Boolean()),
-  }, { additionalProperties: true }), response: { 200: Type.Any() } },
+  }, { additionalProperties: true }), response: { 200: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.update(schema.tasks).set({ ...(req.body as any), updatedAt: new Date() })
       .where(eq(schema.tasks.id, (req.params as any).id)).returning();
@@ -90,8 +90,8 @@ export const tasksRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/:id", {
-    schema: { params: Type.Object({ id: Type.String() }) },
+  typed.delete("/tasks/:id", {
+    schema: { params: Type.Object({ id: Type.String() }) }
   }, async (req, reply) => {
     const [row] = await db.delete(schema.tasks).where(eq(schema.tasks.id, (req.params as any).id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "tasks not found");

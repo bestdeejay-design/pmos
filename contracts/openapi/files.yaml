@@ -312,36 +312,36 @@ components:
         id:
           type: string
           format: uuid
-        description: 'UUID записи'
+          description: 'UUID записи'
         filename:
           type: string
-        description: 'Имя файла'
+          description: 'Имя файла'
         mimeType:
           type: string
-        description: 'MIME-тип'
+          description: 'MIME-тип'
         size:
           type: integer
-        description: 'Размер в байтах'
+          description: 'Размер в байтах'
         ownerType:
           type: string
-        description: 'Тип владельца (note|task|project|null)'
+          description: 'Тип владельца (note|task|project|null)'
         ownerId:
           type: string
           format: uuid
-        description: 'UUID владельца'
+          description: 'UUID владельца'
         storagePath:
           type: string
-        description: 'Путь в хранилище'
+          description: 'Путь в хранилище'
         profileIds:
           type: array
           items:
             type: string
             format: uuid
-        description: 'UUID профилей'
+          description: 'UUID профилей'
         uploadedAt:
           type: string
           format: date-time
-        description: 'Загружено'
+          description: 'Загружено'
       example:
         |-
           id: f1a2b3c4-d5e6-7890-abcd-ef1234567890

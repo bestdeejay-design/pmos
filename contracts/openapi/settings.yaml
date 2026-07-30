@@ -272,10 +272,10 @@ components:
       properties:
         key:
           type: string
-        description: 'Ключ настройки'
+          description: 'Ключ настройки'
         value:
           type: object
-        description: 'Значение (JSONB, произвольный объект)'
+          description: 'Значение (JSONB, произвольный объект)'
       example:
         |-
           key: gen_model

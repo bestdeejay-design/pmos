@@ -50,7 +50,10 @@
 > (`scripts/gen-schemas.mjs`, таблицы по ADR-004/FEATURES, включая pgvector для search-rag).
 > Также: роуты реализованы для всех 16 (`scripts/gen-routes.mjs`); legacy `template-service`
 > удалён (заменён генераторами в `scripts/`); `event-bus`/`shared-types` — готовы и собираются в CI.
-> Pact-контракты (ADR-002) пока не реализованы — за агентом (см. §3 остаточные риски).
+> **Contract-тесты внедрены** (`scripts/gen-contract-tests.mjs` + `contracts/test/helper.ts`):
+> OpenAPI-conformance для всех 16 сервисов, шагают в CI (`test:contract`). В процессе выявлен
+> и исправлен дефект — 11/16 OpenAPI имели дублирующиеся ключи в `properties` (починено в
+> `gen-openapi.mjs`). Pact-брокер (consumer-driven) — отдельная инфра-задача (ADR-002 §3 TODO).
 
 ## 4. Чек-лист готовности к автономной сборке
 
@@ -61,5 +64,6 @@
 - [x] **OpenAPI-контракты для всех 16 сервисов** (16/16 валидны, parse-checked)
 - [x] **Drizzle-схемы для всех 16 сервисов** (typecheck 18/18 Done, тесты 16×2 green)
 - [x] **Роуты (CRUD + сервисные эндпоинты) для всех 16 сервисов**
+- [x] **Contract-тесты (OpenAPI-conformance) для всех 16 сервисов** (CI `test:contract`, 16/16 green)
 - [x] docker-compose поднимает инфру + gateway
 - [x] Runbook (AGENT.md) описывает путь до сдачи без участия человека

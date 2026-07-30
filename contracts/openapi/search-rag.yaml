@@ -165,28 +165,28 @@ components:
       properties:
         query:
           type: string
-        description: 'Поисковый запрос'
+          description: 'Поисковый запрос'
         type:
           type: string
-        description: 'Фильтр типа: note|task|meeting|file'
+          description: 'Фильтр типа: note|task|meeting|file'
         tags:
           type: array
           items:
             type: string
-        description: 'Tags filter'
+          description: 'Tags filter'
         projectId:
           type: string
           format: uuid
-        description: 'Фильтр проекта'
+          description: 'Фильтр проекта'
         profileIds:
           type: array
           items:
             type: string
             format: uuid
-        description: 'Фильтр профилей'
+          description: 'Фильтр профилей'
         limit:
           type: integer
-        description: 'Лимит результатов'
+          description: 'Лимит результатов'
     SearchResult:
       type: object
       description: Результаты поиска
@@ -198,13 +198,13 @@ components:
           type: array
           items:
             type: object
-        description: 'Найденные сущности'
+          description: 'Найденные сущности'
         semantic:
           type: boolean
-        description: 'Использован ли embedding-поиск'
+          description: 'Использован ли embedding-поиск'
         total:
           type: integer
-        description: 'Всего найдено'
+          description: 'Всего найдено'
       example:
         |-
           results:

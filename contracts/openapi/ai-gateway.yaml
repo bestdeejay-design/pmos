@@ -194,10 +194,10 @@ components:
       properties:
         text:
           type: string
-        description: 'Входной текст'
+          description: 'Входной текст'
         model:
           type: string
-        description: 'Модель (опционально, иначе fallback)'
+          description: 'Модель (опционально, иначе fallback)'
     AiTextResponse:
       type: object
       description: Ответ LLM
@@ -206,7 +206,7 @@ components:
       properties:
         text:
           type: string
-        description: 'Обработанный текст'
+          description: 'Обработанный текст'
     DictationResult:
       type: object
       description: Результат диктовки
@@ -216,13 +216,13 @@ components:
       properties:
         title:
           type: string
-        description: 'Заголовок'
+          description: 'Заголовок'
         bodyMd:
           type: string
-        description: 'Тело в Markdown'
+          description: 'Тело в Markdown'
         tag:
           type: string
-        description: 'Предложенный тег'
+          description: 'Предложенный тег'
       example:
         |-
           title: Купить молоко

@@ -410,25 +410,25 @@ components:
         id:
           type: string
           format: uuid
-        description: 'UUID записи'
+          description: 'UUID записи'
         url:
           type: string
-        description: 'URL для доставки'
+          description: 'URL для доставки'
         events:
           type: array
           items:
             type: string
-        description: 'Подписки на события'
+          description: 'Подписки на события'
         secret:
           type: string
-        description: 'Секрет для подписи'
+          description: 'Секрет для подписи'
         active:
           type: boolean
-        description: 'Активен'
+          description: 'Активен'
         createdAt:
           type: string
           format: date-time
-        description: 'Создан'
+          description: 'Создан'
       example:
         |-
           id: w1a2b3c4-d5e6-7890-abcd-ef1234567890
@@ -445,15 +445,15 @@ components:
       properties:
         url:
           type: string
-        description: 'URL'
+          description: 'URL'
         events:
           type: array
           items:
             type: string
-        description: 'События'
+          description: 'События'
         secret:
           type: string
-        description: 'Секрет'
+          description: 'Секрет'
     WebhookUpdate:
       type: object
       description: Частичное обновление webhook
@@ -461,15 +461,15 @@ components:
       properties:
         url:
           type: string
-        description: 'URL'
+          description: 'URL'
         events:
           type: array
           items:
             type: string
-        description: 'События'
+          description: 'События'
         active:
           type: boolean
-        description: 'Активен'
+          description: 'Активен'
     ApiKey:
       type: object
       description: API-ключ
@@ -481,20 +481,20 @@ components:
         id:
           type: string
           format: uuid
-        description: 'UUID записи'
+          description: 'UUID записи'
         name:
           type: string
-        description: 'Название ключа'
+          description: 'Название ключа'
         keyHash:
           type: string
-        description: 'SHA256 хеш ключа (только чтение)'
+          description: 'SHA256 хеш ключа (только чтение)'
         active:
           type: boolean
-        description: 'Активен'
+          description: 'Активен'
         createdAt:
           type: string
           format: date-time
-        description: 'Создан'
+          description: 'Создан'
       example:
         |-
           id: k1a2b3c4-d5e6-7890-abcd-ef1234567890
@@ -510,7 +510,7 @@ components:
       properties:
         name:
           type: string
-        description: 'Название'
+          description: 'Название'
 
   responses:
     ValidationError:

@@ -37,12 +37,30 @@ function objSchema(fields) {
 }
 
 // Generic CRUD block over a table const (schema.<tbl>).
+// Map Drizzle table name -> URL collection resource (matches OpenAPI crudPaths).
+const RESOURCE = {
+  profiles: "profiles",
+  notes: "notes",
+  tasks: "tasks",
+  meetings: "meetings",
+  projects: "projects",
+  fileMeta: "files",
+  agentMessages: "agent-messages",
+  imapAccounts: "imap",
+  externalCalendars: "calendars",
+  webhooks: "webhooks",
+  timesheet: "timesheet",
+  syncFolders: "sync-folders",
+};
+
 function crud(svc, tbl, createFields, updateFields, idType = "Type.String()") {
+  const resource = RESOURCE[tbl] ?? tbl;              // collection path segment
+  const base = `/${resource}`;
   const createSchema = objSchema(createFields);
   const updateSchema = objSchema(updateFields);
   return `
   // ───────────── ${tbl} CRUD ─────────────
-  app.get("/", {
+  app.get("${base || "/"}", {
     schema: {
       querystring: Type.Object({
         offset: Type.Optional(Type.Integer({ minimum: 0 })),
@@ -63,23 +81,23 @@ function crud(svc, tbl, createFields, updateFields, idType = "Type.String()") {
     return reply.send({ data: rows, pagination: { offset, limit, total } });
   });
 
-  app.post("/", {
-    schema: { body: ${createSchema}, response: { 201: Type.Any() } },
+  app.post("${base || "/"}", {
+    schema: { body: ${createSchema}, response: { 201: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.insert(schema.${tbl}).values(req.body as any).returning();
     return reply.code(201).send(row);
   });
 
-  app.get("/:id", {
-    schema: { params: Type.Object({ id: ${idType} }), response: { 200: Type.Any(), 404: Type.Any() } },
+  app.get("${base}/:id", {
+    schema: { params: Type.Object({ id: ${idType} }), response: { 200: Type.Any(), 404: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.${tbl}).where(eq(schema.${tbl}.id, (req.params as any).id)).limit(1);
     if (!row) return fail(404, "NOT_FOUND", "${tbl} not found");
     return reply.send(row);
   });
 
-  app.patch("/:id", {
-    schema: { params: Type.Object({ id: ${idType} }), body: ${updateSchema}, response: { 200: Type.Any() } },
+  app.patch("${base}/:id", {
+    schema: { params: Type.Object({ id: ${idType} }), body: ${updateSchema}, response: { 200: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.update(schema.${tbl}).set({ ...(req.body as any), updatedAt: new Date() })
       .where(eq(schema.${tbl}.id, (req.params as any).id)).returning();
@@ -87,8 +105,8 @@ function crud(svc, tbl, createFields, updateFields, idType = "Type.String()") {
     return reply.send(row);
   });
 
-  app.delete("/:id", {
-    schema: { params: Type.Object({ id: ${idType } }) },
+  app.delete("${base}/:id", {
+    schema: { params: Type.Object({ id: ${idType} }) }
   }, async (req, reply) => {
     const [row] = await db.delete(schema.${tbl}).where(eq(schema.${tbl}.id, (req.params as any).id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "${tbl} not found");

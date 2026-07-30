@@ -39,7 +39,9 @@ jobs:
         run: pnpm --filter "./services/*" run typecheck
       - name: Unit tests (vitest)
         run: pnpm --filter "./services/*" run test
+      - name: Contract tests (OpenAPI conformance)
+        run: pnpm --filter "./services/*" run test:contract
       - name: Build
         run: pnpm --filter "./services/*" run build
-      # Contract + integration + e2e добавляются строящим агентом по ADR-002 / AGENT.md
+      # Integration + e2e добавляются строящим агентом по ADR-002 / AGENT.md
       # template-service (legacy boilerplate) is excluded — it has its own env-gated tests.
