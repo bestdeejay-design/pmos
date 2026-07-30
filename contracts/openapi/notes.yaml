@@ -1,0 +1,710 @@
+openapi: 3.1.0
+
+info:
+  title: Notes Service
+  version: 1.0.0
+  description: >
+    Сервис заметок ЦУП — Markdown-заметки с тегами, привязкой к профилям,
+    архивированием и шаблонами. Является core-сервисом, публикует события
+    notes.{created,updated,deleted,title_generated}.
+
+servers:
+  - url: /api/notes/v1
+    description: API Gateway route for notes service
+
+paths:
+  # ─────────────────────── Notes ───────────────────────
+  /notes:
+    post:
+      operationId: createNote
+      summary: Создать новую заметку
+      tags: [Notes, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteCreate'
+      responses:
+        '201':
+          description: Заметка создана
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      operationId: listNotes
+      summary: Получить список заметок
+      tags: [Notes, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+        - name: profileId
+          in: query
+          required: false
+          description: Фильтр по UUID профиля
+          schema:
+            type: string
+            format: uuid
+        - name: isArchived
+          in: query
+          required: false
+          description: 'Фильтр по статусу архивации (по умолчанию — false)'
+          schema:
+            type: boolean
+        - name: tag
+          in: query
+          required: false
+          description: Фильтр по тегу
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Список заметок с пагинацией
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Note'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /notes/{noteId}:
+    get:
+      operationId: getNote
+      summary: Получить заметку по ID
+      tags: [Notes, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: noteId
+          in: path
+          required: true
+          description: UUID заметки
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Данные заметки
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      operationId: updateNote
+      summary: Обновить заметку (частичное обновление)
+      tags: [Notes, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: noteId
+          in: path
+          required: true
+          description: UUID заметки
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteUpdate'
+      responses:
+        '200':
+          description: Заметка обновлена
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      operationId: deleteNote
+      summary: Удалить заметку (мягкое удаление, isArchived = true)
+      tags: [Notes, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: noteId
+          in: path
+          required: true
+          description: UUID заметки
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Заметка удалена (без тела ответа)
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────── Templates ───────────────────────
+  /templates:
+    post:
+      operationId: createTemplate
+      summary: Создать новый шаблон заметки
+      tags: [Templates, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateCreate'
+      responses:
+        '201':
+          description: Шаблон создан
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      operationId: listTemplates
+      summary: Получить список шаблонов
+      tags: [Templates, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+        - name: profileId
+          in: query
+          required: false
+          description: Фильтр по UUID профиля
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список шаблонов с пагинацией
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Template'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /templates/{templateId}:
+    get:
+      operationId: getTemplate
+      summary: Получить шаблон по ID
+      tags: [Templates, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: templateId
+          in: path
+          required: true
+          description: UUID шаблона
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Данные шаблона
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      operationId: updateTemplate
+      summary: Обновить шаблон (частичное обновление)
+      tags: [Templates, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: templateId
+          in: path
+          required: true
+          description: UUID шаблона
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateUpdate'
+      responses:
+        '200':
+          description: Шаблон обновлён
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      operationId: deleteTemplate
+      summary: Удалить шаблон
+      tags: [Templates, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: templateId
+          in: path
+          required: true
+          description: UUID шаблона
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Шаблон удалён (без тела ответа)
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    CorrelationId:
+      name: x-correlation-id
+      in: header
+      required: true
+      description: Уникальный идентификатор для трассировки запроса
+      schema:
+        type: string
+        format: uuid
+      example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    Offset:
+      name: offset
+      in: query
+      required: false
+      description: Смещение для пагинации (с какого элемента начинать)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      example: 0
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Максимальное количество записей на страницу
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+
+  schemas:
+    # ─────────────────────── Error schemas ───────────────────────
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Код ошибки
+        message:
+          type: string
+          description: Человекочитаемое описание ошибки
+        details:
+          oneOf:
+            - type: object
+            - type: 'null'
+          description: Дополнительная информация об ошибке
+
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR]
+          example:
+            code: VALIDATION_ERROR
+            message: Поле title обязательно
+            details:
+              field: title
+              constraint: required
+
+    NotFoundError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [NOT_FOUND]
+          example:
+            code: NOT_FOUND
+            message: Заметка не найдена
+            details:
+              resourceType: note
+              resourceId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    InternalError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [INTERNAL_ERROR]
+          example:
+            code: INTERNAL_ERROR
+            message: Внутренняя ошибка сервера
+
+    # ─────────────────────── Pagination ───────────────────────
+    Pagination:
+      type: object
+      required:
+        - offset
+        - limit
+        - total
+      properties:
+        offset:
+          type: integer
+          description: Текущее смещение
+        limit:
+          type: integer
+          description: Максимум записей на страницу
+        total:
+          type: integer
+          description: Общее количество записей
+      example:
+        offset: 0
+        limit: 20
+        total: 12
+
+    # ─────────────────────── Note entity ───────────────────────
+    Note:
+      type: object
+      description: Markdown-заметка
+      required:
+        - id
+        - title
+        - bodyMd
+        - tags
+        - profileIds
+        - isArchived
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор заметки
+        title:
+          type: string
+          description: Заголовок заметки
+        bodyMd:
+          type: string
+          description: Тело заметки в Markdown
+        tags:
+          type: array
+          items:
+            type: string
+          description: Список тегов заметки
+        profileIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Список UUID профилей, к которым привязана заметка
+        isArchived:
+          type: boolean
+          description: Флаг архивации (мягкое удаление)
+        createdAt:
+          type: string
+          format: date-time
+          description: Дата и время создания
+        updatedAt:
+          type: string
+          format: date-time
+          description: Дата и время последнего обновления
+      example:
+        id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        title: Купить молоко
+        bodyMd: |
+          Нужно купить в магазине:
+          - Молоко 3.2%
+          - Хлеб
+          - Яйца
+        tags:
+          - shopping
+          - home
+        profileIds:
+          - f1a2b3c4-d5e6-7890-abcd-ef1234567890
+        isArchived: false
+        createdAt: '2026-07-30T10:30:00Z'
+        updatedAt: '2026-07-30T12:00:00Z'
+
+    NoteCreate:
+      type: object
+      description: Данные для создания новой заметки
+      required:
+        - title
+        - bodyMd
+      properties:
+        title:
+          type: string
+          description: Заголовок заметки
+        bodyMd:
+          type: string
+          description: Тело заметки в Markdown
+        tags:
+          type: array
+          items:
+            type: string
+          description: Список тегов заметки
+        profileIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Список UUID профилей, к которым привязана заметка
+        isArchived:
+          type: boolean
+          description: Флаг архивации (по умолчанию false)
+      example:
+        title: Купить молоко
+        bodyMd: Нужно купить молоко 3.2%
+        tags:
+          - shopping
+        profileIds:
+          - f1a2b3c4-d5e6-7890-abcd-ef1234567890
+
+    NoteUpdate:
+      type: object
+      description: Данные для частичного обновления заметки (все поля опциональны)
+      properties:
+        title:
+          type: string
+          description: Заголовок заметки
+        bodyMd:
+          type: string
+          description: Тело заметки в Markdown
+        tags:
+          type: array
+          items:
+            type: string
+          description: Список тегов заметки
+        profileIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Список UUID профилей, к которым привязана заметка
+        isArchived:
+          type: boolean
+          description: Флаг архивации
+      example:
+        title: Купить молоко и хлеб
+        tags:
+          - shopping
+          - groceries
+
+    # ─────────────────────── Template entity ───────────────────────
+    Template:
+      type: object
+      description: Шаблон для новой заметки
+      required:
+        - id
+        - name
+        - bodyMd
+        - profileId
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор шаблона
+        name:
+          type: string
+          description: Название шаблона
+        bodyMd:
+          type: string
+          description: Тело шаблона в Markdown
+        profileId:
+          type: string
+          format: uuid
+          description: UUID профиля, к которому привязан шаблон
+      example:
+        id: d1e2f3a4-b5c6-7890-abcd-ef1234567890
+        name: Daily Journal
+        bodyMd: |
+          # {{date}}
+
+          ## What happened today?
+
+          ## Wins
+
+          ## Tomorrow's focus
+        profileId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    TemplateCreate:
+      type: object
+      description: Данные для создания нового шаблона
+      required:
+        - name
+        - bodyMd
+        - profileId
+      properties:
+        name:
+          type: string
+          description: Название шаблона
+        bodyMd:
+          type: string
+          description: Тело шаблона в Markdown
+        profileId:
+          type: string
+          format: uuid
+          description: UUID профиля, к которому привязан шаблон
+      example:
+        name: Daily Journal
+        bodyMd: |
+          # {{date}}
+
+          ## What happened today?
+        profileId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    TemplateUpdate:
+      type: object
+      description: Данные для частичного обновления шаблона (все поля опциональны)
+      properties:
+        name:
+          type: string
+          description: Название шаблона
+        bodyMd:
+          type: string
+          description: Тело шаблона в Markdown
+        profileId:
+          type: string
+          format: uuid
+          description: UUID профиля, к которому привязан шаблон
+      example:
+        name: Daily Journal v2
+        bodyMd: |
+          # {{date}}
+
+          ## Today's highlights
+
+  # ─────────────────────── Reusable responses ───────────────────────
+  responses:
+    ValidationError:
+      description: Ошибка валидации запроса
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    NotFoundError:
+      description: Запрашиваемый ресурс не найден
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundError'
+
+    InternalError:
+      description: Внутренняя ошибка сервера
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'

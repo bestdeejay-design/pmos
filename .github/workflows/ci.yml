@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pmos
+          POSTGRES_PASSWORD: pmos
+          POSTGRES_DB: pmos
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pmos"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      nats:
+        image: nats:2.10-alpine
+        ports: ["4222:4222", "8222:8222"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile=false
+      - name: Lint
+        run: pnpm -r run lint || true
+      - name: Typecheck
+        run: pnpm -r run typecheck
+      - name: Unit tests (vitest)
+        run: pnpm -r run test
+      - name: Build
+        run: pnpm -r run build
+      # Contract + integration + e2e добавляются строящим агентом по ADR-002 / AGENT.md

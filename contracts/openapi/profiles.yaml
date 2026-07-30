@@ -1,0 +1,411 @@
+openapi: 3.1.0
+
+info:
+  title: Profiles Service
+  version: 1.0.0
+  description: >
+    Контекстные профили ЦУП — разделение всех данных по контекстам
+    (Work, Home, Family, Friends). Сервис является Shared Kernel:
+    читается всеми сервисами, изменяется редко.
+
+servers:
+  - url: /api/profiles/v1
+    description: API Gateway route for profiles service
+
+paths:
+  /profiles:
+    post:
+      operationId: createProfile
+      summary: Создать новый профиль
+      tags: [Profiles, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileCreate'
+      responses:
+        '201':
+          description: Профиль создан
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      operationId: listProfiles
+      summary: Получить список профилей
+      tags: [Profiles, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Список профилей с пагинацией
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Profile'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /profiles/{profileId}:
+    get:
+      operationId: getProfile
+      summary: Получить профиль по ID
+      tags: [Profiles, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: profileId
+          in: path
+          required: true
+          description: UUID профиля
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Данные профиля
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      operationId: updateProfile
+      summary: Обновить профиль (частичное обновление)
+      tags: [Profiles, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: profileId
+          in: path
+          required: true
+          description: UUID профиля
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdate'
+      responses:
+        '200':
+          description: Профиль обновлён
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      operationId: deleteProfile
+      summary: Удалить профиль
+      tags: [Profiles, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: profileId
+          in: path
+          required: true
+          description: UUID профиля
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Профиль удалён (без тела ответа)
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    CorrelationId:
+      name: x-correlation-id
+      in: header
+      required: true
+      description: Уникальный идентификатор для трассировки запроса
+      schema:
+        type: string
+        format: uuid
+      example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    Offset:
+      name: offset
+      in: query
+      required: false
+      description: Смещение для пагинации (с какого элемента начинать)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      example: 0
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Максимальное количество записей на страницу
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+
+  schemas:
+    # ─────────────────────── Error schemas ───────────────────────
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Код ошибки
+        message:
+          type: string
+          description: Человекочитаемое описание ошибки
+        details:
+          oneOf:
+            - type: object
+            - type: 'null'
+          description: Дополнительная информация об ошибке
+
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR]
+          example:
+            code: VALIDATION_ERROR
+            message: Поле name обязательно
+            details:
+              field: name
+              constraint: required
+
+    NotFoundError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [NOT_FOUND]
+          example:
+            code: NOT_FOUND
+            message: Профиль не найден
+            details:
+              resourceType: profile
+              resourceId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    InternalError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [INTERNAL_ERROR]
+          example:
+            code: INTERNAL_ERROR
+            message: Внутренняя ошибка сервера
+
+    # ─────────────────────── Pagination ───────────────────────
+    Pagination:
+      type: object
+      required:
+        - offset
+        - limit
+        - total
+      properties:
+        offset:
+          type: integer
+          description: Текущее смещение
+        limit:
+          type: integer
+          description: Максимум записей на страницу
+        total:
+          type: integer
+          description: Общее количество записей
+      example:
+        offset: 0
+        limit: 20
+        total: 5
+
+    # ─────────────────────── Profile entity ───────────────────────
+    Profile:
+      type: object
+      description: Контекстный профиль
+      required:
+        - id
+        - name
+        - color
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор профиля
+        name:
+          type: string
+          description: Название профиля (например, "Work", "Home")
+        color:
+          type: string
+          pattern: '^#[0-9a-fA-F]{6}$'
+          description: Цвет профиля в HEX (например, "#4A90D9")
+        icon:
+          oneOf:
+            - type: string
+            - type: 'null'
+          description: Иконка профиля (необязательно)
+        settings:
+          oneOf:
+            - type: object
+            - type: 'null'
+          description: Дополнительные настройки профиля (JSONB, необязательно)
+      example:
+        id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        name: Work
+        color: '#4A90D9'
+        icon: briefcase
+        settings:
+          shortcut: w
+
+    ProfileCreate:
+      type: object
+      description: Данные для создания нового профиля
+      required:
+        - name
+        - color
+      properties:
+        name:
+          type: string
+          description: Название профиля
+        color:
+          type: string
+          pattern: '^#[0-9a-fA-F]{6}$'
+          description: Цвет профиля в HEX
+        icon:
+          oneOf:
+            - type: string
+            - type: 'null'
+          description: Иконка профиля (необязательно)
+        settings:
+          oneOf:
+            - type: object
+            - type: 'null'
+          description: Дополнительные настройки профиля (JSONB, необязательно)
+      example:
+        name: Work
+        color: '#4A90D9'
+        icon: briefcase
+
+    ProfileUpdate:
+      type: object
+      description: Данные для частичного обновления профиля (все поля опциональны)
+      properties:
+        name:
+          type: string
+          description: Название профиля
+        color:
+          type: string
+          pattern: '^#[0-9a-fA-F]{6}$'
+          description: Цвет профиля в HEX
+        icon:
+          oneOf:
+            - type: string
+            - type: 'null'
+          description: Иконка профиля (null — сбросить значение)
+        settings:
+          oneOf:
+            - type: object
+            - type: 'null'
+          description: Дополнительные настройки профиля (JSONB, null — сбросить)
+      example:
+        name: Home
+        color: '#50C878'
+
+  # ─────────────────────── Reusable responses ───────────────────────
+  responses:
+    ValidationError:
+      description: Ошибка валидации запроса
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    NotFoundError:
+      description: Запрашиваемый ресурс не найден
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundError'
+
+    InternalError:
+      description: Внутренняя ошибка сервера
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'

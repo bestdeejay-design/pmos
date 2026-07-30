@@ -1,0 +1,24 @@
+{
+  "name": "pmos-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ЦУП (Personal OS) — event-driven microservice monorepo",
+  "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "test:integration": "pnpm -r run test:integration",
+    "db:migrate": "pnpm -r run db:migrate",
+    "db:generate": "pnpm -r run db:generate",
+    "lint": "pnpm -r run lint"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^22.0.0"
+  }
+}

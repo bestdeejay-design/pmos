@@ -1,0 +1,151 @@
+# AGENT.md — Build / Test / Deliver Runbook for ЦУП (Personal OS)
+
+> **Audience:** the autonomous building agent (and its sub-agents: Sisyphus, Hephaestus,
+> Oracle, Atlas, etc. — see `../AGENTS.md`).
+> **Goal:** build the entire ЦУП backend, test it, and deliver a working system **without
+> involving the human** except for the final acceptance.
+> **First read:** `docs/ADR/ADR-007.md` (canonical conventions + conflict resolutions).
+> It outranks every other doc when they disagree.
+
+---
+
+## 0. Guiding principles
+
+1. **Code to the contracts, not the prose.** `contracts/openapi/*.yaml` and
+   `contracts/asyncapi/events.yaml` are machine-checkable truth. `FEATURES.md`/`SAGA.md`
+   are intent. When they differ → contracts win (then file a doc-fix PR).
+2. **Contracts before code.** For every endpoint/event: the OpenAPI/AsyncAPI entry exists
+   (or is added per the template) → then implemented → then a contract test asserts it.
+3. **Events are the integration boundary.** No service calls another service's DB or HTTP
+   directly (except api-gateway → service). Cross-service data flows via NATS events only.
+4. **Zero ambiguity tolerance.** If a requirement is unclear, derive the answer from
+   ADR-007 §2/§3/§4 or the nearest contract. If genuinely missing, pick the simplest
+   reasonable default, implement it, and open a doc-fix issue — do **not** block.
+5. **Every service is independently runnable & testable** via `pnpm --filter <svc> ...`.
+
+---
+
+## 1. Repository layout (must match exactly)
+
+See ADR-007 §6. Key roots: `platform/{shared-types,event-bus,docker}`,
+`services/<name>`, `contracts/{openapi,asyncapi}`, `template-service` (scaffold source).
+The `tests/` directory is deprecated — removed. Per-service tests live in `services/<name>/test/`.
+
+---
+
+## 2. Environment pre-conditions
+
+The agent runs on a machine with: **Node.js 22**, **pnpm 10+**, **Docker** (or OrbStack),
+and (optionally) `nats` CLI. If Docker is unavailable, integration tests fall back to
+`docker compose` being skipped with a logged warning — unit + contract tests must still pass.
+
+---
+
+## 3. Build phases (execute in order; each phase has a Gate)
+
+Phases map to `BACKLOG.md` but are re-sequenced so foundation exists first. **Do not start
+a phase until the previous Gate is green.**
+
+### Phase 0 — Foundation
+**Build:** `platform/shared-types` (`@pmos/shared`), `platform/event-bus`, root
+`pnpm-workspace.yaml`, `package.json`, `tsconfig.base.json`, `platform/docker/docker-compose.yml`.
+**Gate 0:** `pnpm install` succeeds; `pnpm -r typecheck` passes; a smoke test where two
+throwaway processes exchange one NATS event using `@pmos/shared` EventEnvelope passes.
+
+### Phase 1 — Core services
+profiles, settings, notes, tasks (+ frontend api-client refactor is optional for backend DoD).
+**Gate 1:** `pnpm test` (unit) green for these 4; `profiles` + `notes` OpenAPI contract
+tests green; `pnpm --filter notes run test:integration` green (note → event → embedding stub).
+
+### Phase 2 — Productivity
+calendar, projects, files, search-rag.
+**Gate 2:** integration test `file upload → files.text_extracted → search-rag embedding`
+passes (Ollama optional: ILIKE fallback path tested when Ollama down).
+
+### Phase 3 — AI + Integrations
+ai-gateway, agent, export-import, integrations.
+**Gate 3:** `notes.created → ai-gateway → notes.title_generated → notes.updated` saga test
+passes; `integrations` webhook delivery + retry/DLQ test passes.
+
+### Phase 4 — Advanced
+email, external-calendars, time-tracking, sync.
+**Gate 4:** IMAP sync + note/task conversion test passes (with a mock IMAP server);
+external-calendar sync test passes (mock Google/Yandex).
+
+### Phase 5 — Compose & Smoke
+Wire `api-gateway` nginx routes for **all** services per ADR-007 §7; full
+`docker compose --profile all up` boots; `curl localhost:8080/api/health` returns ok.
+**Gate 5:** end-to-end smoke: create profile → create note → search finds it → agent inbox
+receives a message. All via the gateway.
+
+### Phase 6 — Hardening
+Prometheus/Grafana optional; E2E Playwright 3–5 critical scenarios; ADR-002 CI workflow
+runs on every push. **Gate 6 (Delivery):** see §5.
+
+---
+
+## 4. Per-service implementation recipe (copy from template-service)
+
+```bash
+cp -r template-service services/<name>
+# edit services/<name>/package.json: set "name": "@pmos/<name>"
+# create services/<name>/src/db/schema.ts  (Drizzle, schema <name>_)
+# create services/<name>/src/events/publish.ts + subscribe.ts
+# implement src/app.ts routes to match contracts/openapi/<name>.yaml
+# add services/<name>/migrations/0001_init.sql
+# add services/<name>/test/*.test.ts  (unit) and (if cross-service) integration
+pnpm install
+pnpm --filter @pmos/<name> run db:generate
+pnpm --filter @pmos/<name> run db:migrate   # needs Postgres up
+pnpm --filter @pmos/<name> test
+```
+
+Each service MUST expose: `GET /health` (`{ok,db,nats,uptime}`), `GET /metrics`
+(prom-client), pino JSON logs with `correlationId`, `x-correlation-id` echo on every response.
+
+---
+
+## 5. Definition of Done (Delivery Gate)
+
+The project is **delivered** only when ALL hold:
+
+- [ ] `pnpm install` clean on a fresh clone.
+- [ ] `pnpm -r typecheck` passes (strict, no `any`, no `@ts-ignore`).
+- [ ] `pnpm test` (unit, vitest) passes for **every** service with ≥80% coverage on
+      business logic (recurrence, streaks, dependencies, priority ranking, conflict detection).
+- [ ] **Contract tests** pass: for every `contracts/openapi/*.yaml`, a Pact/OpenAPI
+      conformance test asserts the running service matches the spec (status, schema, errors).
+- [ ] **Integration tests** pass for every saga in `SAGA.md` (note+AI title, task+agent,
+      file+embedding, calendar sync, webhook retry/DLQ).
+- [ ] `docker compose --profile all up -d` boots all 16 services + Postgres + NATS;
+      `GET /api/health` on gateway returns ok; no service crashes in first 60s.
+- [ ] `E2E` Playwright: ≥3 critical scenarios green (create note → search; recurring task →
+      new task; webhook delivery).
+- [ ] `CI` (`.github/workflows/ci.yml` per ADR-002) green on the delivery commit.
+- [ ] `docs/REVIEW.md` updated: all ADR-007 §5 conflicts marked RESOLVED; any new
+      decisions recorded as ADR-008+ if needed.
+
+**Deliverable artifact:** a short `DELIVERY.md` at repo root stating how to run
+(`docker compose --profile all up -d`, open `localhost:8080`), what is implemented vs
+`📋 planned` in FEATURES, and known limitations. No human debugging required to run it.
+
+---
+
+## 6. Conflict handling (autonomous)
+
+If you hit a contradiction between docs:
+1. Apply ADR-007 §2/§3/§4 / §5 (resolved list) if it covers it.
+2. Else prefer: contracts > `@pmos/shared` > ADR-001..006 > FEATURES/SAGA > prose.
+3. Implement the chosen interpretation; open a `.github` issue (or doc-fix PR) titled
+   `DOC-CONFLICT: <topic>` so the narrative catches up. **Never block on it.**
+
+---
+
+## 7. Anti-patterns (fail the build if seen)
+
+- Direct HTTP/DB call from service A to service B's schema.
+- `any`, `@ts-ignore`, `as unknown as X` to silence the compiler.
+- Event published without `version` or with snake_case `data` keys.
+- Skipping the OpenAPI entry before implementing a route.
+- Leaving a service without `/health` or `/metrics`.
+- Hard-coded secrets (use env / settings service).

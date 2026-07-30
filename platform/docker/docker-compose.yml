@@ -1,0 +1,98 @@
+# ЦУП Personal OS — Docker Compose
+# Profiles: core (infra) | phase1..4 (service groups) | all | monitoring
+# Usage:
+#   docker compose --profile core up -d
+#   docker compose --profile all up -d
+#   docker compose --profile all --profile monitoring up -d
+
+services:
+  # ───────────────────────── Infrastructure ─────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["core", "all", "phase1", "phase2", "phase3", "phase4"]
+    environment:
+      POSTGRES_USER: pmos
+      POSTGRES_PASSWORD: pmos
+      POSTGRES_DB: pmos
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pmos"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  nats:
+    image: nats:2.10-alpine
+    profiles: ["core", "all", "phase1", "phase2", "phase3", "phase4"]
+    command: ["--jetstream", "--store_dir", "/data", "--http_port", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - natsdata:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ───────────────────────── API Gateway (nginx) ─────────────────────────
+  api-gateway:
+    image: nginx:1.27-alpine
+    profiles: ["all", "phase1", "phase2", "phase3", "phase4"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - postgres
+      - nats
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ───────────────────────── Service template ─────────────────────────
+  # Copy this block per service (see AGENT.md §4 / template-service).
+  # Each service: build from services/<name>/Dockerfile, internal port 3000,
+  # host port per ADR-007 §7.
+  # Example (notes — phase1):
+  # notes:
+  #   build: { context: ../../services/notes }
+  #   ports: ["3001:3000"]
+  #   environment:
+  #     SERVICE_NAME: notes
+  #     DATABASE_SCHEMA: notes_
+  #     DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
+  #     NATS_URL: nats://nats:4222
+  #   profiles: ["phase1", "all"]
+  #   depends_on:
+  #     postgres: { condition: service_healthy }
+  #     nats: { condition: service_healthy }
+
+  # ───────────────────────── Monitoring (optional) ─────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: ["monitoring"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana:latest
+    profiles: ["monitoring"]
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    depends_on:
+      - prometheus
+
+volumes:
+  pgdata:
+  natsdata:

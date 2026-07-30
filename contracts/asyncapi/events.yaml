@@ -1,0 +1,1846 @@
+asyncapi: "2.6.0"
+id: urn:pmos:event-catalog
+defaultContentType: application/json
+
+info:
+  title: ЦУП Event Catalog
+  version: "1.0.0"
+  description: |
+    Канонический каталог событий ЦУП (Personal OS).
+    Все сервисы общаются асинхронно через NATS JetStream с гарантией at-least-once delivery.
+    Каждое событие — конверт (EventEnvelope) с обязательными полями: id, type, source,
+    timestamp, data, correlationId, version.
+
+    Publisher: сервис-владелец, публикующий событие после изменения своей сущности.
+    Subscribers: сервисы, строящие read model'и и реагирующие на изменения.
+
+    Доставка: at-least-once через NATS JetStream consumer ack.
+    Dead letter: после 3 неудачных попыток сообщение помещается в {subject}.dlq.
+    Идемпотентность: подписчик проверяет event.id в своей таблице processed_events.
+
+    Связанные ADR: ADR-003 (Event-Driven Communication), ADR-005 (Observability).
+  contact:
+    name: ЦУП Architecture Team
+  license:
+    name: MIT
+
+servers:
+  nats:
+    url: nats://nats:4222
+    protocol: nats
+    protocolVersion: "2.10"
+    description: NATS JetStream event bus — единая шина событий ЦУП
+
+tags:
+  - name: profile
+    description: Контекстные профили (Work, Home, Family, Friends)
+  - name: setting
+    description: Настройки приложения
+  - name: note
+    description: Markdown-заметки
+  - name: task
+    description: Kanban-задачи
+  - name: meeting
+    description: Встречи календаря
+  - name: project
+    description: Проекты
+  - name: file
+    description: Файлы
+  - name: dictation
+    description: AI-диктовка
+  - name: agent
+    description: AI-ассистент
+  - name: core
+    description: Базовые сервисы
+  - name: ai
+    description: AI-сервисы
+
+channels:
+
+  # ────────────────────────── Profiles ──────────────────────────
+
+  pmos.profiles.created:
+    description: |
+      Профиль создан.
+      Публикуется profiles-service после INSERT в таблицу profiles.
+      Все сервисы обновляют локальный кэш profile_ids → name.
+    tags:
+      - name: profile
+      - name: core
+    subscribe:
+      operationId: onProfileCreated
+      summary: Profile created
+      message:
+        $ref: "#/components/messages/ProfileCreated"
+    x-service-owner: profiles
+    x-dead-letter:
+      subject: pmos.profiles.created.dlq
+      maxRetries: 3
+
+  pmos.profiles.updated:
+    description: |
+      Профиль обновлён.
+      Публикуется profiles-service после UPDATE таблицы profiles.
+    tags:
+      - name: profile
+      - name: core
+    subscribe:
+      operationId: onProfileUpdated
+      summary: Profile updated
+      message:
+        $ref: "#/components/messages/ProfileUpdated"
+    x-service-owner: profiles
+    x-dead-letter:
+      subject: pmos.profiles.updated.dlq
+      maxRetries: 3
+
+  pmos.profiles.deleted:
+    description: |
+      Профиль удалён.
+      Публикуется profiles-service после DELETE из таблицы profiles.
+      Подписчики должны удалить ссылки на profile_id из своих read model'ей.
+    tags:
+      - name: profile
+      - name: core
+    subscribe:
+      operationId: onProfileDeleted
+      summary: Profile deleted
+      message:
+        $ref: "#/components/messages/ProfileDeleted"
+    x-service-owner: profiles
+    x-dead-letter:
+      subject: pmos.profiles.deleted.dlq
+      maxRetries: 3
+
+  # ────────────────────────── Settings ──────────────────────────
+
+  pmos.settings.changed:
+    description: |
+      Настройка изменена.
+      Публикуется settings-service после UPSERT в таблицу settings.
+      Все сервисы перечитывают свою конфигурацию при получении.
+    tags:
+      - name: setting
+      - name: core
+    subscribe:
+      operationId: onSettingChanged
+      summary: Setting changed
+      message:
+        $ref: "#/components/messages/SettingChanged"
+    x-service-owner: settings
+    x-dead-letter:
+      subject: pmos.settings.changed.dlq
+      maxRetries: 3
+
+  # ────────────────────────── Notes ──────────────────────────
+
+  pmos.notes.created:
+    description: |
+      Заметка создана.
+      Публикуется notes-service после INSERT в таблицу notes.
+      search-rag: индексирует текст заметки (embedding).
+      agent: проверяет триггеры (meeting_ended → предложение создать заметку уже обработано).
+    tags:
+      - name: note
+    subscribe:
+      operationId: onNoteCreated
+      summary: Note created
+      message:
+        $ref: "#/components/messages/NoteCreated"
+    x-service-owner: notes
+    x-dead-letter:
+      subject: pmos.notes.created.dlq
+      maxRetries: 3
+
+  pmos.notes.updated:
+    description: |
+      Заметка обновлена.
+      Публикуется notes-service после UPDATE таблицы notes.
+      search-rag: переиндексирует embedding.
+    tags:
+      - name: note
+    subscribe:
+      operationId: onNoteUpdated
+      summary: Note updated
+      message:
+        $ref: "#/components/messages/NoteUpdated"
+    x-service-owner: notes
+    x-dead-letter:
+      subject: pmos.notes.updated.dlq
+      maxRetries: 3
+
+  pmos.notes.deleted:
+    description: |
+      Заметка удалена.
+      Публикуется notes-service после DELETE из таблицы notes.
+      search-rag: удаляет embedding.
+      files: удаляет связи file → note.
+    tags:
+      - name: note
+    subscribe:
+      operationId: onNoteDeleted
+      summary: Note deleted
+      message:
+        $ref: "#/components/messages/NoteDeleted"
+    x-service-owner: notes
+    x-dead-letter:
+      subject: pmos.notes.deleted.dlq
+      maxRetries: 3
+
+  pmos.notes.title_generated:
+    description: |
+      AI-генерация заголовка заметки завершена.
+      Публикуется ai-gateway (через notes-service) после успешной генерации.
+      api-gateway: пушит результат клиенту через WebSocket.
+    tags:
+      - name: note
+      - name: ai
+    subscribe:
+      operationId: onNoteTitleGenerated
+      summary: Note title generated
+      message:
+        $ref: "#/components/messages/NoteTitleGenerated"
+    x-service-owner: notes
+    x-dead-letter:
+      subject: pmos.notes.title_generated.dlq
+      maxRetries: 3
+
+  # ────────────────────────── Tasks ──────────────────────────
+
+  pmos.tasks.created:
+    description: |
+      Задача создана.
+      Публикуется tasks-service после INSERT в таблицу tasks.
+      search-rag: индексирует задачу.
+      agent: проверяет триггеры (deadline_soon, task_no_assignee).
+      projects: актуализирует dashboard проекта.
+    tags:
+      - name: task
+    subscribe:
+      operationId: onTaskCreated
+      summary: Task created
+      message:
+        $ref: "#/components/messages/TaskCreated"
+    x-service-owner: tasks
+    x-dead-letter:
+      subject: pmos.tasks.created.dlq
+      maxRetries: 3
+
+  pmos.tasks.updated:
+    description: |
+      Задача обновлена.
+      Публикуется tasks-service после UPDATE таблицы tasks.
+    tags:
+      - name: task
+    subscribe:
+      operationId: onTaskUpdated
+      summary: Task updated
+      message:
+        $ref: "#/components/messages/TaskUpdated"
+    x-service-owner: tasks
+    x-dead-letter:
+      subject: pmos.tasks.updated.dlq
+      maxRetries: 3
+
+  pmos.tasks.deleted:
+    description: |
+      Задача удалена.
+      Публикуется tasks-service после DELETE из таблицы tasks.
+    tags:
+      - name: task
+    subscribe:
+      operationId: onTaskDeleted
+      summary: Task deleted
+      message:
+        $ref: "#/components/messages/TaskDeleted"
+    x-service-owner: tasks
+    x-dead-letter:
+      subject: pmos.tasks.deleted.dlq
+      maxRetries: 3
+
+  pmos.tasks.status_changed:
+    description: |
+      Статус задачи изменён.
+      Публикуется tasks-service при смене статуса (backlog → todo → in_progress → done).
+      Отдельное событие (не дублирует tasks.updated) для удобства подписчиков,
+      которым важно только изменение статуса.
+      agent: проверяет триггер deadline_soon (статус всё ещё не done).
+    tags:
+      - name: task
+    subscribe:
+      operationId: onTaskStatusChanged
+      summary: Task status changed
+      message:
+        $ref: "#/components/messages/TaskStatusChanged"
+    x-service-owner: tasks
+    x-dead-letter:
+      subject: pmos.tasks.status_changed.dlq
+      maxRetries: 3
+
+  pmos.tasks.priorities_reordered:
+    description: |
+      Порядок приоритетов задач изменён.
+      Публикуется tasks-service после ручного drag-and-drop reorder.
+      Клиент получает через WebSocket для немедленного обновления UI.
+    tags:
+      - name: task
+    subscribe:
+      operationId: onTaskPrioritiesReordered
+      summary: Task priorities reordered
+      message:
+        $ref: "#/components/messages/TaskPrioritiesReordered"
+    x-service-owner: tasks
+    x-dead-letter:
+      subject: pmos.tasks.priorities_reordered.dlq
+      maxRetries: 3
+
+  # ────────────────────────── Meetings ──────────────────────────
+
+  pmos.meetings.created:
+    description: |
+      Встреча создана.
+      Публикуется calendar-service после INSERT в таблицу meetings.
+      search-rag: индексирует встречу.
+      agent: проверяет пересечения и предлагает действия.
+    tags:
+      - name: meeting
+    subscribe:
+      operationId: onMeetingCreated
+      summary: Meeting created
+      message:
+        $ref: "#/components/messages/MeetingCreated"
+    x-service-owner: calendar
+    x-dead-letter:
+      subject: pmos.meetings.created.dlq
+      maxRetries: 3
+
+  pmos.meetings.updated:
+    description: |
+      Встреча обновлена.
+      Публикуется calendar-service после UPDATE таблицы meetings.
+    tags:
+      - name: meeting
+    subscribe:
+      operationId: onMeetingUpdated
+      summary: Meeting updated
+      message:
+        $ref: "#/components/messages/MeetingUpdated"
+    x-service-owner: calendar
+    x-dead-letter:
+      subject: pmos.meetings.updated.dlq
+      maxRetries: 3
+
+  pmos.meetings.deleted:
+    description: |
+      Встреча удалена.
+      Публикуется calendar-service после DELETE из таблицы meetings.
+    tags:
+      - name: meeting
+    subscribe:
+      operationId: onMeetingDeleted
+      summary: Meeting deleted
+      message:
+        $ref: "#/components/messages/MeetingDeleted"
+    x-service-owner: calendar
+    x-dead-letter:
+      subject: pmos.meetings.deleted.dlq
+      maxRetries: 3
+
+  pmos.meetings.reminder:
+    description: |
+      Напоминание о встрече сработало.
+      Публикуется calendar-service по расписанию (fire_at).
+      api-gateway: пушит напоминание клиенту через WebSocket.
+    tags:
+      - name: meeting
+    subscribe:
+      operationId: onMeetingReminder
+      summary: Meeting reminder
+      message:
+        $ref: "#/components/messages/MeetingReminder"
+    x-service-owner: calendar
+    x-dead-letter:
+      subject: pmos.meetings.reminder.dlq
+      maxRetries: 3
+
+  # ────────────────────────── Projects ──────────────────────────
+
+  pmos.projects.created:
+    description: |
+      Проект создан.
+      Публикуется projects-service после INSERT в таблицу projects.
+      agent: запускает триггер project_plan (генерация плана на основе goal).
+    tags:
+      - name: project
+    subscribe:
+      operationId: onProjectCreated
+      summary: Project created
+      message:
+        $ref: "#/components/messages/ProjectCreated"
+    x-service-owner: projects
+    x-dead-letter:
+      subject: pmos.projects.created.dlq
+      maxRetries: 3
+
+  pmos.projects.updated:
+    description: |
+      Проект обновлён.
+      Публикуется projects-service после UPDATE таблицы projects.
+    tags:
+      - name: project
+    subscribe:
+      operationId: onProjectUpdated
+      summary: Project updated
+      message:
+        $ref: "#/components/messages/ProjectUpdated"
+    x-service-owner: projects
+    x-dead-letter:
+      subject: pmos.projects.updated.dlq
+      maxRetries: 3
+
+  pmos.projects.deleted:
+    description: |
+      Проект удалён.
+      Публикуется projects-service после DELETE из таблицы projects.
+    tags:
+      - name: project
+    subscribe:
+      operationId: onProjectDeleted
+      summary: Project deleted
+      message:
+        $ref: "#/components/messages/ProjectDeleted"
+    x-service-owner: projects
+    x-dead-letter:
+      subject: pmos.projects.deleted.dlq
+      maxRetries: 3
+
+  # ────────────────────────── Files ──────────────────────────
+
+  pmos.files.uploaded:
+    description: |
+      Файл загружен.
+      Публикуется files-service после завершения multipart upload.
+      search-rag: начинает извлечение текста для семантической индексации.
+    tags:
+      - name: file
+    subscribe:
+      operationId: onFileUploaded
+      summary: File uploaded
+      message:
+        $ref: "#/components/messages/FileUploaded"
+    x-service-owner: files
+    x-dead-letter:
+      subject: pmos.files.uploaded.dlq
+      maxRetries: 3
+
+  pmos.files.updated:
+    description: |
+      Метаданные файла обновлены.
+      Публикуется files-service после UPDATE таблицы file_meta.
+    tags:
+      - name: file
+    subscribe:
+      operationId: onFileUpdated
+      summary: File updated
+      message:
+        $ref: "#/components/messages/FileUpdated"
+    x-service-owner: files
+    x-dead-letter:
+      subject: pmos.files.updated.dlq
+      maxRetries: 3
+
+  pmos.files.deleted:
+    description: |
+      Файл удалён.
+      Публикуется files-service после DELETE из таблицы file_meta.
+      search-rag: удаляет embedding файла.
+    tags:
+      - name: file
+    subscribe:
+      operationId: onFileDeleted
+      summary: File deleted
+      message:
+        $ref: "#/components/messages/FileDeleted"
+    x-service-owner: files
+    x-dead-letter:
+      subject: pmos.files.deleted.dlq
+      maxRetries: 3
+
+  pmos.files.text_extracted:
+    description: |
+      Текст из файла извлечён.
+      Публикуется files-service после успешного извлечения текста (для .txt, .md — прямой,
+      для остальных — через OCR/text extraction).
+      search-rag: создаёт embedding извлечённого текста.
+    tags:
+      - name: file
+    subscribe:
+      operationId: onFileTextExtracted
+      summary: File text extracted
+      message:
+        $ref: "#/components/messages/FileTextExtracted"
+    x-service-owner: files
+    x-dead-letter:
+      subject: pmos.files.text_extracted.dlq
+      maxRetries: 3
+
+  # ────────────────────────── AI / Dictation ──────────────────────────
+
+  pmos.dictation.completed:
+    description: |
+      Диктовка завершена.
+      Публикуется ai-gateway после успешного распознавания речи и AI-форматирования
+      (парсинг ТЕЛО: и ЗАГОЛОВОК: из ответа Ollama).
+      api-gateway: пушит результат клиенту через WebSocket.
+      agent: логирует завершение диктовки.
+    tags:
+      - name: dictation
+      - name: ai
+    subscribe:
+      operationId: onDictationCompleted
+      summary: Dictation completed
+      message:
+        $ref: "#/components/messages/DictationCompleted"
+    x-service-owner: ai-gateway
+    x-dead-letter:
+      subject: pmos.dictation.completed.dlq
+      maxRetries: 3
+
+  # ────────────────────────── Agent ──────────────────────────
+
+  pmos.agent.message_created:
+    description: |
+      Сообщение от AI-ассистента создано.
+      Публикуется agent-service после генерации рекомендации/уведомления.
+      api-gateway: пушит сообщение клиенту через WebSocket.
+      integrations: отправляет webhook подписчикам.
+    tags:
+      - name: agent
+      - name: ai
+    subscribe:
+      operationId: onAgentMessageCreated
+      summary: Agent message created
+      message:
+        $ref: "#/components/messages/AgentMessageCreated"
+    x-service-owner: agent
+    x-dead-letter:
+      subject: pmos.agent.message_created.dlq
+      maxRetries: 3
+
+  pmos.agent.trigger_evaluated:
+    description: |
+      Триггер AI-ассистента оценён.
+      Публикуется agent-service при каждой проверке триггера (регулярной или событийной).
+      Содержит результат проверки: сработал триггер или нет.
+      Используется для логирования и отладки цепочек решений агента.
+    tags:
+      - name: agent
+      - name: ai
+    subscribe:
+      operationId: onAgentTriggerEvaluated
+      summary: Agent trigger evaluated
+      message:
+        $ref: "#/components/messages/AgentTriggerEvaluated"
+    x-service-owner: agent
+    x-dead-letter:
+      subject: pmos.agent.trigger_evaluated.dlq
+      maxRetries: 3
+
+components:
+
+  # ────────────────────── Messages ──────────────────────
+
+  messages:
+
+    # Profiles
+    ProfileCreated:
+      name: ProfileCreated
+      title: Profile Created
+      summary: A new profile was created
+      payload:
+        $ref: "#/components/schemas/ProfileCreatedPayload"
+
+    ProfileUpdated:
+      name: ProfileUpdated
+      title: Profile Updated
+      summary: A profile was updated
+      payload:
+        $ref: "#/components/schemas/ProfileUpdatedPayload"
+
+    ProfileDeleted:
+      name: ProfileDeleted
+      title: Profile Deleted
+      summary: A profile was deleted
+      payload:
+        $ref: "#/components/schemas/ProfileDeletedPayload"
+
+    # Settings
+    SettingChanged:
+      name: SettingChanged
+      title: Setting Changed
+      summary: A setting value was changed
+      payload:
+        $ref: "#/components/schemas/SettingChangedPayload"
+
+    # Notes
+    NoteCreated:
+      name: NoteCreated
+      title: Note Created
+      summary: A new note was created
+      payload:
+        $ref: "#/components/schemas/NoteCreatedPayload"
+
+    NoteUpdated:
+      name: NoteUpdated
+      title: Note Updated
+      summary: A note was updated
+      payload:
+        $ref: "#/components/schemas/NoteUpdatedPayload"
+
+    NoteDeleted:
+      name: NoteDeleted
+      title: Note Deleted
+      summary: A note was deleted
+      payload:
+        $ref: "#/components/schemas/NoteDeletedPayload"
+
+    NoteTitleGenerated:
+      name: NoteTitleGenerated
+      title: Note Title Generated
+      summary: AI-generated title for a note is ready
+      payload:
+        $ref: "#/components/schemas/NoteTitleGeneratedPayload"
+
+    # Tasks
+    TaskCreated:
+      name: TaskCreated
+      title: Task Created
+      summary: A new task was created
+      payload:
+        $ref: "#/components/schemas/TaskCreatedPayload"
+
+    TaskUpdated:
+      name: TaskUpdated
+      title: Task Updated
+      summary: A task was updated
+      payload:
+        $ref: "#/components/schemas/TaskUpdatedPayload"
+
+    TaskDeleted:
+      name: TaskDeleted
+      title: Task Deleted
+      summary: A task was deleted
+      payload:
+        $ref: "#/components/schemas/TaskDeletedPayload"
+
+    TaskStatusChanged:
+      name: TaskStatusChanged
+      title: Task Status Changed
+      summary: Task status transition occurred
+      payload:
+        $ref: "#/components/schemas/TaskStatusChangedPayload"
+
+    TaskPrioritiesReordered:
+      name: TaskPrioritiesReordered
+      title: Task Priorities Reordered
+      summary: Task priority order was manually changed
+      payload:
+        $ref: "#/components/schemas/TaskPrioritiesReorderedPayload"
+
+    # Meetings
+    MeetingCreated:
+      name: MeetingCreated
+      title: Meeting Created
+      summary: A new meeting was created
+      payload:
+        $ref: "#/components/schemas/MeetingCreatedPayload"
+
+    MeetingUpdated:
+      name: MeetingUpdated
+      title: Meeting Updated
+      summary: A meeting was updated
+      payload:
+        $ref: "#/components/schemas/MeetingUpdatedPayload"
+
+    MeetingDeleted:
+      name: MeetingDeleted
+      title: Meeting Deleted
+      summary: A meeting was deleted
+      payload:
+        $ref: "#/components/schemas/MeetingDeletedPayload"
+
+    MeetingReminder:
+      name: MeetingReminder
+      title: Meeting Reminder
+      summary: A meeting reminder has fired
+      payload:
+        $ref: "#/components/schemas/MeetingReminderPayload"
+
+    # Projects
+    ProjectCreated:
+      name: ProjectCreated
+      title: Project Created
+      summary: A new project was created
+      payload:
+        $ref: "#/components/schemas/ProjectCreatedPayload"
+
+    ProjectUpdated:
+      name: ProjectUpdated
+      title: Project Updated
+      summary: A project was updated
+      payload:
+        $ref: "#/components/schemas/ProjectUpdatedPayload"
+
+    ProjectDeleted:
+      name: ProjectDeleted
+      title: Project Deleted
+      summary: A project was deleted
+      payload:
+        $ref: "#/components/schemas/ProjectDeletedPayload"
+
+    # Files
+    FileUploaded:
+      name: FileUploaded
+      title: File Uploaded
+      summary: A file was uploaded
+      payload:
+        $ref: "#/components/schemas/FileUploadedPayload"
+
+    FileUpdated:
+      name: FileUpdated
+      title: File Updated
+      summary: File metadata was updated
+      payload:
+        $ref: "#/components/schemas/FileUpdatedPayload"
+
+    FileDeleted:
+      name: FileDeleted
+      title: File Deleted
+      summary: A file was deleted
+      payload:
+        $ref: "#/components/schemas/FileDeletedPayload"
+
+    FileTextExtracted:
+      name: FileTextExtracted
+      title: File Text Extracted
+      summary: Text content was extracted from a file
+      payload:
+        $ref: "#/components/schemas/FileTextExtractedPayload"
+
+    # AI / Agent
+    DictationCompleted:
+      name: DictationCompleted
+      title: Dictation Completed
+      summary: Speech dictation was processed and formatted by AI
+      payload:
+        $ref: "#/components/schemas/DictationCompletedPayload"
+
+    AgentMessageCreated:
+      name: AgentMessageCreated
+      title: Agent Message Created
+      summary: An AI assistant message was generated
+      payload:
+        $ref: "#/components/schemas/AgentMessageCreatedPayload"
+
+    AgentTriggerEvaluated:
+      name: AgentTriggerEvaluated
+      title: Agent Trigger Evaluated
+      summary: An agent trigger rule was evaluated
+      payload:
+        $ref: "#/components/schemas/AgentTriggerEvaluatedPayload"
+
+  # ────────────────────── Schemas ──────────────────────
+
+  schemas:
+
+    # ── Base Event Envelope ──
+
+    EventEnvelope:
+      type: object
+      description: |
+        Базовый конверт события.
+        Все события ЦУП используют этот формат с одинаковыми обязательными полями.
+        Поле type дискриминирует тип события, data содержит тип-специфичную нагрузку.
+        correlationId пробрасывается для распределённой трассировки (см. ADR-005).
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор события (UUID v4). Используется для идемпотентности подписчиков.
+        type:
+          type: string
+          description: Тип события — дискриминатор. Определяет структуру поля data.
+        source:
+          type: string
+          description: Имя сервиса-отправителя (например, "notes", "tasks", "calendar").
+        timestamp:
+          type: string
+          format: date-time
+          description: Время публикации события в формате ISO 8601 (UTC).
+        data:
+          type: object
+          description: Тело события — тип-специфичная нагрузка.
+        correlationId:
+          type: string
+          format: uuid
+          description: |
+            Сквозной идентификатор для распределённой трассировки.
+            Генерируется api-gateway для входящих запросов и пробрасывается через все события цепочки.
+            Позволяет связать логи всех сервисов по одному correlationId.
+        version:
+          type: integer
+          minimum: 1
+          description: Версия схемы события. При breaking change версия инкрементируется.
+      required:
+        - id
+        - type
+        - source
+        - timestamp
+        - data
+        - correlationId
+        - version
+      examples:
+        - id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          type: "notes.created"
+          source: "notes"
+          timestamp: "2026-07-30T14:00:00.000Z"
+          data:
+            id: "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+            title: "My new note"
+            body_md: "# Hello\nWorld"
+            tags: ["personal"]
+            profile_ids: ["c3d4e5f6-a7b8-9012-cdef-123456789012"]
+            archived: false
+            created_at: "2026-07-30T14:00:00.000Z"
+            updated_at: "2026-07-30T14:00:00.000Z"
+          correlationId: "d4e5f6a7-b8c9-0123-defa-1234567890ab"
+          version: 1
+
+    # ── Payload Composition Helper ──
+
+    EventTypeMixin:
+      type: object
+      properties:
+        type:
+          type: string
+      required:
+        - type
+
+    VersionMixin:
+      type: object
+      properties:
+        version:
+          type: integer
+          minimum: 1
+      required:
+        - version
+
+    # ── Profiles ──
+
+    ProfileData:
+      type: object
+      description: Данные профиля.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор профиля.
+        name:
+          type: string
+          description: Отображаемое имя профиля (например, "Work", "Home", "Family").
+        color:
+          type: string
+          pattern: "^#[0-9a-fA-F]{6}$"
+          description: Цвет профиля в hex-формате (например, "#ff6b6b").
+        is_default:
+          type: boolean
+          description: Флаг профиля по умолчанию.
+        hidden:
+          type: boolean
+          description: Скрыт ли профиль из интерфейса.
+      required:
+        - id
+        - name
+        - color
+        - is_default
+        - hidden
+
+    ProfileCreatedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["profiles.created"]
+            data:
+              $ref: "#/components/schemas/ProfileData"
+          required:
+            - type
+            - data
+
+    ProfileUpdatedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["profiles.updated"]
+            data:
+              $ref: "#/components/schemas/ProfileData"
+          required:
+            - type
+            - data
+
+    ProfileDeletedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["profiles.deleted"]
+            data:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  description: ID удалённого профиля.
+              required:
+                - id
+          required:
+            - type
+            - data
+
+    # ── Settings ──
+
+    SettingData:
+      type: object
+      description: Данные настройки (ключ-значение).
+      properties:
+        key:
+          type: string
+          description: Ключ настройки (например, "kanban_columns", "gen_model").
+        value:
+          type: string
+          description: Значение настройки (JSON-encoded для сложных структур).
+      required:
+        - key
+        - value
+
+    SettingChangedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["settings.changed"]
+            data:
+              $ref: "#/components/schemas/SettingData"
+          required:
+            - type
+            - data
+
+    # ── Notes ──
+
+    NoteData:
+      type: object
+      description: Данные заметки.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор заметки.
+        title:
+          type: string
+          description: Заголовок заметки.
+        body_md:
+          type: string
+          description: Тело заметки в Markdown.
+        tags:
+          type: array
+          description: Список тегов.
+          items:
+            type: string
+        profile_ids:
+          type: array
+          description: Список профилей, к которым привязана заметка.
+          items:
+            type: string
+            format: uuid
+        linked_project_id:
+          type: string
+          format: uuid
+          description: ID привязанного проекта (опционально).
+          nullable: true
+        linked_meeting_id:
+          type: string
+          format: uuid
+          description: ID привязанной встречи (опционально).
+          nullable: true
+        linked_task_id:
+          type: string
+          format: uuid
+          description: ID привязанной задачи (опционально).
+          nullable: true
+        archived:
+          type: boolean
+          description: Флаг архивации (мягкое удаление).
+        created_at:
+          type: string
+          format: date-time
+          description: Дата создания.
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата последнего обновления.
+      required:
+        - id
+        - title
+        - body_md
+        - tags
+        - profile_ids
+        - archived
+        - created_at
+        - updated_at
+
+    NoteCreatedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["notes.created"]
+            data:
+              $ref: "#/components/schemas/NoteData"
+          required:
+            - type
+            - data
+
+    NoteUpdatedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["notes.updated"]
+            data:
+              $ref: "#/components/schemas/NoteData"
+          required:
+            - type
+            - data
+
+    NoteDeletedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["notes.deleted"]
+            data:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  description: ID удалённой заметки.
+              required:
+                - id
+          required:
+            - type
+            - data
+
+    NoteTitleGeneratedData:
+      type: object
+      description: Результат AI-генерации заголовка заметки.
+      properties:
+        note_id:
+          type: string
+          format: uuid
+          description: ID заметки, для которой сгенерирован заголовок.
+        title:
+          type: string
+          description: Сгенерированный AI заголовок.
+        tag:
+          type: string
+          description: Сгенерированный AI тег.
+      required:
+        - note_id
+        - title
+        - tag
+
+    NoteTitleGeneratedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["notes.title_generated"]
+            data:
+              $ref: "#/components/schemas/NoteTitleGeneratedData"
+          required:
+            - type
+            - data
+
+    # ── Tasks ──
+
+    TaskData:
+      type: object
+      description: Данные задачи.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор задачи.
+        title:
+          type: string
+          description: Название задачи.
+        description:
+          type: string
+          description: Описание задачи.
+          nullable: true
+        status:
+          type: string
+          description: Статус задачи в Kanban.
+          enum:
+            - backlog
+            - todo
+            - in_progress
+            - done
+            - archived
+        priority:
+          type: integer
+          minimum: 0
+          description: Приоритет задачи (0 — наивысший).
+        weight:
+          type: integer
+          minimum: 0
+          description: Вес задачи (для оценок трудозатрат).
+        assignee:
+          type: string
+          format: uuid
+          description: ID исполнителя (profile_id).
+          nullable: true
+        deadline:
+          type: string
+          format: date-time
+          description: Дедлайн задачи.
+          nullable: true
+        profile_ids:
+          type: array
+          description: Список профилей, к которым привязана задача.
+          items:
+            type: string
+            format: uuid
+        project_id:
+          type: string
+          format: uuid
+          description: ID проекта (опционально).
+          nullable: true
+        tags:
+          type: array
+          description: Список тегов.
+          items:
+            type: string
+        rank:
+          type: number
+          description: Ручной ранг для сортировки (drag-and-drop reorder).
+        created_at:
+          type: string
+          format: date-time
+          description: Дата создания.
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата последнего обновления.
+      required:
+        - id
+        - title
+        - status
+        - priority
+        - weight
+        - profile_ids
+        - rank
+        - created_at
+        - updated_at
+
+    TaskCreatedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["tasks.created"]
+            data:
+              $ref: "#/components/schemas/TaskData"
+          required:
+            - type
+            - data
+
+    TaskUpdatedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["tasks.updated"]
+            data:
+              $ref: "#/components/schemas/TaskData"
+          required:
+            - type
+            - data
+
+    TaskDeletedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["tasks.deleted"]
+            data:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  description: ID удалённой задачи.
+              required:
+                - id
+          required:
+            - type
+            - data
+
+    TaskStatusChangedData:
+      type: object
+      description: Данные о смене статуса задачи.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID задачи.
+        previous_status:
+          type: string
+          description: Предыдущий статус.
+          enum:
+            - backlog
+            - todo
+            - in_progress
+            - done
+            - archived
+        new_status:
+          type: string
+          description: Новый статус.
+          enum:
+            - backlog
+            - todo
+            - in_progress
+            - done
+            - archived
+        changed_at:
+          type: string
+          format: date-time
+          description: Время изменения статуса.
+      required:
+        - id
+        - previous_status
+        - new_status
+        - changed_at
+
+    TaskStatusChangedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["tasks.status_changed"]
+            data:
+              $ref: "#/components/schemas/TaskStatusChangedData"
+          required:
+            - type
+            - data
+
+    TaskPrioritiesReorderedData:
+      type: object
+      description: Данные о переупорядочивании приоритетов задач.
+      properties:
+        tasks:
+          type: array
+          description: Новый порядок задач с рангами.
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+                description: ID задачи.
+              rank:
+                type: number
+                description: Новый ранг сортировки.
+            required:
+              - id
+              - rank
+        reordered_at:
+          type: string
+          format: date-time
+          description: Время переупорядочивания.
+      required:
+        - tasks
+        - reordered_at
+
+    TaskPrioritiesReorderedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["tasks.priorities_reordered"]
+            data:
+              $ref: "#/components/schemas/TaskPrioritiesReorderedData"
+          required:
+            - type
+            - data
+
+    # ── Meetings ──
+
+    MeetingData:
+      type: object
+      description: Данные встречи.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор встречи.
+        title:
+          type: string
+          description: Название встречи.
+        description:
+          type: string
+          description: Описание встречи.
+          nullable: true
+        start_time:
+          type: string
+          format: date-time
+          description: Дата и время начала.
+        end_time:
+          type: string
+          format: date-time
+          description: Дата и время окончания.
+        all_day:
+          type: boolean
+          description: Флаг целодневной встречи.
+        location:
+          type: string
+          description: Место проведения (или ссылка на видеоконференцию).
+          nullable: true
+        recurrence:
+          type: string
+          description: Правило повторения (RRULE или JSON-encoded recurrence rule).
+          nullable: true
+        profile_ids:
+          type: array
+          description: Список профилей, к которым привязана встреча.
+          items:
+            type: string
+            format: uuid
+        linked_project_id:
+          type: string
+          format: uuid
+          description: ID привязанного проекта (опционально).
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          description: Дата создания.
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата последнего обновления.
+      required:
+        - id
+        - title
+        - start_time
+        - end_time
+        - all_day
+        - profile_ids
+        - created_at
+        - updated_at
+
+    MeetingCreatedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["meetings.created"]
+            data:
+              $ref: "#/components/schemas/MeetingData"
+          required:
+            - type
+            - data
+
+    MeetingUpdatedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["meetings.updated"]
+            data:
+              $ref: "#/components/schemas/MeetingData"
+          required:
+            - type
+            - data
+
+    MeetingDeletedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["meetings.deleted"]
+            data:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  description: ID удалённой встречи.
+              required:
+                - id
+          required:
+            - type
+            - data
+
+    MeetingReminderData:
+      type: object
+      description: Данные напоминания о встрече.
+      properties:
+        meeting_id:
+          type: string
+          format: uuid
+          description: ID встречи.
+        title:
+          type: string
+          description: Название встречи.
+        start_time:
+          type: string
+          format: date-time
+          description: Время начала встречи.
+        fire_at:
+          type: string
+          format: date-time
+          description: Время срабатывания напоминания.
+      required:
+        - meeting_id
+        - title
+        - start_time
+        - fire_at
+
+    MeetingReminderPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["meetings.reminder"]
+            data:
+              $ref: "#/components/schemas/MeetingReminderData"
+          required:
+            - type
+            - data
+
+    # ── Projects ──
+
+    ProjectData:
+      type: object
+      description: Данные проекта.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор проекта.
+        name:
+          type: string
+          description: Название проекта.
+        description:
+          type: string
+          description: Описание проекта.
+          nullable: true
+        status:
+          type: string
+          description: Статус проекта.
+          enum:
+            - active
+            - completed
+            - archived
+        goal:
+          type: string
+          description: Цель проекта (используется agent для генерации плана).
+          nullable: true
+        start_date:
+          type: string
+          format: date
+          description: Дата начала проекта.
+          nullable: true
+        end_date:
+          type: string
+          format: date
+          description: Дата завершения проекта.
+          nullable: true
+        profile_ids:
+          type: array
+          description: Список профилей, к которым привязан проект.
+          items:
+            type: string
+            format: uuid
+        created_at:
+          type: string
+          format: date-time
+          description: Дата создания.
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата последнего обновления.
+      required:
+        - id
+        - name
+        - status
+        - profile_ids
+        - created_at
+        - updated_at
+
+    ProjectCreatedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["projects.created"]
+            data:
+              $ref: "#/components/schemas/ProjectData"
+          required:
+            - type
+            - data
+
+    ProjectUpdatedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["projects.updated"]
+            data:
+              $ref: "#/components/schemas/ProjectData"
+          required:
+            - type
+            - data
+
+    ProjectDeletedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["projects.deleted"]
+            data:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  description: ID удалённого проекта.
+              required:
+                - id
+          required:
+            - type
+            - data
+
+    # ── Files ──
+
+    FileData:
+      type: object
+      description: Метаданные файла.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор файла.
+        filename:
+          type: string
+          description: Оригинальное имя файла.
+        mime:
+          type: string
+          description: MIME-тип файла (например, "text/plain", "application/pdf").
+        size:
+          type: integer
+          minimum: 0
+          description: Размер файла в байтах.
+        owner_type:
+          type: string
+          description: Тип владельца (polymorphic: "project", "note", "task", "meeting").
+          nullable: true
+        owner_id:
+          type: string
+          format: uuid
+          description: ID владельца.
+          nullable: true
+        profile_ids:
+          type: array
+          description: Список профилей, к которым привязан файл.
+          items:
+            type: string
+            format: uuid
+        uploaded_at:
+          type: string
+          format: date-time
+          description: Дата и время загрузки.
+      required:
+        - id
+        - filename
+        - mime
+        - size
+        - profile_ids
+        - uploaded_at
+
+    FileUploadedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["files.uploaded"]
+            data:
+              $ref: "#/components/schemas/FileData"
+          required:
+            - type
+            - data
+
+    FileUpdatedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["files.updated"]
+            data:
+              $ref: "#/components/schemas/FileData"
+          required:
+            - type
+            - data
+
+    FileDeletedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["files.deleted"]
+            data:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  description: ID удалённого файла.
+              required:
+                - id
+          required:
+            - type
+            - data
+
+    FileTextExtractedData:
+      type: object
+      description: Результат извлечения текста из файла.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID файла.
+        filename:
+          type: string
+          description: Оригинальное имя файла.
+        mime:
+          type: string
+          description: MIME-тип файла.
+        extracted_text:
+          type: string
+          description: Извлечённый текст.
+        extracted_at:
+          type: string
+          format: date-time
+          description: Время извлечения текста.
+      required:
+        - id
+        - filename
+        - mime
+        - extracted_text
+        - extracted_at
+
+    FileTextExtractedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["files.text_extracted"]
+            data:
+              $ref: "#/components/schemas/FileTextExtractedData"
+          required:
+            - type
+            - data
+
+    # ── Dictation ──
+
+    DictationCompletedData:
+      type: object
+      description: Результат диктовки (распознавание речи + AI-форматирование).
+      properties:
+        note_id:
+          type: string
+          format: uuid
+          description: ID заметки, созданной из диктовки.
+        title:
+          type: string
+          description: Сгенерированный AI заголовок.
+        body_md:
+          type: string
+          description: Отформатированный AI текст в Markdown.
+        tag:
+          type: string
+          description: Сгенерированный AI тег.
+          nullable: true
+      required:
+        - note_id
+        - title
+        - body_md
+
+    DictationCompletedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["dictation.completed"]
+            data:
+              $ref: "#/components/schemas/DictationCompletedData"
+          required:
+            - type
+            - data
+
+    # ── Agent ──
+
+    AgentMessageData:
+      type: object
+      description: Сообщение от AI-ассистента.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор сообщения.
+        content:
+          type: string
+          description: Текст сообщения (может содержать Markdown).
+        message_type:
+          type: string
+          description: Тип сообщения.
+          enum:
+            - suggestion
+            - reminder
+            - digest
+            - alert
+        created_at:
+          type: string
+          format: date-time
+          description: Время создания сообщения.
+      required:
+        - id
+        - content
+        - message_type
+        - created_at
+
+    AgentMessageCreatedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["agent.message_created"]
+            data:
+              $ref: "#/components/schemas/AgentMessageData"
+          required:
+            - type
+            - data
+
+    AgentTriggerEvaluatedData:
+      type: object
+      description: Результат оценки триггера AI-ассистента.
+      properties:
+        trigger_id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор проверки триггера.
+        trigger_type:
+          type: string
+          description: Тип триггера.
+          enum:
+            - deadline_soon
+            - meeting_ended
+            - task_no_assignee
+            - project_plan
+            - daily_digest
+            - weekly_digest
+        evaluated_at:
+          type: string
+          format: date-time
+          description: Время оценки триггера.
+        fired:
+          type: boolean
+          description: Сработал ли триггер (true — условие выполнено, создано сообщение).
+        result:
+          type: string
+          description: Описание результата (например, "создано напоминание" или "условие не выполнено").
+          nullable: true
+      required:
+        - trigger_id
+        - trigger_type
+        - evaluated_at
+        - fired
+
+    AgentTriggerEvaluatedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["agent.trigger_evaluated"]
+            data:
+              $ref: "#/components/schemas/AgentTriggerEvaluatedData"
+          required:
+            - type
+            - data
