@@ -4,7 +4,7 @@ import correlationId from "./plugins/correlationId.js";
 import health from "./plugins/health.js";
 import metrics from "./plugins/metrics.js";
 import { errorHandler } from "./lib/errors.js";
-import { notesRoutes } from "./routes/index.js";
+import { integrationsRoutes } from "./routes/index.js";
 
 export async function buildApp() {
   const app = Fastify({ logger: false }).withTypeProvider<TypeBoxTypeProvider>();
@@ -12,7 +12,7 @@ export async function buildApp() {
   await app.register(correlationId);
   await app.register(health);
   await app.register(metrics);
-  await app.register(notesRoutes, { prefix: "/api/integrations/v1" });
+  await app.register(integrationsRoutes, { prefix: "/api/integrations/v1" });
 
   app.setErrorHandler(errorHandler);
   return app;
