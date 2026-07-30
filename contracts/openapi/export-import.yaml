@@ -1,0 +1,242 @@
+openapi: 3.1.0
+
+info:
+  title: Export & Import Service
+  version: 1.0.0
+  description: >
+    Полный экспорт всех данных (ZIP) и импорт из текста/JSON.
+
+servers:
+  - url: /api/export-import/v1
+    description: API Gateway route for export-import service
+
+paths:
+  /export:
+    get:
+      operationId: exportAll
+      summary: Экспорт всех данных в ZIP
+      tags: [Export]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: format
+          in: query
+          required: false
+          description: Формат (zip|json)
+          schema:
+            type: string
+            enum: [zip, json]
+            default: zip
+      responses:
+        '200':
+          description: Архив с данными
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /import:
+    post:
+      operationId: importData
+      summary: Импорт данных из текста или JSON
+      tags: [Import]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRequest'
+      responses:
+        '200':
+          description: Импорт выполнен
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  importedNotes:
+                    type: integer
+                  importedTasks:
+                    type: integer
+                  importedCalendars:
+                    type: integer
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    CorrelationId:
+      name: x-correlation-id
+      in: header
+      required: true
+      description: Уникальный идентификатор для трассировки запроса
+      schema:
+        type: string
+        format: uuid
+      example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    Offset:
+      name: offset
+      in: query
+      required: false
+      description: Смещение для пагинации (с какого элемента начинать)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      example: 0
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Максимальное количество записей на страницу
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+  schemas:
+    # ─────────────────────── Error schemas ───────────────────────
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Код ошибки
+        message:
+          type: string
+          description: Человекочитаемое описание ошибки
+        details:
+          oneOf:
+            - type: object
+            - type: 'null'
+          description: Дополнительная информация об ошибке
+
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR]
+          example:
+            code: VALIDATION_ERROR
+            message: Некорректные данные запроса
+            details:
+              field: title
+              constraint: required
+
+    NotFoundError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [NOT_FOUND]
+          example:
+            code: NOT_FOUND
+            message: Ресурс не найден
+            details:
+              resourceType: resource
+              resourceId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    InternalError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [INTERNAL_ERROR]
+          example:
+            code: INTERNAL_ERROR
+            message: Внутренняя ошибка сервера
+
+    # ─────────────────────── Pagination ───────────────────────
+    Pagination:
+      type: object
+      required:
+        - offset
+        - limit
+        - total
+      properties:
+        offset:
+          type: integer
+          description: Текущее смещение
+        limit:
+          type: integer
+          description: Максимум записей на страницу
+        total:
+          type: integer
+          description: Общее количество записей
+      example:
+        offset: 0
+        limit: 20
+        total: 5
+    ImportRequest:
+      type: object
+      description: Запрос импорта
+      required:
+        - format
+        - content
+      properties:
+        format:
+          type: string
+        description: 'Формат: text|json'
+        content:
+          type: string
+        description: 'Содержимое для импорта'
+        target:
+          type: string
+        description: 'Цель: note|task|calendar'
+
+  responses:
+    ValidationError:
+      description: Ошибка валидации запроса
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    NotFoundError:
+      description: Запрашиваемый ресурс не найден
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundError'
+
+    InternalError:
+      description: Внутренняя ошибка сервера
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'

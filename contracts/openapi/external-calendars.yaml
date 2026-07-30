@@ -1,0 +1,495 @@
+openapi: 3.1.0
+
+info:
+  title: External Calendars Service
+  version: 1.0.0
+  description: >
+    Синхронизация с Google Calendar, Yandex Calendar и ICS URLs.
+
+servers:
+  - url: /api/external-calendars/v1
+    description: API Gateway route for external-calendars service
+
+paths:
+  /calendars:
+    post:
+      operationId: createExternalCalendar
+      summary: Создать calendars
+      tags: [ExternalCalendar, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExternalCalendarCreate'
+      responses:
+        '201':
+          description: Создано
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalCalendar'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      operationId: listExternalCalendars
+      summary: Получить список calendars
+      tags: [ExternalCalendar, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+
+      responses:
+        '200':
+          description: Список с пагинацией
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ExternalCalendar'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /calendars/{id}:
+    get:
+      operationId: getExternalCalendar
+      summary: Получить calendars по ID
+      tags: [ExternalCalendar, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID calendars
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Данные
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalCalendar'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      operationId: updateExternalCalendar
+      summary: Обновить calendars (частично)
+      tags: [ExternalCalendar, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID calendars
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExternalCalendarUpdate'
+      responses:
+        '200':
+          description: Обновлено
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExternalCalendar'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      operationId: deleteExternalCalendar
+      summary: Удалить calendars
+      tags: [ExternalCalendar, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID calendars
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Удалено (без тела)
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /calendars/sync/{id}:
+    post:
+      operationId: syncExternalCalendar
+      summary: Синхронизировать внешний календарь
+      tags: [ExternalCalendars, Sync]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID календаря
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Синхронизация выполнена
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  syncedEvents:
+                    type: integer
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /calendars/{id}/events:
+    get:
+      operationId: listExternalEvents
+      summary: События внешнего календаря
+      tags: [ExternalCalendars, Events]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID календаря
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: События
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /calendars/events/{id}/link:
+    patch:
+      operationId: linkExternalEvent
+      summary: Связать внешнее событие с локальной встречей
+      tags: [ExternalCalendars, Events]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID внешнего события
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                meetingId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Связано
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    CorrelationId:
+      name: x-correlation-id
+      in: header
+      required: true
+      description: Уникальный идентификатор для трассировки запроса
+      schema:
+        type: string
+        format: uuid
+      example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    Offset:
+      name: offset
+      in: query
+      required: false
+      description: Смещение для пагинации (с какого элемента начинать)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      example: 0
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Максимальное количество записей на страницу
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+  schemas:
+    # ─────────────────────── Error schemas ───────────────────────
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Код ошибки
+        message:
+          type: string
+          description: Человекочитаемое описание ошибки
+        details:
+          oneOf:
+            - type: object
+            - type: 'null'
+          description: Дополнительная информация об ошибке
+
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR]
+          example:
+            code: VALIDATION_ERROR
+            message: Некорректные данные запроса
+            details:
+              field: title
+              constraint: required
+
+    NotFoundError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [NOT_FOUND]
+          example:
+            code: NOT_FOUND
+            message: Ресурс не найден
+            details:
+              resourceType: resource
+              resourceId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    InternalError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [INTERNAL_ERROR]
+          example:
+            code: INTERNAL_ERROR
+            message: Внутренняя ошибка сервера
+
+    # ─────────────────────── Pagination ───────────────────────
+    Pagination:
+      type: object
+      required:
+        - offset
+        - limit
+        - total
+      properties:
+        offset:
+          type: integer
+          description: Текущее смещение
+        limit:
+          type: integer
+          description: Максимум записей на страницу
+        total:
+          type: integer
+          description: Общее количество записей
+      example:
+        offset: 0
+        limit: 20
+        total: 5
+    ExternalCalendar:
+      type: object
+      description: Внешний календарь
+      required:
+        - id
+        - displayName
+        - provider
+      properties:
+        id:
+          type: string
+          format: uuid
+        description: 'UUID записи'
+        displayName:
+          type: string
+        description: 'Отображаемое имя'
+        provider:
+          type: string
+        description: 'Провайдер: google|yandex|ics'
+        syncEnabled:
+          type: string
+        description: 'Синхронизация включена'
+        authData:
+          type: string
+        description: 'Данные авторизации (token/url)'
+        lastSyncAt:
+          type: string
+          format: date-time
+        description: 'Последняя синхронизация'
+      example:
+        |-
+          id: c1a2b3c4-d5e6-7890-abcd-ef1234567890
+          displayName: Work Calendar
+          provider: google
+          syncEnabled: true
+          lastSyncAt: '2026-07-30T09:00:00Z'
+    ExternalCalendarCreate:
+      type: object
+      description: Данные для создания внешнего календаря
+      required:
+        - displayName
+        - provider
+      properties:
+        displayName:
+          type: string
+        description: 'Имя'
+        provider:
+          type: string
+        description: 'Провайдер'
+        authData:
+          type: string
+        description: 'Данные авторизации'
+        syncEnabled:
+          type: boolean
+        description: 'Синхронизация'
+    ExternalCalendarUpdate:
+      type: object
+      description: Частичное обновление
+      required: []
+      properties:
+        displayName:
+          type: string
+        description: 'Имя'
+        authData:
+          type: string
+        description: 'Данные авторизации'
+        syncEnabled:
+          type: boolean
+        description: 'Синхронизация'
+
+  responses:
+    ValidationError:
+      description: Ошибка валидации запроса
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    NotFoundError:
+      description: Запрашиваемый ресурс не найден
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundError'
+
+    InternalError:
+      description: Внутренняя ошибка сервера
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'

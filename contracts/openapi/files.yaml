@@ -1,0 +1,389 @@
+openapi: 3.1.0
+
+info:
+  title: Files Service
+  version: 1.0.0
+  description: >
+    Загрузка, хранение, извлечение текста и семантическая индексация файлов.
+
+servers:
+  - url: /api/files/v1
+    description: API Gateway route for files service
+
+paths:
+  /files:
+    get:
+      operationId: listFiles
+      summary: Список файлов
+      tags: [Files, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+        - name: profileId
+          in: query
+          required: false
+          description: Фильтр по профилю (uuid)
+          schema:
+            type: string
+            format: uuid
+        - name: ownerType
+          in: query
+          required: false
+          description: Тип владельца
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Список с пагинацией
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FileMeta'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      operationId: uploadFile
+      summary: Загрузить файл (multipart, лимит 50MB)
+      tags: [Files, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                profileIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                ownerType:
+                  type: string
+                ownerId:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Файл загружен
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileMeta'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /files/{id}:
+    get:
+      operationId: getFile
+      summary: Метаданные файла
+      tags: [Files, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID файла
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Метаданные
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileMeta'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      operationId: deleteFile
+      summary: Удалить файл
+      tags: [Files, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID файла
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Удалено
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /files/{id}/download:
+    get:
+      operationId: downloadFile
+      summary: Скачать файл
+      tags: [Files, Download]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID файла
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Бинарный контент файла
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    CorrelationId:
+      name: x-correlation-id
+      in: header
+      required: true
+      description: Уникальный идентификатор для трассировки запроса
+      schema:
+        type: string
+        format: uuid
+      example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    Offset:
+      name: offset
+      in: query
+      required: false
+      description: Смещение для пагинации (с какого элемента начинать)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      example: 0
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Максимальное количество записей на страницу
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+  schemas:
+    # ─────────────────────── Error schemas ───────────────────────
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Код ошибки
+        message:
+          type: string
+          description: Человекочитаемое описание ошибки
+        details:
+          oneOf:
+            - type: object
+            - type: 'null'
+          description: Дополнительная информация об ошибке
+
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR]
+          example:
+            code: VALIDATION_ERROR
+            message: Некорректные данные запроса
+            details:
+              field: title
+              constraint: required
+
+    NotFoundError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [NOT_FOUND]
+          example:
+            code: NOT_FOUND
+            message: Ресурс не найден
+            details:
+              resourceType: resource
+              resourceId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    InternalError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [INTERNAL_ERROR]
+          example:
+            code: INTERNAL_ERROR
+            message: Внутренняя ошибка сервера
+
+    # ─────────────────────── Pagination ───────────────────────
+    Pagination:
+      type: object
+      required:
+        - offset
+        - limit
+        - total
+      properties:
+        offset:
+          type: integer
+          description: Текущее смещение
+        limit:
+          type: integer
+          description: Максимум записей на страницу
+        total:
+          type: integer
+          description: Общее количество записей
+      example:
+        offset: 0
+        limit: 20
+        total: 5
+    FileMeta:
+      type: object
+      description: Метаданные файла
+      required:
+        - id
+        - filename
+        - mimeType
+        - size
+        - storagePath
+        - profileIds
+        - uploadedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        description: 'UUID записи'
+        filename:
+          type: string
+        description: 'Имя файла'
+        mimeType:
+          type: string
+        description: 'MIME-тип'
+        size:
+          type: integer
+        description: 'Размер в байтах'
+        ownerType:
+          type: string
+        description: 'Тип владельца (note|task|project|null)'
+        ownerId:
+          type: string
+          format: uuid
+        description: 'UUID владельца'
+        storagePath:
+          type: string
+        description: 'Путь в хранилище'
+        profileIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        description: 'UUID профилей'
+        uploadedAt:
+          type: string
+          format: date-time
+        description: 'Загружено'
+      example:
+        |-
+          id: f1a2b3c4-d5e6-7890-abcd-ef1234567890
+          filename: report.pdf
+          mimeType: application/pdf
+          size: 1048576
+          ownerType: project
+          ownerId: p1a2b3c4-d5e6-7890-abcd-ef1234567890
+          storagePath: /storage/f1a2b3c4/report.pdf
+          profileIds: [f1a2b3c4-d5e6-7890-abcd-ef1234567890]
+          uploadedAt: '2026-07-30T10:00:00Z'
+
+  responses:
+    ValidationError:
+      description: Ошибка валидации запроса
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    NotFoundError:
+      description: Запрашиваемый ресурс не найден
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundError'
+
+    InternalError:
+      description: Внутренняя ошибка сервера
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'

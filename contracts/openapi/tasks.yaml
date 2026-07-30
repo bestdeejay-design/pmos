@@ -1,0 +1,559 @@
+openapi: 3.1.0
+
+info:
+  title: Tasks Service
+  version: 1.0.0
+  description: >
+    Kanban-задачи с рекурренсом, streaks, зависимостями и ранжированием приоритетов.
+
+servers:
+  - url: /api/tasks/v1
+    description: API Gateway route for tasks service
+
+paths:
+  /tasks:
+    post:
+      operationId: createTask
+      summary: Создать tasks
+      tags: [Task, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+      responses:
+        '201':
+          description: Создано
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      operationId: listTasks
+      summary: Получить список tasks
+      tags: [Task, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+        - name: projectId
+          in: query
+          required: false
+          description: Фильтр по проекту (uuid)
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Фильтр по статусу
+          schema:
+            type: string
+        - name: profileId
+          in: query
+          required: false
+          description: Фильтр по профилю (uuid)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Список с пагинацией
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      summary: Получить tasks по ID
+      tags: [Task, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID tasks
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Данные
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      operationId: updateTask
+      summary: Обновить tasks (частично)
+      tags: [Task, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID tasks
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdate'
+      responses:
+        '200':
+          description: Обновлено
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      operationId: deleteTask
+      summary: Удалить tasks
+      tags: [Task, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID tasks
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Удалено (без тела)
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /priorities:
+    get:
+      operationId: listPriorities
+      summary: Ранжированный список приоритетов
+      tags: [Priorities]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Приоритеты
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /priorities/order:
+    put:
+      operationId: reorderPriorities
+      summary: Переупорядочить приоритеты
+      tags: [Priorities]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderedIds]
+              properties:
+                orderedIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Порядок сохранён
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    CorrelationId:
+      name: x-correlation-id
+      in: header
+      required: true
+      description: Уникальный идентификатор для трассировки запроса
+      schema:
+        type: string
+        format: uuid
+      example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    Offset:
+      name: offset
+      in: query
+      required: false
+      description: Смещение для пагинации (с какого элемента начинать)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      example: 0
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Максимальное количество записей на страницу
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+  schemas:
+    # ─────────────────────── Error schemas ───────────────────────
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Код ошибки
+        message:
+          type: string
+          description: Человекочитаемое описание ошибки
+        details:
+          oneOf:
+            - type: object
+            - type: 'null'
+          description: Дополнительная информация об ошибке
+
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR]
+          example:
+            code: VALIDATION_ERROR
+            message: Некорректные данные запроса
+            details:
+              field: title
+              constraint: required
+
+    NotFoundError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [NOT_FOUND]
+          example:
+            code: NOT_FOUND
+            message: Ресурс не найден
+            details:
+              resourceType: resource
+              resourceId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    InternalError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [INTERNAL_ERROR]
+          example:
+            code: INTERNAL_ERROR
+            message: Внутренняя ошибка сервера
+
+    # ─────────────────────── Pagination ───────────────────────
+    Pagination:
+      type: object
+      required:
+        - offset
+        - limit
+        - total
+      properties:
+        offset:
+          type: integer
+          description: Текущее смещение
+        limit:
+          type: integer
+          description: Максимум записей на страницу
+        total:
+          type: integer
+          description: Общее количество записей
+      example:
+        offset: 0
+        limit: 20
+        total: 5
+    Task:
+      type: object
+      description: Kanban-задача
+      required:
+        - id
+        - title
+        - status
+        - priority
+        - profileIds
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        description: 'UUID записи'
+        title:
+          type: string
+        description: 'Заголовок задачи'
+        status:
+          type: string
+        description: 'Статус: todo | in_progress | done'
+        priority:
+          type: integer
+        description: 'Приоритет (вес)'
+        description:
+          type: string
+        description: 'Описание'
+        assignee:
+          type: string
+        description: 'Исполнитель'
+        deadline:
+          type: string
+          format: date-time
+        description: 'Дедлайн'
+        projectId:
+          type: string
+          format: uuid
+        description: 'UUID проекта'
+        profileIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        description: 'UUID профилей'
+        recurrence:
+          type: string
+        description: 'Правило рекурренса (RFC5545)'
+        currentStreak:
+          type: integer
+        description: 'Текущая серия выполнений'
+        bestStreak:
+          type: integer
+        description: 'Лучшая серия'
+        completedAt:
+          type: string
+          format: date-time
+        description: 'Время завершения'
+        isArchived:
+          type: boolean
+        description: 'Мягко удалено/в архиве'
+        createdAt:
+          type: string
+          format: date-time
+        description: 'Создано'
+        updatedAt:
+          type: string
+          format: date-time
+        description: 'Обновлено'
+      example:
+        |-
+          id: t1a2b3c4-d5e6-7890-abcd-ef1234567890
+          title: Написать документацию
+          status: in_progress
+          priority: 5
+          description: Обновить ADR
+          assignee: best
+          deadline: '2026-08-01T18:00:00Z'
+          projectId: p1a2b3c4-d5e6-7890-abcd-ef1234567890
+          profileIds: [f1a2b3c4-d5e6-7890-abcd-ef1234567890]
+          recurrence: RRULE:FREQ=DAILY
+          currentStreak: 3
+          bestStreak: 12
+          isArchived: false
+          createdAt: '2026-07-30T10:00:00Z'
+          updatedAt: '2026-07-30T12:00:00Z'
+    TaskCreate:
+      type: object
+      description: Данные для создания задачи
+      required:
+        - title
+      properties:
+        title:
+          type: string
+        description: 'Заголовок'
+        priority:
+          type: integer
+        description: 'Приоритет'
+        description:
+          type: string
+        description: 'Описание'
+        assignee:
+          type: string
+        description: 'Исполнитель'
+        deadline:
+          type: string
+          format: date-time
+        description: 'Дедлайн'
+        projectId:
+          type: string
+          format: uuid
+        description: 'UUID проекта'
+        profileIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        description: 'UUID профилей'
+        recurrence:
+          type: string
+        description: 'Правило рекурренса'
+    TaskUpdate:
+      type: object
+      description: Частичное обновление задачи (все поля опциональны)
+      required: []
+      properties:
+        title:
+          type: string
+        description: 'Заголовок'
+        status:
+          type: string
+        description: 'Статус'
+        priority:
+          type: integer
+        description: 'Приоритет'
+        description:
+          type: string
+        description: 'Описание'
+        assignee:
+          type: string
+        description: 'Исполнитель'
+        deadline:
+          type: string
+          format: date-time
+        description: 'Дедлайн'
+        projectId:
+          type: string
+          format: uuid
+        description: 'UUID проекта'
+        profileIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        description: 'UUID профилей'
+        recurrence:
+          type: string
+        description: 'Правило рекурренса'
+        isArchived:
+          type: boolean
+        description: 'В архив'
+
+  responses:
+    ValidationError:
+      description: Ошибка валидации запроса
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    NotFoundError:
+      description: Запрашиваемый ресурс не найден
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundError'
+
+    InternalError:
+      description: Внутренняя ошибка сервера
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'

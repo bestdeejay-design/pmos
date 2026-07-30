@@ -1,0 +1,386 @@
+openapi: 3.1.0
+
+info:
+  title: Sync Folders Service
+  version: 1.0.0
+  description: >
+    Obsidian-style синхронизация с файловой системой (auto import/export).
+
+servers:
+  - url: /api/sync/v1
+    description: API Gateway route for sync service
+
+paths:
+  /sync-folders:
+    post:
+      operationId: createSyncFolder
+      summary: Создать sync-folders
+      tags: [SyncFolder, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncFolderCreate'
+      responses:
+        '201':
+          description: Создано
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncFolder'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      operationId: listSyncFolders
+      summary: Получить список sync-folders
+      tags: [SyncFolder, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+
+      responses:
+        '200':
+          description: Список с пагинацией
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SyncFolder'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /sync-folders/{id}:
+    get:
+      operationId: getSyncFolder
+      summary: Получить sync-folders по ID
+      tags: [SyncFolder, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID sync-folders
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Данные
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncFolder'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      operationId: updateSyncFolder
+      summary: Обновить sync-folders (частично)
+      tags: [SyncFolder, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID sync-folders
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncFolderUpdate'
+      responses:
+        '200':
+          description: Обновлено
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncFolder'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      operationId: deleteSyncFolder
+      summary: Удалить sync-folders
+      tags: [SyncFolder, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID sync-folders
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Удалено (без тела)
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    CorrelationId:
+      name: x-correlation-id
+      in: header
+      required: true
+      description: Уникальный идентификатор для трассировки запроса
+      schema:
+        type: string
+        format: uuid
+      example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    Offset:
+      name: offset
+      in: query
+      required: false
+      description: Смещение для пагинации (с какого элемента начинать)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      example: 0
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Максимальное количество записей на страницу
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+  schemas:
+    # ─────────────────────── Error schemas ───────────────────────
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Код ошибки
+        message:
+          type: string
+          description: Человекочитаемое описание ошибки
+        details:
+          oneOf:
+            - type: object
+            - type: 'null'
+          description: Дополнительная информация об ошибке
+
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR]
+          example:
+            code: VALIDATION_ERROR
+            message: Некорректные данные запроса
+            details:
+              field: title
+              constraint: required
+
+    NotFoundError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [NOT_FOUND]
+          example:
+            code: NOT_FOUND
+            message: Ресурс не найден
+            details:
+              resourceType: resource
+              resourceId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    InternalError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [INTERNAL_ERROR]
+          example:
+            code: INTERNAL_ERROR
+            message: Внутренняя ошибка сервера
+
+    # ─────────────────────── Pagination ───────────────────────
+    Pagination:
+      type: object
+      required:
+        - offset
+        - limit
+        - total
+      properties:
+        offset:
+          type: integer
+          description: Текущее смещение
+        limit:
+          type: integer
+          description: Максимум записей на страницу
+        total:
+          type: integer
+          description: Общее количество записей
+      example:
+        offset: 0
+        limit: 20
+        total: 5
+    SyncFolder:
+      type: object
+      description: Папка синхронизации
+      required:
+        - id
+        - path
+      properties:
+        id:
+          type: string
+          format: uuid
+        description: 'UUID записи'
+        path:
+          type: string
+        description: 'Путь к папке на диске'
+        autoImport:
+          type: boolean
+        description: 'Автоимпорт .md → заметки'
+        autoExport:
+          type: boolean
+        description: 'Автоэкспорт заметок → .md'
+        profileScope:
+          type: string
+        description: 'Какие профили синхронизировать (json)'
+        lastScanAt:
+          type: string
+          format: date-time
+        description: 'Последнее сканирование'
+      example:
+        |-
+          id: s1a2b3c4-d5e6-7890-abcd-ef1234567890
+          path: /Users/me/Documents/notes
+          autoImport: true
+          autoExport: true
+          profileScope: '["home"]'
+          lastScanAt: '2026-07-30T09:00:00Z'
+    SyncFolderCreate:
+      type: object
+      description: Данные для создания папки синхронизации
+      required:
+        - path
+      properties:
+        path:
+          type: string
+        description: 'Путь'
+        autoImport:
+          type: boolean
+        description: 'Автоимпорт'
+        autoExport:
+          type: boolean
+        description: 'Автоэкспорт'
+        profileScope:
+          type: string
+        description: 'Профили'
+    SyncFolderUpdate:
+      type: object
+      description: Частичное обновление папки
+      required: []
+      properties:
+        path:
+          type: string
+        description: 'Путь'
+        autoImport:
+          type: boolean
+        description: 'Автоимпорт'
+        autoExport:
+          type: boolean
+        description: 'Автоэкспорт'
+        profileScope:
+          type: string
+        description: 'Профили'
+
+  responses:
+    ValidationError:
+      description: Ошибка валидации запроса
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    NotFoundError:
+      description: Запрашиваемый ресурс не найден
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundError'
+
+    InternalError:
+      description: Внутренняя ошибка сервера
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'

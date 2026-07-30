@@ -1,0 +1,547 @@
+openapi: 3.1.0
+
+info:
+  title: Integrations Service
+  version: 1.0.0
+  description: >
+    Публичный API (v1), webhook-уведомления и API-ключи для внешних интеграций.
+
+servers:
+  - url: /api/integrations/v1
+    description: API Gateway route for integrations service
+
+paths:
+  /webhooks:
+    post:
+      operationId: createWebhook
+      summary: Создать webhooks
+      tags: [Webhook, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookCreate'
+      responses:
+        '201':
+          description: Создано
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      operationId: listWebhooks
+      summary: Получить список webhooks
+      tags: [Webhook, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+
+      responses:
+        '200':
+          description: Список с пагинацией
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Webhook'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /webhooks/{id}:
+    get:
+      operationId: getWebhook
+      summary: Получить webhooks по ID
+      tags: [Webhook, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID webhooks
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Данные
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      operationId: updateWebhook
+      summary: Обновить webhooks (частично)
+      tags: [Webhook, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID webhooks
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookUpdate'
+      responses:
+        '200':
+          description: Обновлено
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      operationId: deleteWebhook
+      summary: Удалить webhooks
+      tags: [Webhook, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID webhooks
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Удалено (без тела)
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /webhooks/{id}/deliveries:
+    get:
+      operationId: listWebhookDeliveries
+      summary: История доставок webhook
+      tags: [Webhooks, Deliveries]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+        - name: id
+          in: path
+          required: true
+          description: UUID webhook
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Доставки
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api-keys:
+    get:
+      operationId: listApiKeys
+      summary: Список API-ключей
+      tags: [ApiKeys, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Ключи
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApiKey'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      operationId: createApiKey
+      summary: Создать API-ключ
+      tags: [ApiKeys, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyCreate'
+      responses:
+        '201':
+          description: Ключ создан (в ответе — plaintext, только здесь)
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api-keys/{id}:
+    delete:
+      operationId: deleteApiKey
+      summary: Удалить API-ключ
+      tags: [ApiKeys, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID ключа
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Удалён
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    CorrelationId:
+      name: x-correlation-id
+      in: header
+      required: true
+      description: Уникальный идентификатор для трассировки запроса
+      schema:
+        type: string
+        format: uuid
+      example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    Offset:
+      name: offset
+      in: query
+      required: false
+      description: Смещение для пагинации (с какого элемента начинать)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      example: 0
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Максимальное количество записей на страницу
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+  schemas:
+    # ─────────────────────── Error schemas ───────────────────────
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Код ошибки
+        message:
+          type: string
+          description: Человекочитаемое описание ошибки
+        details:
+          oneOf:
+            - type: object
+            - type: 'null'
+          description: Дополнительная информация об ошибке
+
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR]
+          example:
+            code: VALIDATION_ERROR
+            message: Некорректные данные запроса
+            details:
+              field: title
+              constraint: required
+
+    NotFoundError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [NOT_FOUND]
+          example:
+            code: NOT_FOUND
+            message: Ресурс не найден
+            details:
+              resourceType: resource
+              resourceId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    InternalError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [INTERNAL_ERROR]
+          example:
+            code: INTERNAL_ERROR
+            message: Внутренняя ошибка сервера
+
+    # ─────────────────────── Pagination ───────────────────────
+    Pagination:
+      type: object
+      required:
+        - offset
+        - limit
+        - total
+      properties:
+        offset:
+          type: integer
+          description: Текущее смещение
+        limit:
+          type: integer
+          description: Максимум записей на страницу
+        total:
+          type: integer
+          description: Общее количество записей
+      example:
+        offset: 0
+        limit: 20
+        total: 5
+    Webhook:
+      type: object
+      description: Webhook-подписка
+      required:
+        - id
+        - url
+        - events
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        description: 'UUID записи'
+        url:
+          type: string
+        description: 'URL для доставки'
+        events:
+          type: array
+          items:
+            type: string
+        description: 'Подписки на события'
+        secret:
+          type: string
+        description: 'Секрет для подписи'
+        active:
+          type: boolean
+        description: 'Активен'
+        createdAt:
+          type: string
+          format: date-time
+        description: 'Создан'
+      example:
+        |-
+          id: w1a2b3c4-d5e6-7890-abcd-ef1234567890
+          url: https://example.com/hook
+          events: [notes.created, tasks.updated]
+          active: true
+          createdAt: '2026-07-30T10:00:00Z'
+    WebhookCreate:
+      type: object
+      description: Данные для создания webhook
+      required:
+        - url
+        - events
+      properties:
+        url:
+          type: string
+        description: 'URL'
+        events:
+          type: array
+          items:
+            type: string
+        description: 'События'
+        secret:
+          type: string
+        description: 'Секрет'
+    WebhookUpdate:
+      type: object
+      description: Частичное обновление webhook
+      required: []
+      properties:
+        url:
+          type: string
+        description: 'URL'
+        events:
+          type: array
+          items:
+            type: string
+        description: 'События'
+        active:
+          type: boolean
+        description: 'Активен'
+    ApiKey:
+      type: object
+      description: API-ключ
+      required:
+        - id
+        - name
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        description: 'UUID записи'
+        name:
+          type: string
+        description: 'Название ключа'
+        keyHash:
+          type: string
+        description: 'SHA256 хеш ключа (только чтение)'
+        active:
+          type: boolean
+        description: 'Активен'
+        createdAt:
+          type: string
+          format: date-time
+        description: 'Создан'
+      example:
+        |-
+          id: k1a2b3c4-d5e6-7890-abcd-ef1234567890
+          name: Zapier
+          keyHash: sha256:abc123
+          active: true
+          createdAt: '2026-07-30T10:00:00Z'
+    ApiKeyCreate:
+      type: object
+      description: Данные для создания API-ключа
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        description: 'Название'
+
+  responses:
+    ValidationError:
+      description: Ошибка валидации запроса
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    NotFoundError:
+      description: Запрашиваемый ресурс не найден
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundError'
+
+    InternalError:
+      description: Внутренняя ошибка сервера
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'

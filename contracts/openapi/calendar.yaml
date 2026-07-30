@@ -1,0 +1,513 @@
+openapi: 3.1.0
+
+info:
+  title: Calendar Service
+  version: 1.0.0
+  description: >
+    Локальный календарь встреч с рекурренсом, напоминаниями и ICS.
+
+servers:
+  - url: /api/calendar/v1
+    description: API Gateway route for calendar service
+
+paths:
+  /meetings:
+    post:
+      operationId: createMeeting
+      summary: Создать meetings
+      tags: [Meeting, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeetingCreate'
+      responses:
+        '201':
+          description: Создано
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meeting'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      operationId: listMeetings
+      summary: Получить список meetings
+      tags: [Meeting, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+        - name: profileId
+          in: query
+          required: false
+          description: Фильтр по профилю (uuid)
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          description: Начало диапазона (date-time)
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          description: Конец диапазона (date-time)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Список с пагинацией
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Meeting'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /meetings/{id}:
+    get:
+      operationId: getMeeting
+      summary: Получить meetings по ID
+      tags: [Meeting, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID meetings
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Данные
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meeting'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      operationId: updateMeeting
+      summary: Обновить meetings (частично)
+      tags: [Meeting, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID meetings
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeetingUpdate'
+      responses:
+        '200':
+          description: Обновлено
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Meeting'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      operationId: deleteMeeting
+      summary: Удалить meetings
+      tags: [Meeting, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID meetings
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Удалено (без тела)
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /meetings/{id}/ics:
+    get:
+      operationId: exportMeetingIcs
+      summary: Экспорт встречи в ICS
+      tags: [Meetings, ICS]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID встречи
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: .ics файл
+          content:
+            text/calendar:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    CorrelationId:
+      name: x-correlation-id
+      in: header
+      required: true
+      description: Уникальный идентификатор для трассировки запроса
+      schema:
+        type: string
+        format: uuid
+      example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    Offset:
+      name: offset
+      in: query
+      required: false
+      description: Смещение для пагинации (с какого элемента начинать)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      example: 0
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Максимальное количество записей на страницу
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+  schemas:
+    # ─────────────────────── Error schemas ───────────────────────
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Код ошибки
+        message:
+          type: string
+          description: Человекочитаемое описание ошибки
+        details:
+          oneOf:
+            - type: object
+            - type: 'null'
+          description: Дополнительная информация об ошибке
+
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR]
+          example:
+            code: VALIDATION_ERROR
+            message: Некорректные данные запроса
+            details:
+              field: title
+              constraint: required
+
+    NotFoundError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [NOT_FOUND]
+          example:
+            code: NOT_FOUND
+            message: Ресурс не найден
+            details:
+              resourceType: resource
+              resourceId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    InternalError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [INTERNAL_ERROR]
+          example:
+            code: INTERNAL_ERROR
+            message: Внутренняя ошибка сервера
+
+    # ─────────────────────── Pagination ───────────────────────
+    Pagination:
+      type: object
+      required:
+        - offset
+        - limit
+        - total
+      properties:
+        offset:
+          type: integer
+          description: Текущее смещение
+        limit:
+          type: integer
+          description: Максимум записей на страницу
+        total:
+          type: integer
+          description: Общее количество записей
+      example:
+        offset: 0
+        limit: 20
+        total: 5
+    Meeting:
+      type: object
+      description: Встреча календаря
+      required:
+        - id
+        - title
+        - startTime
+        - endTime
+        - allDay
+        - profileIds
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        description: 'UUID записи'
+        title:
+          type: string
+        description: 'Название встречи'
+        startTime:
+          type: string
+          format: date-time
+        description: 'Начало'
+        endTime:
+          type: string
+          format: date-time
+        description: 'Конец'
+        allDay:
+          type: boolean
+        description: 'Весь день'
+        description:
+          type: string
+        description: 'Описание'
+        location:
+          type: string
+        description: 'Место'
+        recurrence:
+          type: string
+        description: 'Правило recurrence'
+        linkedProjectId:
+          type: string
+          format: uuid
+        description: 'UUID проекта'
+        profileIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        description: 'UUID профилей'
+        linkedExternalEventId:
+          type: string
+          format: uuid
+        description: 'UUID внешнего события'
+        createdAt:
+          type: string
+          format: date-time
+        description: 'Создано'
+        updatedAt:
+          type: string
+          format: date-time
+        description: 'Обновлено'
+      example:
+        |-
+          id: m1a2b3c4-d5e6-7890-abcd-ef1234567890
+          title: Standup
+          startTime: '2026-07-30T09:00:00Z'
+          endTime: '2026-07-30T09:15:00Z'
+          allDay: false
+          description: Ежедневный standup
+          location: Office
+          recurrence: RRULE:FREQ=DAILY
+          linkedProjectId: p1a2b3c4-d5e6-7890-abcd-ef1234567890
+          profileIds: [f1a2b3c4-d5e6-7890-abcd-ef1234567890]
+          createdAt: '2026-07-30T08:00:00Z'
+          updatedAt: '2026-07-30T08:00:00Z'
+    MeetingCreate:
+      type: object
+      description: Данные для создания встречи
+      required:
+        - title
+        - startTime
+        - endTime
+      properties:
+        title:
+          type: string
+        description: 'Название'
+        startTime:
+          type: string
+          format: date-time
+        description: 'Начало'
+        endTime:
+          type: string
+          format: date-time
+        description: 'Конец'
+        allDay:
+          type: boolean
+        description: 'Весь день'
+        description:
+          type: string
+        description: 'Описание'
+        location:
+          type: string
+        description: 'Место'
+        recurrence:
+          type: string
+        description: 'Правило recurrence'
+        linkedProjectId:
+          type: string
+          format: uuid
+        description: 'UUID проекта'
+        profileIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        description: 'UUID профилей'
+    MeetingUpdate:
+      type: object
+      description: Частичное обновление встречи
+      required: []
+      properties:
+        title:
+          type: string
+        description: 'Название'
+        startTime:
+          type: string
+          format: date-time
+        description: 'Начало'
+        endTime:
+          type: string
+          format: date-time
+        description: 'Конец'
+        allDay:
+          type: boolean
+        description: 'Весь день'
+        description:
+          type: string
+        description: 'Описание'
+        location:
+          type: string
+        description: 'Место'
+        recurrence:
+          type: string
+        description: 'Правило recurrence'
+        linkedProjectId:
+          type: string
+          format: uuid
+        description: 'UUID проекта'
+        profileIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        description: 'UUID профилей'
+
+  responses:
+    ValidationError:
+      description: Ошибка валидации запроса
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    NotFoundError:
+      description: Запрашиваемый ресурс не найден
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundError'
+
+    InternalError:
+      description: Внутренняя ошибка сервера
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'

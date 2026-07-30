@@ -1,0 +1,391 @@
+openapi: 3.1.0
+
+info:
+  title: Agent Service
+  version: 1.0.0
+  description: >
+    AI-ассистент: автоматические триггеры, дайджесты, инбокс с suggested actions.
+
+servers:
+  - url: /api/agent/v1
+    description: API Gateway route for agent service
+
+paths:
+  /agent/inbox:
+    get:
+      operationId: getInbox
+      summary: Список сообщений инбокса
+      tags: [Agent, Inbox]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          required: false
+          description: Фильтр по статусу
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Сообщения
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AgentMessage'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /agent/respond:
+    post:
+      operationId: respondToMessage
+      summary: Принять/отклонить/ответить на сообщение
+      tags: [Agent, Inbox]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentResponse'
+      responses:
+        '200':
+          description: Обработано
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /agent/dismiss-all:
+    post:
+      operationId: dismissAll
+      summary: Отклонить все сообщения
+      tags: [Agent, Inbox]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Отклонено
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dismissed:
+                    type: integer
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /today:
+    get:
+      operationId: getTodayDigest
+      summary: Дайджест на сегодня
+      tags: [Agent, Digest]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Дайджест
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meetings:
+                    type: array
+                    items:
+                      type: object
+                  tasks:
+                    type: array
+                    items:
+                      type: object
+                  messages:
+                    type: array
+                    items:
+                      type: object
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /week:
+    get:
+      operationId: getWeekDigest
+      summary: Дайджест на неделю
+      tags: [Agent, Digest]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Дайджест
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  meetings:
+                    type: array
+                    items:
+                      type: object
+                  tasks:
+                    type: array
+                    items:
+                      type: object
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    CorrelationId:
+      name: x-correlation-id
+      in: header
+      required: true
+      description: Уникальный идентификатор для трассировки запроса
+      schema:
+        type: string
+        format: uuid
+      example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    Offset:
+      name: offset
+      in: query
+      required: false
+      description: Смещение для пагинации (с какого элемента начинать)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      example: 0
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Максимальное количество записей на страницу
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+  schemas:
+    # ─────────────────────── Error schemas ───────────────────────
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Код ошибки
+        message:
+          type: string
+          description: Человекочитаемое описание ошибки
+        details:
+          oneOf:
+            - type: object
+            - type: 'null'
+          description: Дополнительная информация об ошибке
+
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR]
+          example:
+            code: VALIDATION_ERROR
+            message: Некорректные данные запроса
+            details:
+              field: title
+              constraint: required
+
+    NotFoundError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [NOT_FOUND]
+          example:
+            code: NOT_FOUND
+            message: Ресурс не найден
+            details:
+              resourceType: resource
+              resourceId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    InternalError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [INTERNAL_ERROR]
+          example:
+            code: INTERNAL_ERROR
+            message: Внутренняя ошибка сервера
+
+    # ─────────────────────── Pagination ───────────────────────
+    Pagination:
+      type: object
+      required:
+        - offset
+        - limit
+        - total
+      properties:
+        offset:
+          type: integer
+          description: Текущее смещение
+        limit:
+          type: integer
+          description: Максимум записей на страницу
+        total:
+          type: integer
+          description: Общее количество записей
+      example:
+        offset: 0
+        limit: 20
+        total: 5
+    AgentMessage:
+      type: object
+      description: Сообщение агента
+      required:
+        - id
+        - title
+        - body
+        - type
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        description: 'UUID записи'
+        title:
+          type: string
+        description: 'Заголовок сообщения'
+        body:
+          type: string
+        description: 'Тело сообщения'
+        type:
+          type: string
+        description: 'Тип: digest|trigger|suggestion'
+        source:
+          type: string
+        description: 'Источник (событие)'
+        status:
+          type: string
+        description: 'Статус: pending|accepted|dismissed'
+        actions:
+          type: array
+          items:
+            type: object
+        description: 'Предлагаемые действия'
+        createdAt:
+          type: string
+          format: date-time
+        description: 'Создано'
+      example:
+        |-
+          id: a1b2c3c4-d5e6-7890-abcd-ef1234567890
+          title: Напоминание о дедлайне
+          body: Задача "Написать документацию" закрывается через 2 часа
+          type: trigger
+          source: tasks.status_changed
+          status: pending
+          actions:
+          - id: snooze
+          label: Отложить
+          createdAt: '2026-07-30T16:00:00Z'
+    AgentResponse:
+      type: object
+      description: Ответ на сообщение агента
+      required:
+        - messageId
+        - action
+      properties:
+        messageId:
+          type: string
+          format: uuid
+        description: 'UUID сообщения'
+        action:
+          type: string
+        description: 'accept|reject|reply'
+        reply:
+          type: string
+        description: 'Текст ответа (если reply)'
+
+  responses:
+    ValidationError:
+      description: Ошибка валидации запроса
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    NotFoundError:
+      description: Запрашиваемый ресурс не найден
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundError'
+
+    InternalError:
+      description: Внутренняя ошибка сервера
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'
