@@ -36,9 +36,10 @@ jobs:
       - name: Build platform packages (shared-types, event-bus) — required before typecheck/test
         run: pnpm --filter "@pmos/shared" --filter "@pmos/event-bus" run build
       - name: Typecheck
-        run: pnpm -r run typecheck
+        run: pnpm --filter "./services/*" run typecheck
       - name: Unit tests (vitest)
-        run: pnpm -r run test
+        run: pnpm --filter "./services/*" run test
       - name: Build
-        run: pnpm -r run build
+        run: pnpm --filter "./services/*" run build
       # Contract + integration + e2e добавляются строящим агентом по ADR-002 / AGENT.md
+      # template-service (legacy boilerplate) is excluded — it has its own env-gated tests.
