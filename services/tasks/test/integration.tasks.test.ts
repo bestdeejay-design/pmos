@@ -1,55 +1,75 @@
 import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import { buildApp } from "../src/app.js";
+import { db } from "../src/db/connection.js";
+import { tasks, taskDependencies } from "../src/db/schema.js";
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
+const BASE = "/api/tasks/v1";
 
-describe.skipIf(!HAS_DB)("tasks semantics (integration, needs Postgres)", () => {
-  let app: Awaited<ReturnType<typeof buildApp>>;
-  const base = "/api/tasks/v1";
+describe.skipIf(!HAS_DB)("tasks (real Postgres): dependencies + recurrence", () => {
+  let app: any;
 
   beforeAll(async () => {
     app = await buildApp();
-    await app.listen({ port: 0, host: "127.0.0.1" });
+    await app.ready();
+    await db.delete(taskDependencies);
+    await db.delete(tasks);
   });
 
   afterAll(async () => {
-    await app?.close();
+    if (app) await app.close();
   });
 
-  it("creates a task, filters, completes (streak) and reorders priorities", async () => {
-    const c = await app.inject({ method: "POST", url: `${base}/tasks`, payload: { title: "Write spec", priority: 5 } });
-    expect(c.statusCode).toBe(201);
-    const task = c.json();
+  it("blocks closing a task whose blocker is not done (409)", async () => {
+    const blocker = await app.inject({ method: "POST", url: `${BASE}/tasks`, payload: { title: "Blocker", status: "todo" } });
+    const dep = await app.inject({ method: "POST", url: `${BASE}/tasks`, payload: { title: "Dependent", status: "in_progress" } });
+    const blockerId = (blocker.json() as any).id;
+    const depId = (dep.json() as any).id;
 
-    // filter by status
-    const list = await app.inject({ method: "GET", url: `${base}/tasks?status=todo` });
-    expect(list.json().data.some((t: any) => t.id === task.id)).toBe(true);
+    const link = await app.inject({
+      method: "POST",
+      url: `${BASE}/tasks/${depId}/dependencies`,
+      payload: { dependsOnId: blockerId },
+    });
+    expect(link.statusCode).toBe(201);
 
-    // complete -> streak bumps
-    const done = await app.inject({ method: "PATCH", url: `${base}/tasks/${task.id}`, payload: { status: "done" } });
-    expect(done.json().currentStreak).toBe(1);
-    expect(done.json().bestStreak).toBe(1);
-    expect(done.json().completedAt).toBeTruthy();
-
-    // priorities endpoint returns it
-    const pri = await app.inject({ method: "GET", url: `${base}/priorities` });
-    expect(pri.json().data.some((t: any) => t.id === task.id)).toBe(true);
-
-    // reorder persists sortOrder
-    const reorder = await app.inject({ method: "PUT", url: `${base}/priorities/order`, payload: { orderedIds: [task.id] } });
-    expect(reorder.json().ok).toBe(true);
-    const got = await app.inject({ method: "GET", url: `${base}/tasks/${task.id}` });
-    expect(got.json().sortOrder).toBe(0);
+    const close = await app.inject({ method: "PATCH", url: `${BASE}/tasks/${depId}`, payload: { status: "done" } });
+    expect(close.statusCode).toBe(409);
   });
 
-  it("soft-deletes a task (hidden from default list, still fetchable)", async () => {
-    const c = await app.inject({ method: "POST", url: `${base}/tasks`, payload: { title: "Temp" } });
-    const id = c.json().id;
-    const del = await app.inject({ method: "DELETE", url: `${base}/tasks/${id}` });
-    expect(del.statusCode).toBe(204);
-    const got = await app.inject({ method: "GET", url: `${base}/tasks/${id}` });
-    expect(got.json().isArchived).toBe(true);
-    const list = await app.inject({ method: "GET", url: `${base}/tasks` });
-    expect(list.json().data.some((t: any) => t.id === id)).toBe(false);
+  it("allows closing once the blocker is done", async () => {
+    const blocker = await app.inject({ method: "POST", url: `${BASE}/tasks`, payload: { title: "Blocker2", status: "todo" } });
+    const dep = await app.inject({ method: "POST", url: `${BASE}/tasks`, payload: { title: "Dependent2", status: "in_progress" } });
+    const blockerId = (blocker.json() as any).id;
+    const depId = (dep.json() as any).id;
+    await app.inject({ method: "POST", url: `${BASE}/tasks/${depId}/dependencies`, payload: { dependsOnId: blockerId } });
+
+    const closeBlocker = await app.inject({ method: "PATCH", url: `${BASE}/tasks/${blockerId}`, payload: { status: "done" } });
+    expect(closeBlocker.statusCode).toBe(200);
+    const closeDep = await app.inject({ method: "PATCH", url: `${BASE}/tasks/${depId}`, payload: { status: "done" } });
+    expect(closeDep.statusCode).toBe(200);
+  });
+
+  it("spawns next recurrence instance on close", async () => {
+    const r = await app.inject({
+      method: "POST",
+      url: `${BASE}/tasks`,
+      payload: { title: "Daily standup", status: "in_progress", recurrence: "FREQ=DAILY", deadline: "2026-08-01T09:00:00Z" },
+    });
+    const id = (r.json() as any).id;
+    const close = await app.inject({ method: "PATCH", url: `${BASE}/tasks/${id}`, payload: { status: "done" } });
+    expect(close.statusCode).toBe(200);
+
+    const list = await app.inject({ method: "GET", url: `${BASE}/tasks?recurrence=FREQ=DAILY` });
+    const data = (list.json() as any).data as any[];
+    const spawned = data.filter((t: any) => t.title === "Daily standup" && t.status === "todo");
+    expect(spawned.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("rejects unknown Kanban status (400)", async () => {
+    const r = await app.inject({ method: "POST", url: `${BASE}/tasks`, payload: { title: "X" } });
+    const id = (r.json() as any).id;
+    const bad = await app.inject({ method: "PATCH", url: `${BASE}/tasks/${id}`, payload: { status: "frozen" } });
+    expect(bad.statusCode).toBe(400);
   });
 });

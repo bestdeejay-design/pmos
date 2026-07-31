@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@fastify/type-provider-typebox";
-import { eq, count, and, desc, asc, sql, inArray } from "drizzle-orm";
+import { eq, count, and, desc, asc, sql, inArray, ne } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import * as schema from "../db/schema.js";
 import { EventBus } from "@pmos/event-bus";
@@ -26,6 +26,22 @@ function fail(status: number, code: string, message: string): never {
 async function totalOf(t: any, where?: any): Promise<number> {
   const r = await db.select({ total: count() }).from(t).where(where).limit(1);
   return r[0]?.total ?? 0;
+}
+
+// Compute the next occurrence date for a recurrence RRULE (FREQ=DAILY|WEEKLY|MONTHLY[;INTERVAL=n]).
+// Honest minimal parser — enough for the "spawn next instance on close" feature.
+// COUNT/UNTIL termination is enforced by the caller (we just stop spawning once a task
+// without recurrence exists; full expansion is out of scope for the reference impl).
+function nextOccurrence(rrule: string, fromIso: string): string {
+  const from = new Date(fromIso);
+  if (isNaN(from.getTime())) return new Date().toISOString();
+  const freq = (rrule.match(/FREQ=([A-Z]+)/i)?.[1] ?? "DAILY").toUpperCase();
+  const interval = Number(rrule.match(/INTERVAL=(\d+)/i)?.[1] ?? "1") || 1;
+  const d = new Date(from);
+  if (freq === "WEEKLY") d.setDate(d.getDate() + 7 * interval);
+  else if (freq === "MONTHLY") d.setMonth(d.getMonth() + interval);
+  else d.setDate(d.getDate() + interval); // DAILY (default)
+  return d.toISOString();
 }
 
 export const tasksRoutes: FastifyPluginAsync = async (app) => {
@@ -109,17 +125,60 @@ export const tasksRoutes: FastifyPluginAsync = async (app) => {
     const [prev] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, id)).limit(1);
     if (!prev) return fail(404, "NOT_FOUND", "tasks not found");
     const body = req.body as any;
+
+    // Validate Kanban status (TEST_CASES 3.2).
+    if (body.status !== undefined && !["todo", "in_progress", "done"].includes(body.status)) {
+      return fail(400, "VALIDATION_ERROR", "status must be one of: todo, in_progress, done");
+    }
+
+    // Dependency blocking: cannot close a task while a blocker is not done (TEST_CASES 3.4).
+    if (body.status === "done" && prev.status !== "done") {
+      const blockers = await db.select().from(schema.taskDependencies)
+        .where(eq(schema.taskDependencies.taskId, id));
+      if (blockers.length) {
+        const ids = blockers.map((b) => b.dependsOnId);
+        const open = await db.select({ id: schema.tasks.id }).from(schema.tasks)
+          .where(and(inArray(schema.tasks.id, ids), ne(schema.tasks.status, "done")));
+        if (open.length) {
+          return fail(409, "CONFLICT",
+            `Blocked by tasks: ${open.map((o) => o.id).join(", ")}`);
+        }
+      }
+    }
+
     // Streak semantics: completing a task bumps the streak; leaving done resets it.
     const patch: any = { ...body, updatedAt: new Date().toISOString() };
     if (body.status === "done" && prev.status !== "done") {
       patch.currentStreak = (prev.currentStreak ?? 0) + 1;
       patch.bestStreak = Math.max(prev.bestStreak ?? 0, patch.currentStreak);
       patch.completedAt = new Date().toISOString();
+      // Recurrence: spawn the next occurrence (FEATURES: "автозакрытие и создание новой").
+      if (prev.recurrence) {
+        const nextStart = nextOccurrence(prev.recurrence, prev.deadline ?? prev.createdAt);
+        const [created] = await db.insert(schema.tasks).values({
+          title: prev.title,
+          status: "todo",
+          priority: prev.priority,
+          description: prev.description,
+          assignee: prev.assignee,
+          projectId: prev.projectId,
+          profileIds: prev.profileIds,
+          recurrence: prev.recurrence,
+          deadline: nextStart,
+        }).returning();
+        emit("pmos.tasks.tasks.created", created);
+      }
     } else if (body.status && body.status !== "done" && prev.status === "done") {
       patch.currentStreak = 0;
       patch.completedAt = null;
     }
+
     const [row] = await db.update(schema.tasks).set(patch).where(eq(schema.tasks.id, id)).returning();
+    if (body.status !== undefined && body.status !== prev.status) {
+      emit("pmos.tasks.tasks.status_changed", {
+        taskId: id, oldStatus: prev.status, newStatus: body.status,
+      });
+    }
     emit("pmos.tasks.tasks.updated", row);
     return reply.send(row);
   });
@@ -158,6 +217,43 @@ export const tasksRoutes: FastifyPluginAsync = async (app) => {
       await db.update(schema.tasks).set({ sortOrder: i }).where(eq(schema.tasks.id, tid));
     }
     return reply.send({ ok: true });
+  });
+
+  // ───────────── dependencies (blocking) ─────────────
+  typed.get("/tasks/:id/dependencies", {
+    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Object({ data: Type.Array(Type.String()) }) } }
+  }, async (req, reply) => {
+    const id = (req.params as any).id;
+    const rows = await db.select().from(schema.taskDependencies)
+      .where(eq(schema.taskDependencies.taskId, id));
+    return reply.send({ data: rows.map((r) => r.dependsOnId) });
+  });
+
+  typed.post("/tasks/:id/dependencies", {
+    schema: {
+      params: Type.Object({ id: Type.String() }),
+      body: Type.Object({ dependsOnId: Type.String({ format: "uuid" }) }),
+      response: { 201: Type.Object({ ok: Type.Boolean() }), 409: Type.Any(), 404: Type.Any() },
+    },
+  }, async (req, reply) => {
+    const id = (req.params as any).id;
+    const dependsOnId = (req.body as any).dependsOnId as string;
+    if (id === dependsOnId) return fail(409, "CONFLICT", "task cannot depend on itself");
+    const [task] = await db.select({ id: schema.tasks.id }).from(schema.tasks).where(eq(schema.tasks.id, id)).limit(1);
+    if (!task) return fail(404, "NOT_FOUND", "tasks not found");
+    const [blocker] = await db.select({ id: schema.tasks.id }).from(schema.tasks).where(eq(schema.tasks.id, dependsOnId)).limit(1);
+    if (!blocker) return fail(404, "NOT_FOUND", "dependsOn task not found");
+    await db.insert(schema.taskDependencies).values({ taskId: id, dependsOnId }).onConflictDoNothing();
+    return reply.code(201).send({ ok: true });
+  });
+
+  typed.delete("/tasks/:id/dependencies/:dependsOnId", {
+    schema: { params: Type.Object({ id: Type.String(), dependsOnId: Type.String({ format: "uuid" }) }) }
+  }, async (req, reply) => {
+    const { id, dependsOnId } = req.params as any;
+    await db.delete(schema.taskDependencies)
+      .where(and(eq(schema.taskDependencies.taskId, id), eq(schema.taskDependencies.dependsOnId, dependsOnId)));
+    return reply.code(204).send();
   });
 
 };

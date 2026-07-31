@@ -70,6 +70,12 @@ paths:
           description: Фильтр по тегу
           schema:
             type: string
+        - name: q
+          in: query
+          required: false
+          description: Полнотекстовый поиск (ILIKE) по title и body_md
+          schema:
+            type: string
       responses:
         '200':
           description: Список заметок с пагинацией
@@ -340,6 +346,90 @@ paths:
                 type: string
         '404':
           $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─────────────────────── Manual ordering & AI title ───────────────────────
+  /notes/order:
+    put:
+      operationId: reorderNotes
+      summary: Переупорядочить заметки (ручная сортировка drag-and-drop)
+      tags: [Notes]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order]
+              properties:
+                order:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: Упорядоченный список ID заметок (от верхней к нижней)
+      responses:
+        '200':
+          description: Порядок сохранён
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /notes/generate-title:
+    post:
+      operationId: generateNoteTitle
+      summary: AI-генерация заголовка и тега из тела заметки
+      tags: [Notes, AI]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bodyMd]
+              properties:
+                bodyMd:
+                  type: string
+                  description: Тело заметки (Markdown)
+                title:
+                  type: string
+                  description: Текущий заголовок (опционально, для контекста)
+      responses:
+        '200':
+          description: Предложенный заголовок и тег
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [title, tag]
+                properties:
+                  title:
+                    type: string
+                  tag:
+                    type: string
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
 

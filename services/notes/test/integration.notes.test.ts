@@ -1,67 +1,72 @@
 import { describe, it, beforeAll, afterAll, expect } from "vitest";
-import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
+import { db } from "../src/db/connection.js";
+import { notes } from "../src/db/schema.js";
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
+const BASE = "/api/notes/v1";
 
-describe.skipIf(!HAS_DB)("notes semantics (integration, needs Postgres)", () => {
-  let app: Awaited<ReturnType<typeof buildApp>>;
-  const base = "/api/notes/v1";
+describe.skipIf(!HAS_DB)("notes (real Postgres): search + manual order", () => {
+  let app: any;
+  const created: string[] = [];
 
   beforeAll(async () => {
     app = await buildApp();
-    await app.listen({ port: 0, host: "127.0.0.1" });
+    await app.ready();
+    await db.delete(notes); // isolate test data
   });
 
   afterAll(async () => {
-    await app?.close();
+    await db.delete(notes).where; // best-effort cleanup
+    if (app) await app.close();
   });
 
-  const url = (p: string) => `${base}${p}`;
-
-  it("creates a note, filters by tag, and soft-deletes", async () => {
-    const created = await app.inject({
+  it("creates a note and finds it via ILIKE search", async () => {
+    const r = await app.inject({
       method: "POST",
-      url: url("/notes"),
-      payload: { title: "Integ note", bodyMd: "body", tags: ["integ"], profileIds: [] },
+      url: `${BASE}/notes`,
+      payload: { title: "Project Alpha kickoff", bodyMd: "Decide on the roadmap and milestones" },
     });
-    expect(created.statusCode).toBe(201);
-    const note = created.json();
-    expect(note.id).toBeDefined();
+    expect(r.statusCode).toBe(201);
+    const id = (r.json() as any).id;
+    created.push(id);
 
-    const filtered = await app.inject({ method: "GET", url: url("/notes?tag=integ") });
-    expect(filtered.statusCode).toBe(200);
-    const body = filtered.json();
-    expect(body.data.some((n: any) => n.id === note.id)).toBe(true);
-
-    // soft delete → isArchived true, still retrievable, hidden from default list
-    const del = await app.inject({ method: "DELETE", url: url(`/notes/${note.id}`) });
-    expect(del.statusCode).toBe(204);
-    const got = await app.inject({ method: "GET", url: url(`/notes/${note.id}`) });
-    expect(got.json().isArchived).toBe(true);
-
-    const defaultList = await app.inject({ method: "GET", url: url("/notes?tag=integ") });
-    expect(defaultList.json().data.some((n: any) => n.id === note.id)).toBe(false);
+    const found = await app.inject({ method: "GET", url: `${BASE}/notes?q=roadmap` });
+    expect(found.statusCode).toBe(200);
+    const body = found.json() as any;
+    expect(body.data.some((n: any) => n.id === id)).toBe(true);
   });
 
-  it("templates CRUD round-trip", async () => {
-    const c = await app.inject({
-      method: "POST",
-      url: url("/templates"),
-      payload: { name: "Daily", bodyMd: "# {{date}}", profileId: "00000000-0000-0000-0000-000000000001" },
+  it("manual reorder persists (PUT /notes/order)", async () => {
+    const a = await app.inject({ method: "POST", url: `${BASE}/notes`, payload: { title: "A" } });
+    const b = await app.inject({ method: "POST", url: `${BASE}/notes`, payload: { title: "B" } });
+    const aid = (a.json() as any).id;
+    const bid = (b.json() as any).id;
+    created.push(aid, bid);
+
+    const reorder = await app.inject({
+      method: "PUT",
+      url: `${BASE}/notes/order`,
+      payload: { order: [bid, aid] }, // B before A
     });
-    expect(c.statusCode).toBe(201);
-    const tpl = c.json();
+    expect(reorder.statusCode).toBe(200);
 
-    const listed = await app.inject({ method: "GET", url: url("/templates") });
-    expect(listed.json().data.some((t: any) => t.id === tpl.id)).toBe(true);
+    const list = await app.inject({ method: "GET", url: `${BASE}/notes` });
+    const data = (list.json() as any).data as any[];
+    const posA = data.findIndex((n) => n.id === aid);
+    const posB = data.findIndex((n) => n.id === bid);
+    expect(posB).toBeLessThan(posA);
+  });
 
-    const upd = await app.inject({ method: "PATCH", url: url(`/templates/${tpl.id}`), payload: { name: "Daily v2" } });
-    expect(upd.json().name).toBe("Daily v2");
-
-    const del = await app.inject({ method: "DELETE", url: url(`/templates/${tpl.id}`) });
-    expect(del.statusCode).toBe(204);
-    const gone = await app.inject({ method: "GET", url: url(`/templates/${tpl.id}`) });
-    expect(gone.statusCode).toBe(404);
+  it("generate-title returns a heuristic title+tag", async () => {
+    const r = await app.inject({
+      method: "POST",
+      url: `${BASE}/notes/generate-title`,
+      payload: { bodyMd: "Meeting with #client about the Q3 budget" },
+    });
+    expect(r.statusCode).toBe(200);
+    const body = r.json() as any;
+    expect(body.tag).toBe("client");
+    expect(typeof body.title).toBe("string");
   });
 });

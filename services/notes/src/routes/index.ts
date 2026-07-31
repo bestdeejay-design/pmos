@@ -1,13 +1,11 @@
 import type { FastifyPluginAsync } from "fastify";
 import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@fastify/type-provider-typebox";
-import { eq, count, and, asc, sql, inArray } from "drizzle-orm";
+import { eq, count, and, asc, sql, or, ilike } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import * as schema from "../db/schema.js";
 import { EventBus } from "@pmos/event-bus";
 
-// Best-effort event publish. Skipped silently if the bus isn't initialised
-// (e.g. unit tests) or NATS is unreachable — never breaks the HTTP request.
 function emit(subject: string, row: unknown): void {
   try {
     EventBus.get().publish(subject, row).catch((e) => console.error("[event] publish " + subject + " failed:", e));
@@ -42,6 +40,7 @@ export const notesRoutes: FastifyPluginAsync = async (app) => {
         profileId: Type.Optional(Type.String({ format: "uuid" })),
         isArchived: Type.Optional(Type.Boolean()),
         tag: Type.Optional(Type.String()),
+        q: Type.Optional(Type.String()),
       }),
       response: {
         200: Type.Object({
@@ -59,8 +58,14 @@ export const notesRoutes: FastifyPluginAsync = async (app) => {
     if (typeof q.isArchived === "boolean") conds.push(eq(schema.notes.isArchived, q.isArchived));
     else conds.push(eq(schema.notes.isArchived, false));
     if (q.tag) conds.push(sql`${schema.notes.tags} @> ARRAY[${q.tag}]::text[]`);
+    // ILIKE full-text search over title + bodyMd (FEATURES: "Поиск по заметкам через ILIKE body_md").
+    if (q.q) {
+      const needle = `%${q.q}%`;
+      conds.push(or(ilike(schema.notes.title, needle), ilike(schema.notes.bodyMd, needle)));
+    }
     const where = conds.length ? and(...conds) : undefined;
-    const rows = await db.select().from(schema.notes).where(where).orderBy(asc(schema.notes.sortOrder), asc(schema.notes.createdAt)).limit(limit).offset(offset);
+    const rows = await db.select().from(schema.notes).where(where)
+      .orderBy(asc(schema.notes.sortOrder), asc(schema.notes.createdAt)).limit(limit).offset(offset);
     const total = await totalOf(schema.notes, where);
     return reply.send({ data: rows, pagination: { offset, limit, total } });
   });
@@ -117,6 +122,42 @@ export const notesRoutes: FastifyPluginAsync = async (app) => {
     if (!row) return fail(404, "NOT_FOUND", "notes not found");
     emit("pmos.notes.notes.deleted", row);
     return reply.code(204).send();
+  });
+
+  // Manual ordering (drag-and-drop). Persists order into sortOrder (lower = higher).
+  typed.put("/notes/order", {
+    schema: {
+      body: Type.Object({ order: Type.Array(Type.String({ format: "uuid" })) }),
+      response: { 200: Type.Object({ ok: Type.Boolean() }) },
+    },
+  }, async (req, reply) => {
+    const order = (req.body as any).order as string[];
+    for (let i = 0; i < order.length; i++) {
+      const nid = order[i] as string;
+      await db.update(schema.notes).set({ sortOrder: i, updatedAt: new Date().toISOString() })
+        .where(eq(schema.notes.id, nid));
+    }
+    return reply.send({ ok: true });
+  });
+
+  // AI title generation. Reference impl: heuristic (no live LLM call — that is a SAGA step).
+  // Publishes notes.title_generated so the real LLM path (ai-gateway) can later replace it.
+  typed.post("/notes/generate-title", {
+    schema: {
+      body: Type.Object({ bodyMd: Type.String(), title: Type.Optional(Type.String()) }),
+      response: { 200: Type.Object({ title: Type.String(), tag: Type.String() }) },
+    },
+  }, async (req, reply) => {
+    const { bodyMd, title } = req.body as any;
+    const clean = (bodyMd ?? "").replace(/^#+\s*/gm, "").replace(/\s+/g, " ").trim();
+    const firstLine = clean.split(/(?<=[.!?])\s|\n/)[0] ?? clean;
+    const suggestedTitle = (title && title.trim()) ? title : (firstLine.slice(0, 80) || "Untitled");
+    // crude tag: first hashtag-like token in body, else "note"
+    const m = (bodyMd ?? "").match(/#(\w[\w-]*)/);
+    const tag = m ? m[1] : "note";
+    const result = { title: suggestedTitle, tag };
+    emit("pmos.notes.notes.title_generated", { title: suggestedTitle, tag, bodyMd });
+    return reply.send(result);
   });
 
   // ───────────── templates CRUD ─────────────

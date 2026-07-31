@@ -245,6 +245,118 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  # ─────────────────────── Dependencies (blocking) ───────────────────────
+  /tasks/{id}/dependencies:
+    get:
+      operationId: listTaskDependencies
+      summary: Список блокирующих задач для данной
+      tags: [Task]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список ID блокирующих задач
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: addTaskDependency
+      summary: Добавить блокирующую задачу (dependsOn)
+      tags: [Task]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dependsOnId]
+              properties:
+                dependsOnId:
+                  type: string
+                  format: uuid
+                  description: ID задачи, которая должна быть завершена первой
+      responses:
+        '201':
+          description: Зависимость добавлена
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /tasks/{id}/dependencies/{dependsOnId}:
+    delete:
+      operationId: removeTaskDependency
+      summary: Удалить блокирующую зависимость
+      tags: [Task]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: dependsOnId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Зависимость удалена
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
 components:
   parameters:
     CorrelationId:
@@ -557,3 +669,14 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/InternalError'
+
+    ConflictError:
+      description: Конфликт (например, блокирующая зависимость не завершена)
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

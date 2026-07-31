@@ -80,8 +80,8 @@
 |---------|------|---------|-------------|---------|--------------------------------|----------------|
 | **profiles** | ✅ | — | — | ✅ | 📋 is_default/hidden, защита удаления default, уникальность | сгенерирован |
 | **settings** | ✅ | — | — | ✅ | 📋 KV + `/ollama-models` | сгенерирован |
-| **notes** | ✅ | ✅ profileId/tag/isArchived | ✅ | ✅ | ✅ CRUD+шаблоны+архив; 📋 ILIKE-поиск `q`, `PUT /notes/order`, `POST /notes/generate-title`, AI-заголовок, привязки | **ручной эталон** |
-| **tasks** | ✅ | ✅ projectId/status/profileId | ✅ | ✅ | ✅ streaks+приоритеты+фильтры; 📋 рекурренс-порождение, зависимости-блокировка, Kanban-колонки | **ручной эталон** |
+| **notes** | ✅ | ✅ profileId/tag/isArchived/**q ILIKE** | ✅ | ✅ | ✅ CRUD+шаблоны+архив+**ручная сортировка(PUT /notes/order)**+**generate-title**; 📋 привязки(linked_* уже в схеме/контракте, выводятся в CRUD) | **ручной эталон** |
+| **tasks** | ✅ | ✅ projectId/status/profileId | ✅ | ✅ | ✅ streaks+приоритеты+фильтры+**валидация Kanban-статуса**+**блокировка зависимостей(409)**+**рекурренс-порождение**+**/tasks/:id/dependencies**; 📋 dashboard-сводка внешних сущностей | **ручной эталон** |
 | **calendar** | ✅ | ✅ profileId/from/to | ✅ | ✅ | ✅ CRUD+диапазон+ICS (RFC5545); 📋 recurrence-раскрытие, напоминания WS, конфликты | **ручной эталон** |
 | **projects** | ✅ | ✅ profileId | — | ✅ | 📋 dashboard (items), gantt, drag-reschedule | сгенерирован |
 | **files** | ✅ | ✅ profileId/owner | — | ✅ | 📋 извлечение текста (PDF/MD/TXT), download, метаданные | сгенерирован |
