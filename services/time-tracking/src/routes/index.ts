@@ -68,7 +68,7 @@ export const time_trackingRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(201).send(row);
   });
 
-  typed.get("/timesheet/{id}", {
+  typed.get("/timesheet/:id", {
     schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.timesheet).where(eq(schema.timesheet.id, (req.params as any).id)).limit(1);
@@ -76,7 +76,7 @@ export const time_trackingRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.patch("/timesheet/{id}", {
+  typed.patch("/timesheet/:id", {
     schema: { params: Type.Object({ id: Type.String() }), body: Type.Object({}, { additionalProperties: true }), response: { 200: Type.Any() } },
   }, async (req, reply) => {
     const patch: any = { ...(req.body as any) };
@@ -88,7 +88,7 @@ export const time_trackingRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/timesheet/{id}", {
+  typed.delete("/timesheet/:id", {
     schema: { params: Type.Object({ id: Type.String() }) },
   }, async (req, reply) => {
     const [row] = await db.delete(schema.timesheet).where(eq(schema.timesheet.id, (req.params as any).id)).returning();
@@ -110,7 +110,7 @@ export const time_trackingRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });
   });
 
-  typed.patch("/pomodoro/{id}", async (_req, reply) => {
+  typed.patch("/pomodoro/:id", async (_req, reply) => {
     // TODO(semantics): PATCH /pomodoro/{id} — non-CRUD endpoint, not in the baseline
     // reference pattern. Implement domain logic or remove from contract.
     return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });

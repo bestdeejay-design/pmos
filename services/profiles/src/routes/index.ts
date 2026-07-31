@@ -66,7 +66,7 @@ export const profilesRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(201).send(row);
   });
 
-  typed.get("/profiles/{profileId}", {
+  typed.get("/profiles/:profileId", {
     schema: { params: Type.Object({ profileId: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.profiles).where(eq(schema.profiles.id, (req.params as any).profileId)).limit(1);
@@ -74,7 +74,7 @@ export const profilesRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.patch("/profiles/{profileId}", {
+  typed.patch("/profiles/:profileId", {
     schema: { params: Type.Object({ profileId: Type.String() }), body: Type.Object({}, { additionalProperties: true }), response: { 200: Type.Any() } },
   }, async (req, reply) => {
     const patch: any = { ...(req.body as any) };
@@ -86,7 +86,7 @@ export const profilesRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/profiles/{profileId}", {
+  typed.delete("/profiles/:profileId", {
     schema: { params: Type.Object({ profileId: Type.String() }) },
   }, async (req, reply) => {
     const [row] = await db.delete(schema.profiles).where(eq(schema.profiles.id, (req.params as any).profileId)).returning();

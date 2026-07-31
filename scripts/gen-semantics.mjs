@@ -118,7 +118,7 @@ const extraHandlers = extraPaths.map((p) => {
   const present = ["get", "post", "put", "delete", "patch"].filter((m) =>
     new RegExp(`^\\s{4}${m}:\\s*$`, "m").test(oapi.slice(oapi.indexOf(`  ${p}:`), oapi.indexOf(`  ${p}:`) + 600))
   );
-  const stub = present.map((m) => `  typed.${m}("${p}", async (_req, reply) => {
+  const stub = present.map((m) => `  typed.${m}("${p.replace(/\{(\w+)\}/g, ":$1")}", async (_req, reply) => {
     // TODO(semantics): ${m.toUpperCase()} ${p} — non-CRUD endpoint, not in the baseline
     // reference pattern. Implement domain logic or remove from contract.
     return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });
@@ -166,7 +166,7 @@ ${filterConds.join("\n")}
     return reply.code(201).send(row);
   });
 
-  typed.get("${itemPath}", {
+  typed.get("${itemPath.replace(/\{(\w+)\}/g, ":$1")}", {
     schema: { params: Type.Object({ ${itemParam}: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.${tableVar}).where(eq(schema.${tableVar}.${pkCol}, (req.params as any).${itemParam})).limit(1);
@@ -174,7 +174,7 @@ ${filterConds.join("\n")}
     return reply.send(row);
   });
 
-  typed.patch("${itemPath}", {
+  typed.patch("${itemPath.replace(/\{(\w+)\}/g, ":$1")}", {
     schema: { params: Type.Object({ ${itemParam}: Type.String() }), body: Type.Object({}, { additionalProperties: true }), response: { 200: Type.Any() } },
   }, async (req, reply) => {
     const patch: any = { ...(req.body as any) };
@@ -188,7 +188,7 @@ ${filterConds.join("\n")}
 
 ${
   hasArchived
-    ? `  typed.delete("${itemPath}", {
+    ? `  typed.delete("${itemPath.replace(/\{(\w+)\}/g, ":$1")}", {
     schema: { params: Type.Object({ ${itemParam}: Type.String() }) },
   }, async (req, reply) => {
     const delPatch: any = { isArchived: true };
@@ -199,7 +199,7 @@ ${
     emit("pmos.${svc}.${resource}.deleted", row);
     return reply.code(204).send();
   });`
-    : `  typed.delete("${itemPath}", {
+    : `  typed.delete("${itemPath.replace(/\{(\w+)\}/g, ":$1")}", {
     schema: { params: Type.Object({ ${itemParam}: Type.String() }) },
   }, async (req, reply) => {
     const [row] = await db.delete(schema.${tableVar}).where(eq(schema.${tableVar}.${pkCol}, (req.params as any).${itemParam})).returning();

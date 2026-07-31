@@ -171,4 +171,26 @@ export async function assertRoutesMatch(
       `OpenAPI CRUD routes not registered for "${serviceName}":\n  - ${missingStrict.join("\n  - ")}`,
     );
   }
+
+  // Runtime match guard: printRoutes() parsing above can give false positives when a
+  // route is registered with an OpenAPI-style `{id}` param instead of Fastify's `:id`
+  // (Fastify 5 only matches colon params at runtime, so `{id}` 404s). Verify each STRICT
+  // route actually matches at runtime via hasRoute(), which uses the real radix tree.
+  const matchFails: string[] = [];
+  for (const rawPath of Object.keys(paths)) {
+    if (!strictResource(rawPath)) continue;
+    const methods = Object.keys(paths[rawPath]).filter((m) => HTTP_METHODS.has(m.toLowerCase()));
+    const fastifyPath = `${prefix}${toFastifyPath(rawPath)}`.toLowerCase();
+    for (const method of methods) {
+      const m = method.toUpperCase();
+      const matched = app.hasRoute({ method: m as any, url: fastifyPath });
+      if (!matched) matchFails.push(`${m} ${fastifyPath}`);
+    }
+  }
+  if (matchFails.length) {
+    throw new Error(
+      `OpenAPI CRUD routes do NOT match at runtime for "${serviceName}" ` +
+        `(likely an OpenAPI-style {id} param instead of Fastify :id):\n  - ${matchFails.join("\n  - ")}`,
+    );
+  }
 }

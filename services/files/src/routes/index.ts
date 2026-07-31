@@ -68,7 +68,7 @@ export const filesRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(201).send(row);
   });
 
-  typed.get("/files/{id}", {
+  typed.get("/files/:id", {
     schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.fileMeta).where(eq(schema.fileMeta.id, (req.params as any).id)).limit(1);
@@ -76,7 +76,7 @@ export const filesRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.patch("/files/{id}", {
+  typed.patch("/files/:id", {
     schema: { params: Type.Object({ id: Type.String() }), body: Type.Object({}, { additionalProperties: true }), response: { 200: Type.Any() } },
   }, async (req, reply) => {
     const patch: any = { ...(req.body as any) };
@@ -88,7 +88,7 @@ export const filesRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/files/{id}", {
+  typed.delete("/files/:id", {
     schema: { params: Type.Object({ id: Type.String() }) },
   }, async (req, reply) => {
     const [row] = await db.delete(schema.fileMeta).where(eq(schema.fileMeta.id, (req.params as any).id)).returning();
@@ -98,7 +98,7 @@ export const filesRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // ───────────── non-CRUD endpoints (backlog, see AGENT.md §4) ─────────────
-  typed.get("/files/{id}/download", async (_req, reply) => {
+  typed.get("/files/:id/download", async (_req, reply) => {
     // TODO(semantics): GET /files/{id}/download — non-CRUD endpoint, not in the baseline
     // reference pattern. Implement domain logic or remove from contract.
     return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });

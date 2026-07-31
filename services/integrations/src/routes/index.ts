@@ -66,7 +66,7 @@ export const integrationsRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(201).send(row);
   });
 
-  typed.get("/webhooks/{id}", {
+  typed.get("/webhooks/:id", {
     schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.webhooks).where(eq(schema.webhooks.id, (req.params as any).id)).limit(1);
@@ -74,7 +74,7 @@ export const integrationsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.patch("/webhooks/{id}", {
+  typed.patch("/webhooks/:id", {
     schema: { params: Type.Object({ id: Type.String() }), body: Type.Object({}, { additionalProperties: true }), response: { 200: Type.Any() } },
   }, async (req, reply) => {
     const patch: any = { ...(req.body as any) };
@@ -86,7 +86,7 @@ export const integrationsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/webhooks/{id}", {
+  typed.delete("/webhooks/:id", {
     schema: { params: Type.Object({ id: Type.String() }) },
   }, async (req, reply) => {
     const [row] = await db.delete(schema.webhooks).where(eq(schema.webhooks.id, (req.params as any).id)).returning();
@@ -96,7 +96,7 @@ export const integrationsRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // ───────────── non-CRUD endpoints (backlog, see AGENT.md §4) ─────────────
-  typed.get("/webhooks/{id}/deliveries", async (_req, reply) => {
+  typed.get("/webhooks/:id/deliveries", async (_req, reply) => {
     // TODO(semantics): GET /webhooks/{id}/deliveries — non-CRUD endpoint, not in the baseline
     // reference pattern. Implement domain logic or remove from contract.
     return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });
@@ -108,7 +108,7 @@ export const integrationsRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });
   });
 
-  typed.delete("/api-keys/{id}", async (_req, reply) => {
+  typed.delete("/api-keys/:id", async (_req, reply) => {
     // TODO(semantics): DELETE /api-keys/{id} — non-CRUD endpoint, not in the baseline
     // reference pattern. Implement domain logic or remove from contract.
     return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });

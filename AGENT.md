@@ -97,7 +97,21 @@ node scripts/scaffold-services.mjs   # (re)create all 16 service skeletons
 node scripts/gen-openapi.mjs         # regenerate contracts/openapi/*.yaml from FEATURES
 node scripts/gen-schemas.mjs         # regenerate Drizzle schemas for all 16 services
 node scripts/gen-routes.mjs          # regenerate Fastify+TypeBox CRUD routes for all 16
+node scripts/gen-semantics.mjs <svc> # regenerate the "reference pattern" routes (CRUD +
+                                      # filters + soft-delete + pagination + events) for ONE
+                                      # service from its OpenAPI contract + Drizzle schema.
+                                      # Mirrors the proven notes/tasks/calendar pattern.
+                                      # NOT for the 3 hand-written reference impls
+                                      # (notes, tasks, calendar) — they are authoritative.
 ```
+
+> ⚠️ **Fastify path-param syntax (cost one full debugging session):** Fastify 5 matches
+> route params ONLY as `:id` (colon). OpenAPI uses `{id}` — that is a CONTRACT/URL
+> convention, NOT a Fastify route path. Writing `typed.get("/meetings/{id}", …)` makes
+> Fastify treat `{id}` as a literal path segment, so every real request `/meetings/<uuid>`
+> 404s at runtime (while contract tests pass, because `helper.ts` converts `{id}`→`:id`).
+> Always use `:id` in `routes/index.ts`. The contract test `hasRoute()` guard now fails
+> the build if a strict CRUD route does not match at runtime.
 
 **Per-service dev loop (implement business logic, not boilerplate):**
 ```bash

@@ -66,7 +66,7 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(201).send(row);
   });
 
-  typed.get("/settings/{key}", {
+  typed.get("/settings/:key", {
     schema: { params: Type.Object({ key: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.settings).where(eq(schema.settings.key, (req.params as any).key)).limit(1);
@@ -74,7 +74,7 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.patch("/settings/{key}", {
+  typed.patch("/settings/:key", {
     schema: { params: Type.Object({ key: Type.String() }), body: Type.Object({}, { additionalProperties: true }), response: { 200: Type.Any() } },
   }, async (req, reply) => {
     const patch: any = { ...(req.body as any) };
@@ -86,7 +86,7 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/settings/{key}", {
+  typed.delete("/settings/:key", {
     schema: { params: Type.Object({ key: Type.String() }) },
   }, async (req, reply) => {
     const [row] = await db.delete(schema.settings).where(eq(schema.settings.key, (req.params as any).key)).returning();

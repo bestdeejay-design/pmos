@@ -66,7 +66,7 @@ export const emailRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(201).send(row);
   });
 
-  typed.get("/imap/{id}", {
+  typed.get("/imap/:id", {
     schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.imapAccounts).where(eq(schema.imapAccounts.id, (req.params as any).id)).limit(1);
@@ -74,7 +74,7 @@ export const emailRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.patch("/imap/{id}", {
+  typed.patch("/imap/:id", {
     schema: { params: Type.Object({ id: Type.String() }), body: Type.Object({}, { additionalProperties: true }), response: { 200: Type.Any() } },
   }, async (req, reply) => {
     const patch: any = { ...(req.body as any) };
@@ -86,7 +86,7 @@ export const emailRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/imap/{id}", {
+  typed.delete("/imap/:id", {
     schema: { params: Type.Object({ id: Type.String() }) },
   }, async (req, reply) => {
     const [row] = await db.delete(schema.imapAccounts).where(eq(schema.imapAccounts.id, (req.params as any).id)).returning();
@@ -96,7 +96,7 @@ export const emailRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // ───────────── non-CRUD endpoints (backlog, see AGENT.md §4) ─────────────
-  typed.post("/imap/{id}/sync", async (_req, reply) => {
+  typed.post("/imap/:id/sync", async (_req, reply) => {
     // TODO(semantics): POST /imap/{id}/sync — non-CRUD endpoint, not in the baseline
     // reference pattern. Implement domain logic or remove from contract.
     return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });

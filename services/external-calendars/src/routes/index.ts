@@ -66,7 +66,7 @@ export const external_calendarsRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(201).send(row);
   });
 
-  typed.get("/calendars/{id}", {
+  typed.get("/calendars/:id", {
     schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.externalCalendars).where(eq(schema.externalCalendars.id, (req.params as any).id)).limit(1);
@@ -74,7 +74,7 @@ export const external_calendarsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.patch("/calendars/{id}", {
+  typed.patch("/calendars/:id", {
     schema: { params: Type.Object({ id: Type.String() }), body: Type.Object({}, { additionalProperties: true }), response: { 200: Type.Any() } },
   }, async (req, reply) => {
     const patch: any = { ...(req.body as any) };
@@ -86,7 +86,7 @@ export const external_calendarsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/calendars/{id}", {
+  typed.delete("/calendars/:id", {
     schema: { params: Type.Object({ id: Type.String() }) },
   }, async (req, reply) => {
     const [row] = await db.delete(schema.externalCalendars).where(eq(schema.externalCalendars.id, (req.params as any).id)).returning();
@@ -96,19 +96,19 @@ export const external_calendarsRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // ───────────── non-CRUD endpoints (backlog, see AGENT.md §4) ─────────────
-  typed.post("/calendars/sync/{id}", async (_req, reply) => {
+  typed.post("/calendars/sync/:id", async (_req, reply) => {
     // TODO(semantics): POST /calendars/sync/{id} — non-CRUD endpoint, not in the baseline
     // reference pattern. Implement domain logic or remove from contract.
     return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });
   });
 
-  typed.get("/calendars/{id}/events", async (_req, reply) => {
+  typed.get("/calendars/:id/events", async (_req, reply) => {
     // TODO(semantics): GET /calendars/{id}/events — non-CRUD endpoint, not in the baseline
     // reference pattern. Implement domain logic or remove from contract.
     return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });
   });
 
-  typed.patch("/calendars/events/{id}/link", async (_req, reply) => {
+  typed.patch("/calendars/events/:id/link", async (_req, reply) => {
     // TODO(semantics): PATCH /calendars/events/{id}/link — non-CRUD endpoint, not in the baseline
     // reference pattern. Implement domain logic or remove from contract.
     return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });

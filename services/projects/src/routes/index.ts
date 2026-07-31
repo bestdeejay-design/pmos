@@ -66,7 +66,7 @@ export const projectsRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(201).send(row);
   });
 
-  typed.get("/projects/{id}", {
+  typed.get("/projects/:id", {
     schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.projects).where(eq(schema.projects.id, (req.params as any).id)).limit(1);
@@ -74,7 +74,7 @@ export const projectsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.patch("/projects/{id}", {
+  typed.patch("/projects/:id", {
     schema: { params: Type.Object({ id: Type.String() }), body: Type.Object({}, { additionalProperties: true }), response: { 200: Type.Any() } },
   }, async (req, reply) => {
     const patch: any = { ...(req.body as any) };
@@ -86,7 +86,7 @@ export const projectsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/projects/{id}", {
+  typed.delete("/projects/:id", {
     schema: { params: Type.Object({ id: Type.String() }) },
   }, async (req, reply) => {
     const [row] = await db.delete(schema.projects).where(eq(schema.projects.id, (req.params as any).id)).returning();
@@ -96,13 +96,13 @@ export const projectsRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // ───────────── non-CRUD endpoints (backlog, see AGENT.md §4) ─────────────
-  typed.get("/projects/{id}/items", async (_req, reply) => {
+  typed.get("/projects/:id/items", async (_req, reply) => {
     // TODO(semantics): GET /projects/{id}/items — non-CRUD endpoint, not in the baseline
     // reference pattern. Implement domain logic or remove from contract.
     return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });
   });
 
-  typed.get("/projects/{id}/gantt", async (_req, reply) => {
+  typed.get("/projects/:id/gantt", async (_req, reply) => {
     // TODO(semantics): GET /projects/{id}/gantt — non-CRUD endpoint, not in the baseline
     // reference pattern. Implement domain logic or remove from contract.
     return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });

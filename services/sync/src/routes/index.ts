@@ -66,7 +66,7 @@ export const syncRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(201).send(row);
   });
 
-  typed.get("/sync-folders/{id}", {
+  typed.get("/sync-folders/:id", {
     schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
   }, async (req, reply) => {
     const [row] = await db.select().from(schema.syncFolders).where(eq(schema.syncFolders.id, (req.params as any).id)).limit(1);
@@ -74,7 +74,7 @@ export const syncRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.patch("/sync-folders/{id}", {
+  typed.patch("/sync-folders/:id", {
     schema: { params: Type.Object({ id: Type.String() }), body: Type.Object({}, { additionalProperties: true }), response: { 200: Type.Any() } },
   }, async (req, reply) => {
     const patch: any = { ...(req.body as any) };
@@ -86,7 +86,7 @@ export const syncRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(row);
   });
 
-  typed.delete("/sync-folders/{id}", {
+  typed.delete("/sync-folders/:id", {
     schema: { params: Type.Object({ id: Type.String() }) },
   }, async (req, reply) => {
     const [row] = await db.delete(schema.syncFolders).where(eq(schema.syncFolders.id, (req.params as any).id)).returning();
