@@ -81,6 +81,9 @@ x-implemented-wire-events:
     - pmos.integrations.webhooks.created
     - pmos.integrations.webhooks.updated
     - pmos.integrations.webhooks.deleted
+    - pmos.notes.templates.created
+    - pmos.notes.templates.updated
+    - pmos.notes.templates.deleted
     - pmos.notes.notes.created
     - pmos.notes.notes.updated
     - pmos.notes.notes.deleted
