@@ -5,7 +5,7 @@ import health from "./plugins/health.js";
 import metrics from "./plugins/metrics.js";
 import { errorHandler } from "./lib/errors.js";
 import { EventBus } from "@pmos/event-bus";
-import { exportImportRoutes } from "./routes/index.js";
+import { export_importRoutes } from "./routes/index.js";
 
 export async function buildApp() {
   EventBus.init({ serviceName: "export-import", url: process.env.NATS_URL });
@@ -16,7 +16,7 @@ export async function buildApp() {
   await app.register(correlationId);
   await app.register(health);
   await app.register(metrics);
-  await app.register(exportImportRoutes, { prefix: "/api/export-import/v1" });
+  await app.register(export_importRoutes, { prefix: "/api/export-import/v1" });
 
   app.setErrorHandler(errorHandler);
   return app;

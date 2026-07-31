@@ -7,9 +7,9 @@ export const externalCalendars = pgTable("external_calendars", {
   provider: text("provider").notNull(), // google | yandex | ics
   syncEnabled: boolean("sync_enabled").notNull().default(true),
   authData: jsonb("auth_data"), // tokens / url (encrypted at rest)
-  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  lastSyncAt: timestamp("last_sync_at", { mode: "string", withTimezone: true }),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const externalEvents = pgTable("external_events", {
@@ -17,11 +17,11 @@ export const externalEvents = pgTable("external_events", {
   calendarId: uuid("calendar_id").notNull(),
   uid: text("uid").notNull(),
   title: text("title").notNull(),
-  startTime: timestamp("start_time", { withTimezone: true }).notNull(),
-  endTime: timestamp("end_time", { withTimezone: true }).notNull(),
+  startTime: timestamp("start_time", { mode: "string", withTimezone: true }).notNull(),
+  endTime: timestamp("end_time", { mode: "string", withTimezone: true }).notNull(),
   allDay: boolean("all_day").notNull().default(false),
   linkedMeetingId: uuid("linked_meeting_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const externalCalendarRelations = relations(externalCalendars, ({ many }) => ({

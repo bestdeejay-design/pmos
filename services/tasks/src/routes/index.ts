@@ -110,11 +110,11 @@ export const tasksRoutes: FastifyPluginAsync = async (app) => {
     if (!prev) return fail(404, "NOT_FOUND", "tasks not found");
     const body = req.body as any;
     // Streak semantics: completing a task bumps the streak; leaving done resets it.
-    const patch: any = { ...body, updatedAt: new Date() };
+    const patch: any = { ...body, updatedAt: new Date().toISOString() };
     if (body.status === "done" && prev.status !== "done") {
       patch.currentStreak = (prev.currentStreak ?? 0) + 1;
       patch.bestStreak = Math.max(prev.bestStreak ?? 0, patch.currentStreak);
-      patch.completedAt = new Date();
+      patch.completedAt = new Date().toISOString();
     } else if (body.status && body.status !== "done" && prev.status === "done") {
       patch.currentStreak = 0;
       patch.completedAt = null;
@@ -128,7 +128,7 @@ export const tasksRoutes: FastifyPluginAsync = async (app) => {
   typed.delete("/tasks/:id", {
     schema: { params: Type.Object({ id: Type.String() }) }
   }, async (req, reply) => {
-    const [row] = await db.update(schema.tasks).set({ isArchived: true, updatedAt: new Date() })
+    const [row] = await db.update(schema.tasks).set({ isArchived: true, updatedAt: new Date().toISOString() })
       .where(eq(schema.tasks.id, (req.params as any).id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "tasks not found");
     emit("pmos.tasks.tasks.deleted", row);

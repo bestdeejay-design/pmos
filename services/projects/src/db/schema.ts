@@ -8,8 +8,8 @@ export const projects = pgTable("projects", {
   goal: text("goal"),
   status: text("status").notNull().default("active"), // active | archived | completed
   profileIds: uuid("profile_ids").array().notNull().default([]),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type ProjectRow = typeof projects.$inferSelect;

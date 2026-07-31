@@ -9,7 +9,7 @@ export const agentMessages = pgTable("agent_messages", {
   source: text("source"), // originating event, e.g. tasks.status_changed
   status: text("status").notNull().default("pending"), // pending | accepted | dismissed
   actions: jsonb("actions").notNull().default([]), // suggested actions
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type AgentMessageRow = typeof agentMessages.$inferSelect;

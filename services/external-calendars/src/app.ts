@@ -5,7 +5,7 @@ import health from "./plugins/health.js";
 import metrics from "./plugins/metrics.js";
 import { errorHandler } from "./lib/errors.js";
 import { EventBus } from "@pmos/event-bus";
-import { externalCalendarsRoutes } from "./routes/index.js";
+import { external_calendarsRoutes } from "./routes/index.js";
 
 export async function buildApp() {
   EventBus.init({ serviceName: "external-calendars", url: process.env.NATS_URL });
@@ -16,7 +16,7 @@ export async function buildApp() {
   await app.register(correlationId);
   await app.register(health);
   await app.register(metrics);
-  await app.register(externalCalendarsRoutes, { prefix: "/api/external-calendars/v1" });
+  await app.register(external_calendarsRoutes, { prefix: "/api/external-calendars/v1" });
 
   app.setErrorHandler(errorHandler);
   return app;

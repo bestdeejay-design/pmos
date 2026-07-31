@@ -85,7 +85,9 @@ function flatRoutes(printed: string): Array<{ method: string; path: string }> {
       stack.length = depth + 1;
       continue;
     }
+    segment = segment.replace(/^\/+/, ""); // Fastify emits nested segments with a leading slash
     segment = segment.replace(/\/+$/, ""); // drop trailing slash (e.g. "api/notes/v1/")
+    segment = segment.replace(/\{[^/]+\}/g, (m) => ":" + m.slice(1, -1)); // {id} -> :id (match OpenAPI toFastifyPath)
     stack[depth] = segment;
     stack.length = depth + 1;
     const segs = stack.filter(Boolean);

@@ -14,23 +14,23 @@ export const tasks = pgTable("tasks", {
   priority: integer("priority").notNull().default(0),
   description: text("description"),
   assignee: text("assignee"),
-  deadline: timestamp("deadline", { withTimezone: true }),
+  deadline: timestamp("deadline", { mode: "string", withTimezone: true }),
   projectId: uuid("project_id"),
   profileIds: uuid("profile_ids").array().notNull().default([]),
   recurrence: text("recurrence"), // RFC5545 RRULE
   currentStreak: integer("current_streak").notNull().default(0),
   bestStreak: integer("best_streak").notNull().default(0),
-  completedAt: timestamp("completed_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { mode: "string", withTimezone: true }),
   isArchived: boolean("is_archived").notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const taskDependencies = pgTable("task_dependencies", {
   taskId: uuid("task_id").notNull(),       // dependent task
   dependsOnId: uuid("depends_on_id").notNull(), // blocking task
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   pk: primaryKey({ columns: [t.taskId, t.dependsOnId] }),
 }));

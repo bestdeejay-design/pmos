@@ -20,8 +20,8 @@ export const notes = pgTable("notes_", {
   isArchived: boolean("is_archived").notNull().default(false),
   // manual ordering (drag-and-drop) — lower = higher
   sortOrder: integer("sort_order").notNull().default(0),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const templates = pgTable("templates", {
@@ -29,14 +29,14 @@ export const templates = pgTable("templates", {
   name: text("name").notNull(),
   bodyMd: text("body_md").notNull().default(""),
   profileId: uuid("profile_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const noteLinks = pgTable("note_links", {
   noteId: uuid("note_id").notNull(),
   linkedNoteId: uuid("linked_note_id").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   pk: primaryKey({ columns: [t.noteId, t.linkedNoteId] }),
 }));

@@ -7,9 +7,9 @@ export const syncFolders = pgTable("sync_folders", {
   autoImport: boolean("auto_import").notNull().default(false),
   autoExport: boolean("auto_export").notNull().default(false),
   profileScope: jsonb("profile_scope").notNull().default([]), // array of profile ids
-  lastScanAt: timestamp("last_scan_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  lastScanAt: timestamp("last_scan_at", { mode: "string", withTimezone: true }),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type SyncFolderRow = typeof syncFolders.$inferSelect;

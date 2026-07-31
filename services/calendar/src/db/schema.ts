@@ -4,8 +4,8 @@ import { relations } from "drizzle-orm";
 export const meetings = pgTable("meetings", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: text("title").notNull(),
-  startTime: timestamp("start_time", { withTimezone: true }).notNull(),
-  endTime: timestamp("end_time", { withTimezone: true }).notNull(),
+  startTime: timestamp("start_time", { mode: "string", withTimezone: true }).notNull(),
+  endTime: timestamp("end_time", { mode: "string", withTimezone: true }).notNull(),
   allDay: boolean("all_day").notNull().default(false),
   description: text("description"),
   location: text("location"),
@@ -13,17 +13,17 @@ export const meetings = pgTable("meetings", {
   linkedProjectId: uuid("linked_project_id"),
   profileIds: uuid("profile_ids").array().notNull().default([]),
   linkedExternalEventId: uuid("linked_external_event_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const reminders = pgTable("reminders", {
   id: uuid("id").defaultRandom().primaryKey(),
   meetingId: uuid("meeting_id").notNull(),
-  remindAt: timestamp("remind_at", { withTimezone: true }).notNull(),
+  remindAt: timestamp("remind_at", { mode: "string", withTimezone: true }).notNull(),
   channel: text("channel").notNull().default("push"), // push | email
   sent: boolean("sent").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const calendarRelations = relations(meetings, ({ many }) => ({

@@ -6,7 +6,7 @@ export const apiKeys = pgTable("api_keys", {
   name: text("name").notNull(),
   keyHash: text("key_hash").notNull(), // SHA256 of the plaintext key
   active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const webhooks = pgTable("webhooks", {
@@ -15,7 +15,7 @@ export const webhooks = pgTable("webhooks", {
   events: text("events").array().notNull().default([]),
   secret: text("secret"),
   active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const webhookDeliveries = pgTable("webhook_deliveries", {
@@ -25,8 +25,8 @@ export const webhookDeliveries = pgTable("webhook_deliveries", {
   payload: jsonb("payload"),
   status: text("status").notNull().default("pending"), // pending | sent | failed | dead
   attempt: integer("attempt").notNull().default(0),
-  nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  nextRetryAt: timestamp("next_retry_at", { mode: "string", withTimezone: true }),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const webhookRelations = relations(webhooks, ({ many }) => ({

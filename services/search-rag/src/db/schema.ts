@@ -9,7 +9,7 @@ export const embeddings = pgTable("embeddings", {
   content: text("content").notNull(),
   embedding: vector("embedding", { dimensions: 1536 }).notNull(),
   profileIds: uuid("profile_ids").array().notNull().default([]),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type EmbeddingRow = typeof embeddings.$inferSelect;

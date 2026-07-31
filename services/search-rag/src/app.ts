@@ -5,7 +5,7 @@ import health from "./plugins/health.js";
 import metrics from "./plugins/metrics.js";
 import { errorHandler } from "./lib/errors.js";
 import { EventBus } from "@pmos/event-bus";
-import { searchRagRoutes } from "./routes/index.js";
+import { search_ragRoutes } from "./routes/index.js";
 
 export async function buildApp() {
   EventBus.init({ serviceName: "search-rag", url: process.env.NATS_URL });
@@ -16,7 +16,7 @@ export async function buildApp() {
   await app.register(correlationId);
   await app.register(health);
   await app.register(metrics);
-  await app.register(searchRagRoutes, { prefix: "/api/search-rag/v1" });
+  await app.register(search_ragRoutes, { prefix: "/api/search-rag/v1" });
 
   app.setErrorHandler(errorHandler);
   return app;

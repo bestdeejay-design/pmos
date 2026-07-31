@@ -1,0 +1,11 @@
+const { buildApp } = await import("./services/calendar/dist/app.js");
+console.log("imported");
+const app = await buildApp();
+console.log("built");
+await app.listen({ port: 0, host: "127.0.0.1" });
+console.log("listening");
+const cr = await app.inject({ method:"POST", url:"/api/calendar/v1/meetings", payload:{title:"Standup",startTime:"2026-08-01T09:00:00Z",endTime:"2026-08-01T09:15:00Z"} });
+console.log("create", cr.statusCode, cr.body.slice(0,120));
+const lr = await app.inject({ method:"GET", url:"/api/calendar/v1/meetings" });
+console.log("list", lr.statusCode);
+await app.close();

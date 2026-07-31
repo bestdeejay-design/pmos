@@ -32,8 +32,8 @@ export const profiles = pgTable("profiles", {
   description: text("description"),
   isDefault: boolean("is_default").notNull().default(false),
   avatarUrl: text("avatar_url"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type ProfileRow = typeof profiles.$inferSelect;
@@ -47,7 +47,7 @@ function settings() {
 export const settings = pgTable("settings", {
   key: text("key").primaryKey(),
   value: jsonb("value").notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type SettingRow = typeof settings.$inferSelect;
@@ -61,8 +61,8 @@ function calendar() {
 export const meetings = pgTable("meetings", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: text("title").notNull(),
-  startTime: timestamp("start_time", { withTimezone: true }).notNull(),
-  endTime: timestamp("end_time", { withTimezone: true }).notNull(),
+  startTime: timestamp("start_time", { mode: "string", withTimezone: true }).notNull(),
+  endTime: timestamp("end_time", { mode: "string", withTimezone: true }).notNull(),
   allDay: boolean("all_day").notNull().default(false),
   description: text("description"),
   location: text("location"),
@@ -70,17 +70,17 @@ export const meetings = pgTable("meetings", {
   linkedProjectId: uuid("linked_project_id"),
   profileIds: uuid("profile_ids").array().notNull().default([]),
   linkedExternalEventId: uuid("linked_external_event_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const reminders = pgTable("reminders", {
   id: uuid("id").defaultRandom().primaryKey(),
   meetingId: uuid("meeting_id").notNull(),
-  remindAt: timestamp("remind_at", { withTimezone: true }).notNull(),
+  remindAt: timestamp("remind_at", { mode: "string", withTimezone: true }).notNull(),
   channel: text("channel").notNull().default("push"), // push | email
   sent: boolean("sent").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const calendarRelations = relations(meetings, ({ many }) => ({
@@ -103,8 +103,8 @@ export const projects = pgTable("projects", {
   goal: text("goal"),
   status: text("status").notNull().default("active"), // active | archived | completed
   profileIds: uuid("profile_ids").array().notNull().default([]),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type ProjectRow = typeof projects.$inferSelect;
@@ -124,7 +124,7 @@ export const fileMeta = pgTable("file_meta", {
   ownerId: uuid("owner_id"),
   storagePath: text("storage_path").notNull(),
   profileIds: uuid("profile_ids").array().notNull().default([]),
-  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+  uploadedAt: timestamp("uploaded_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type FileMetaRow = typeof fileMeta.$inferSelect;
@@ -143,7 +143,7 @@ export const embeddings = pgTable("embeddings", {
   content: text("content").notNull(),
   embedding: vector("embedding", { dimensions: 1536 }).notNull(),
   profileIds: uuid("profile_ids").array().notNull().default([]),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type EmbeddingRow = typeof embeddings.$inferSelect;
@@ -160,7 +160,7 @@ export const aiRequestLog = pgTable("ai_request_log", {
   kind: text("kind").notNull(), // restore_punctuation | dictate
   model: text("model"),
   promptChars: integer("prompt_chars").notNull().default(0),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type AiRequestLogRow = typeof aiRequestLog.$inferSelect;
@@ -179,7 +179,7 @@ export const agentMessages = pgTable("agent_messages", {
   source: text("source"), // originating event, e.g. tasks.status_changed
   status: text("status").notNull().default("pending"), // pending | accepted | dismissed
   actions: jsonb("actions").notNull().default([]), // suggested actions
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type AgentMessageRow = typeof agentMessages.$inferSelect;
@@ -198,10 +198,10 @@ export const imapAccounts = pgTable("imap_accounts", {
   username: text("username").notNull(),
   encryptedPassword: text("encrypted_password").notNull(),
   syncEnabled: boolean("sync_enabled").notNull().default(true),
-  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+  lastSyncAt: timestamp("last_sync_at", { mode: "string", withTimezone: true }),
   profileIds: uuid("profile_ids").array().notNull().default([]),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const emails = pgTable("emails", {
@@ -211,11 +211,11 @@ export const emails = pgTable("emails", {
   from: text("from").notNull(),
   subject: text("subject"),
   body: text("body"),
-  receivedAt: timestamp("received_at", { withTimezone: true }),
+  receivedAt: timestamp("received_at", { mode: "string", withTimezone: true }),
   isArchived: boolean("is_archived").notNull().default(false),
   convertedNoteId: uuid("converted_note_id"),
   convertedTaskId: uuid("converted_task_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const emailRelations = relations(imapAccounts, ({ many }) => ({
@@ -238,9 +238,9 @@ export const externalCalendars = pgTable("external_calendars", {
   provider: text("provider").notNull(), // google | yandex | ics
   syncEnabled: boolean("sync_enabled").notNull().default(true),
   authData: jsonb("auth_data"), // tokens / url (encrypted at rest)
-  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  lastSyncAt: timestamp("last_sync_at", { mode: "string", withTimezone: true }),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const externalEvents = pgTable("external_events", {
@@ -248,11 +248,11 @@ export const externalEvents = pgTable("external_events", {
   calendarId: uuid("calendar_id").notNull(),
   uid: text("uid").notNull(),
   title: text("title").notNull(),
-  startTime: timestamp("start_time", { withTimezone: true }).notNull(),
-  endTime: timestamp("end_time", { withTimezone: true }).notNull(),
+  startTime: timestamp("start_time", { mode: "string", withTimezone: true }).notNull(),
+  endTime: timestamp("end_time", { mode: "string", withTimezone: true }).notNull(),
   allDay: boolean("all_day").notNull().default(false),
   linkedMeetingId: uuid("linked_meeting_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const externalCalendarRelations = relations(externalCalendars, ({ many }) => ({
@@ -274,7 +274,7 @@ export const apiKeys = pgTable("api_keys", {
   name: text("name").notNull(),
   keyHash: text("key_hash").notNull(), // SHA256 of the plaintext key
   active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const webhooks = pgTable("webhooks", {
@@ -283,7 +283,7 @@ export const webhooks = pgTable("webhooks", {
   events: text("events").array().notNull().default([]),
   secret: text("secret"),
   active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const webhookDeliveries = pgTable("webhook_deliveries", {
@@ -293,8 +293,8 @@ export const webhookDeliveries = pgTable("webhook_deliveries", {
   payload: jsonb("payload"),
   status: text("status").notNull().default("pending"), // pending | sent | failed | dead
   attempt: integer("attempt").notNull().default(0),
-  nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  nextRetryAt: timestamp("next_retry_at", { mode: "string", withTimezone: true }),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const webhookRelations = relations(webhooks, ({ many }) => ({
@@ -316,22 +316,22 @@ export const timesheet = pgTable("timesheet", {
   id: uuid("id").defaultRandom().primaryKey(),
   taskId: uuid("task_id"),
   description: text("description"),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-  endedAt: timestamp("ended_at", { withTimezone: true }),
+  startedAt: timestamp("started_at", { mode: "string", withTimezone: true }).notNull(),
+  endedAt: timestamp("ended_at", { mode: "string", withTimezone: true }),
   durationSec: integer("duration_sec"),
   profileIds: uuid("profile_ids").array().notNull().default([]),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const pomodoroSessions = pgTable("pomodoro_sessions", {
   id: uuid("id").defaultRandom().primaryKey(),
   mode: text("mode").notNull(), // pomodoro | flowtime | countdown
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-  endedAt: timestamp("ended_at", { withTimezone: true }),
+  startedAt: timestamp("started_at", { mode: "string", withTimezone: true }).notNull(),
+  endedAt: timestamp("ended_at", { mode: "string", withTimezone: true }),
   plannedMin: integer("planned_min"),
   completed: boolean("completed").notNull().default(false),
   taskId: uuid("task_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type TimesheetRow = typeof timesheet.$inferSelect;
@@ -350,7 +350,7 @@ export const exportJobs = pgTable("export_jobs", {
   status: text("status").notNull().default("pending"), // pending | done | failed
   filePath: text("file_path"),
   size: integer("size").default(0),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type ExportJobRow = typeof exportJobs.$inferSelect;
@@ -367,9 +367,9 @@ export const syncFolders = pgTable("sync_folders", {
   autoImport: boolean("auto_import").notNull().default(false),
   autoExport: boolean("auto_export").notNull().default(false),
   profileScope: jsonb("profile_scope").notNull().default([]), // array of profile ids
-  lastScanAt: timestamp("last_scan_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  lastScanAt: timestamp("last_scan_at", { mode: "string", withTimezone: true }),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type SyncFolderRow = typeof syncFolders.$inferSelect;

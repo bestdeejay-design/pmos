@@ -7,7 +7,7 @@ export const exportJobs = pgTable("export_jobs", {
   status: text("status").notNull().default("pending"), // pending | done | failed
   filePath: text("file_path"),
   size: integer("size").default(0),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type ExportJobRow = typeof exportJobs.$inferSelect;

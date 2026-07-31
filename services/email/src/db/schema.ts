@@ -9,10 +9,10 @@ export const imapAccounts = pgTable("imap_accounts", {
   username: text("username").notNull(),
   encryptedPassword: text("encrypted_password").notNull(),
   syncEnabled: boolean("sync_enabled").notNull().default(true),
-  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+  lastSyncAt: timestamp("last_sync_at", { mode: "string", withTimezone: true }),
   profileIds: uuid("profile_ids").array().notNull().default([]),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const emails = pgTable("emails", {
@@ -22,11 +22,11 @@ export const emails = pgTable("emails", {
   from: text("from").notNull(),
   subject: text("subject"),
   body: text("body"),
-  receivedAt: timestamp("received_at", { withTimezone: true }),
+  receivedAt: timestamp("received_at", { mode: "string", withTimezone: true }),
   isArchived: boolean("is_archived").notNull().default(false),
   convertedNoteId: uuid("converted_note_id"),
   convertedTaskId: uuid("converted_task_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const emailRelations = relations(imapAccounts, ({ many }) => ({

@@ -5,22 +5,22 @@ export const timesheet = pgTable("timesheet", {
   id: uuid("id").defaultRandom().primaryKey(),
   taskId: uuid("task_id"),
   description: text("description"),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-  endedAt: timestamp("ended_at", { withTimezone: true }),
+  startedAt: timestamp("started_at", { mode: "string", withTimezone: true }).notNull(),
+  endedAt: timestamp("ended_at", { mode: "string", withTimezone: true }),
   durationSec: integer("duration_sec"),
   profileIds: uuid("profile_ids").array().notNull().default([]),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const pomodoroSessions = pgTable("pomodoro_sessions", {
   id: uuid("id").defaultRandom().primaryKey(),
   mode: text("mode").notNull(), // pomodoro | flowtime | countdown
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
-  endedAt: timestamp("ended_at", { withTimezone: true }),
+  startedAt: timestamp("started_at", { mode: "string", withTimezone: true }).notNull(),
+  endedAt: timestamp("ended_at", { mode: "string", withTimezone: true }),
   plannedMin: integer("planned_min"),
   completed: boolean("completed").notNull().default(false),
   taskId: uuid("task_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type TimesheetRow = typeof timesheet.$inferSelect;

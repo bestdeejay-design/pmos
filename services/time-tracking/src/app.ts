@@ -5,7 +5,7 @@ import health from "./plugins/health.js";
 import metrics from "./plugins/metrics.js";
 import { errorHandler } from "./lib/errors.js";
 import { EventBus } from "@pmos/event-bus";
-import { timeTrackingRoutes } from "./routes/index.js";
+import { time_trackingRoutes } from "./routes/index.js";
 
 export async function buildApp() {
   EventBus.init({ serviceName: "time-tracking", url: process.env.NATS_URL });
@@ -16,7 +16,7 @@ export async function buildApp() {
   await app.register(correlationId);
   await app.register(health);
   await app.register(metrics);
-  await app.register(timeTrackingRoutes, { prefix: "/api/time-tracking/v1" });
+  await app.register(time_trackingRoutes, { prefix: "/api/time-tracking/v1" });
 
   app.setErrorHandler(errorHandler);
   return app;

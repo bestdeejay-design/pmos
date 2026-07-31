@@ -7,7 +7,7 @@ export const aiRequestLog = pgTable("ai_request_log", {
   kind: text("kind").notNull(), // restore_punctuation | dictate
   model: text("model"),
   promptChars: integer("prompt_chars").notNull().default(0),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type AiRequestLogRow = typeof aiRequestLog.$inferSelect;

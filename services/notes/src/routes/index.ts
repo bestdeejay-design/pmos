@@ -101,7 +101,7 @@ export const notesRoutes: FastifyPluginAsync = async (app) => {
       isArchived: Type.Optional(Type.Boolean()),
     }, { additionalProperties: true }), response: { 200: Type.Any() } }
   }, async (req, reply) => {
-    const [row] = await db.update(schema.notes).set({ ...(req.body as any), updatedAt: new Date() })
+    const [row] = await db.update(schema.notes).set({ ...(req.body as any), updatedAt: new Date().toISOString() })
       .where(eq(schema.notes.id, (req.params as any).id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "notes not found");
     emit("pmos.notes.notes.updated", row);
@@ -112,7 +112,7 @@ export const notesRoutes: FastifyPluginAsync = async (app) => {
   typed.delete("/notes/:id", {
     schema: { params: Type.Object({ id: Type.String() }) }
   }, async (req, reply) => {
-    const [row] = await db.update(schema.notes).set({ isArchived: true, updatedAt: new Date() })
+    const [row] = await db.update(schema.notes).set({ isArchived: true, updatedAt: new Date().toISOString() })
       .where(eq(schema.notes.id, (req.params as any).id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "notes not found");
     emit("pmos.notes.notes.deleted", row);
@@ -171,7 +171,7 @@ export const notesRoutes: FastifyPluginAsync = async (app) => {
       profileId: Type.Optional(Type.String({ format: "uuid" })),
     }, { additionalProperties: true }), response: { 200: Type.Any() } }
   }, async (req, reply) => {
-    const [row] = await db.update(schema.templates).set({ ...(req.body as any), updatedAt: new Date() })
+    const [row] = await db.update(schema.templates).set({ ...(req.body as any), updatedAt: new Date().toISOString() })
       .where(eq(schema.templates.id, (req.params as any).id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "templates not found");
     emit("pmos.notes.templates.updated", row);

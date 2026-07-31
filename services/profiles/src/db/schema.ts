@@ -8,8 +8,8 @@ export const profiles = pgTable("profiles", {
   description: text("description"),
   isDefault: boolean("is_default").notNull().default(false),
   avatarUrl: text("avatar_url"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type ProfileRow = typeof profiles.$inferSelect;

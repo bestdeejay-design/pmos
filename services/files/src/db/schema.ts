@@ -10,7 +10,7 @@ export const fileMeta = pgTable("file_meta", {
   ownerId: uuid("owner_id"),
   storagePath: text("storage_path").notNull(),
   profileIds: uuid("profile_ids").array().notNull().default([]),
-  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+  uploadedAt: timestamp("uploaded_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export type FileMetaRow = typeof fileMeta.$inferSelect;
