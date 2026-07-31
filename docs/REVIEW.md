@@ -69,3 +69,37 @@
 - [x] **Шина событий подключена к роутам** (`@pmos/event-bus`): CRUD мутации публикуют `pmos.<svc>.<resource>.(created|updated|deleted)`; `app.ts` делает best-effort `connect()`+`ensureStream()` при старте
 - [x] docker-compose поднимает инфру + gateway
 - [x] Runbook (AGENT.md) описывает путь до сдачи без участия человека
+
+## 5. Матрица статусов реализации по сервисам (для строящего агента)
+
+> Легенда: ✅ = реализовано и проверено (integration/contract); 🟡 = базовый CRUD-паттерн
+> (генератор `gen-semantics.mjs`), бизнес-логика 📋; 📋 = не реализовано.
+> Источник правды по эндпоинтам — `contracts/openapi/<svc>.yaml` + `FEATURES.md`.
+
+| Сервис | CRUD | Фильтры | Soft-delete | События | Бизнес-логика (📋 из FEATURES) | Reference impl |
+|---------|------|---------|-------------|---------|--------------------------------|----------------|
+| **profiles** | ✅ | — | — | ✅ | 📋 is_default/hidden, защита удаления default, уникальность | сгенерирован |
+| **settings** | ✅ | — | — | ✅ | 📋 KV + `/ollama-models` | сгенерирован |
+| **notes** | ✅ | ✅ profileId/tag/isArchived | ✅ | ✅ | ✅ CRUD+шаблоны+архив; 📋 ILIKE-поиск `q`, `PUT /notes/order`, `POST /notes/generate-title`, AI-заголовок, привязки | **ручной эталон** |
+| **tasks** | ✅ | ✅ projectId/status/profileId | ✅ | ✅ | ✅ streaks+приоритеты+фильтры; 📋 рекурренс-порождение, зависимости-блокировка, Kanban-колонки | **ручной эталон** |
+| **calendar** | ✅ | ✅ profileId/from/to | ✅ | ✅ | ✅ CRUD+диапазон+ICS (RFC5545); 📋 recurrence-раскрытие, напоминания WS, конфликты | **ручной эталон** |
+| **projects** | ✅ | ✅ profileId | — | ✅ | 📋 dashboard (items), gantt, drag-reschedule | сгенерирован |
+| **files** | ✅ | ✅ profileId/owner | — | ✅ | 📋 извлечение текста (PDF/MD/TXT), download, метаданные | сгенерирован |
+| **search-rag** | — (нет CRUD) | — | — | — (только читает) | 📋 подписка на события, Ollama embedding, pgvector, `/search` + ILIKE fallback | сгенерирован (stub) |
+| **ai-gateway** | — (stateless) | — | — | ✅ | 📋 fallback chain, dictation-парсинг, restore-punctuation, timeout | сгенерирован (stub) |
+| **agent** | ✅ | ✅ | — | ✅ | 📋 триггеры, дайджесты, inbox, DND, лимиты, WS | сгенерирован |
+| **email** | ✅ | ✅ | — | ✅ | 📋 IMAP-аккаунты (шифр), синхронизация, конвертация→note/task | сгенерирован |
+| **external-calendars** | ✅ | — | — | ✅ | 📋 OAuth Google, CalDAV Yandex, ICS-подписки, sync, link | сгенерирован |
+| **integrations** | ✅ | — | — | ✅ | 📋 webhook delivery+retry/DLQ, public API v1, api-keys | сгенерирован |
+| **time-tracking** | ✅ | ✅ | — | — | 📋 timesheet stats, pomodoro (3 режима) | сгенерирован |
+| **export-import** | — | — | — | — | 📋 ZIP-экспорт, импорт текста/JSON | сгенерирован (stub) |
+| **sync** | ✅ | — | — | — | 📋 CRUD папок, scan, auto-import/export .md | сгенерирован |
+
+**Что уже доказано (не надо переделывать):** каркас (DB+NATS+роуты) жив; 3 ручных эталона
+(notes/tasks/calendar) проходят integration против реального Postgres; 14 сгенерированных
+сервисов имеют рабочий CRUD-паттерн с `:id` (см. ADR-007 §8 R1). Риск наследования бага
+`{id}` исключён через `hasRoute()`-гард в contract-тестах.
+
+**Где агент НЕ должен трогать генераторы:** `notes`/`tasks`/`calendar` — только ручное
+редактирование `src/routes/index.ts`. Остальные 13 — править через `gen-semantics.mjs <svc>`
+(НЕ `gen-routes.mjs`, см. ADR-007 §8 R2).

@@ -1,11 +1,17 @@
 #!/usr/bin/env node
 /**
- * gen-routes.mjs — generates real Fastify + TypeBox CRUD routes for all 16 PMOS services,
- * backed by the Drizzle schemas produced by gen-schemas.mjs. Replaces the /health-check stub.
+ * gen-routes.mjs — LEGACY route generator. Produces a thin CRUD stub WITHOUT filters,
+ * soft-delete, or business logic.
+ *
+ * ⚠️ DO NOT run this over a service that already has a reference impl (notes/tasks/calendar)
+ * or a gen-semantics.mjs output — it overwrites and silently drops business logic.
+ * Use `scripts/gen-semantics.mjs <svc>` for the canonical "reference pattern" routes.
+ * See docs/ADR/ADR-007.md §8 R2. Kept only to bootstrap a brand-new service from scratch.
+ *
  * Each routes/index.ts keeps GET /health-check (required by existing tests) and implements:
  *   - CRUD over the primary table (list with offset/limit pagination, get, create, patch, delete)
  *   - service-specific endpoints from FEATURES.md
- * Compiles under the project's tsconfig (withTypeProvider<TypeBoxTypeProvider>).
+ * Timestamps use `.toISOString()` (Drizzle mode:"string", ADR-007 §8 R3).
  * Idempotent: overwrites services/<svc>/src/routes/index.ts.
  */
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
@@ -100,7 +106,7 @@ function crud(svc, tbl, createFields, updateFields, idType = "Type.String()") {
   app.patch("${base}/:id", {
     schema: { params: Type.Object({ id: ${idType} }), body: ${updateSchema}, response: { 200: Type.Any() } }
   }, async (req, reply) => {
-    const [row] = await db.update(schema.${tbl}).set({ ...(req.body as any), updatedAt: new Date() })
+    const [row] = await db.update(schema.${tbl}).set({ ...(req.body as any), updatedAt: new Date().toISOString() })
       .where(eq(schema.${tbl}.id, (req.params as any).id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "${tbl} not found");
     emit('pmos.${svc}.${resource}.updated', row);
@@ -147,8 +153,8 @@ GEN.settings = () => wrap("settings", `
     schema: { body: Type.Object({ key: Type.String(), value: Type.Any() }, { additionalProperties: true }) },
   }, async (req, reply) => {
     const body = req.body as any;
-    const [row] = await db.insert(schema.settings).values({ key: body.key, value: body.value, updatedAt: new Date() })
-      .onConflictDoUpdate({ target: schema.settings.key, set: { value: body.value, updatedAt: new Date() } }).returning();
+    const [row] = await db.insert(schema.settings).values({ key: body.key, value: body.value, updatedAt: new Date().toISOString() })
+      .onConflictDoUpdate({ target: schema.settings.key, set: { value: body.value, updatedAt: new Date().toISOString() } }).returning();
     return reply.code(200).send(row);
   });
 

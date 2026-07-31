@@ -203,3 +203,33 @@ If you hit a contradiction between docs:
 - Skipping the OpenAPI entry before implementing a route.
 - Leaving a service without `/health` or `/metrics`.
 - Hard-coded secrets (use env / settings service).
+- **`{id}` in a Fastify route path** (OpenAPI style) — Fastify 5 matches only `:id`.
+  Writing `app.get("/notes/{id}")` makes every real request 404 at runtime while contract
+  tests still pass. Always use `app.get("/notes/:id")`. The `hasRoute()` guard in
+  `contracts/test/helper.ts` now FAILS the contract test if a strict CRUD route does not
+  match at runtime — this is the net that catches the `{id}`→`:id` class of bug.
+- **`new Date()` for a `timestamp` column** — columns use Drizzle `mode: "string"`; set
+  `new Date().toISOString()`. `new Date()` yields a `Date` object → TS error + wrong wire type.
+- **Re-running `gen-routes.mjs` over a service that has a reference impl** — it overwrites
+  and silently drops filters/soft-delete/business logic. Use `gen-semantics.mjs <svc>` only,
+  and never regenerate `notes`/`tasks`/`calendar` (hand-written reference impls).
+- **Inventing non-contract routes** — every endpoint must exist in
+  `contracts/openapi/<svc>.yaml` (contract-first, ADR-007 §8 R4). Internal logic (recurrence
+  instance creation, dependency blocking) lives inside existing CRUD handlers, no new paths.
+
+### 7.1 Commit gate (run before EVERY push)
+
+```bash
+pnpm -r run typecheck          # must be 18/18 Done — catches :id/Date/typeregression
+pnpm --filter './services/*' run build   # 16/16 Done
+pnpm --filter './services/*' run test:contract   # 16/16 passed — hasRoute() guard active
+pnpm --filter './services/*' run test            # unit (health) passed
+```
+
+A service is NOT ready to commit if:
+- any route uses `{param}` instead of `:param`,
+- a strict CRUD route fails `app.hasRoute({ method, url })` (runtime match),
+- a timestamp is set with `new Date()` instead of `.toISOString()`,
+- a new endpoint is missing from the OpenAPI contract.
+
+See `docs/ADR/ADR-007.md §8` for the canonical mandatory rules (R1–R5).

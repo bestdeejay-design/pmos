@@ -6,6 +6,53 @@
 
 ---
 
+## 0. Anti-patterns — что ОБЯЗАН ловить тест (иначе сервис сломан)
+
+Эти сценарии НЕ в Gherkin-формате ниже, но покрываются автоматически через
+`contracts/test/helper.ts` (`assertRoutesMatch` + `hasRoute()` guard) и `pnpm -r typecheck`.
+Агент обязан держать их зелёными перед каждым пушем (см. AGENT.md §7.1).
+
+### 0.1 Fastify path-param trap (`{id}` vs `:id`)
+
+Если в `routes/index.ts` написано `app.get("/notes/{id}")`, Fastify трактует `{id}` как
+**буквальный сегмент**, и любой реальный запрос `/notes/<uuid>` возвращает **404 на runtime**,
+хотя contract-тест по `printRoutes`-парсингу проходит (там `{id}`→`:id` конвертируется).
+Это тихий баг, стоивший полного цикла отладки на calendar.
+
+**Гард:** `assertRoutesMatch` вызывает `app.hasRoute({ method, url: fastifyPath })` для каждого
+strict-CRUD роута. Если `:id`-вариант не матчится → тест ПАДАЕТ. Значит, баг `{id}` больше
+не проскакивает незамеченным.
+
+```gherkin
+Scenario: Строгий CRUD-роут матчится на runtime (hasRoute guard)
+  Given routes/index.ts сервиса X содержит эндпоинт "GET /x/:id"
+  When запущен contract-тест для сервиса X
+  Then app.hasRoute({ method: "GET", url: "/api/X/v1/x/:id" }) возвращает true
+    And тест НЕ падает с "route not registered / not matched"
+```
+
+### 0.2 Timestamp тип (`new Date()` vs `.toISOString()`)
+
+Все `timestamp`-колонки Drizzle имеют `mode: "string"`. Установка `updatedAt: new Date()`
+даёт `Date`-объект → TS-ошибка на typecheck И неверный wire-тип. Только `.toISOString()`.
+
+### 0.3 Contract-first для новых эндпоинтов
+
+Любой эндпоинт вне `contracts/openapi/<svc>.yaml` → нельзя реализовывать (ADR-007 §8 R4).
+Новые фичи (напр. `POST /notes/generate-title`, `PUT /notes/order`, `GET /notes?q=`) сначала
+добавляются в контракт, затем в роуты, затем покрываются contract-тестом.
+
+### 0.4 Обязательный набор проверок (commit gate)
+
+```bash
+pnpm -r run typecheck                 # 18/18 — ловит :id / Date / регрессии типов
+pnpm --filter './services/*' run build       # 16/16
+pnpm --filter './services/*' run test:contract # 16/16 — hasRoute()-гард активен
+pnpm --filter './services/*' run test         # unit (health)
+```
+
+---
+
 ## 1. profiles — Контекстные профили
 
 ### 1.1 Happy path: создание, чтение, обновление, удаление профиля
