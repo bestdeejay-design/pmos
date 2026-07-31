@@ -4,9 +4,13 @@ import correlationId from "./plugins/correlationId.js";
 import health from "./plugins/health.js";
 import metrics from "./plugins/metrics.js";
 import { errorHandler } from "./lib/errors.js";
+import { EventBus } from "@pmos/event-bus";
 import { searchRagRoutes } from "./routes/index.js";
 
 export async function buildApp() {
+  EventBus.init({ serviceName: "search-rag", url: process.env.NATS_URL });
+  // Best-effort: connect + ensure the JetStream stream exists. Skipped if NATS is down.
+  await EventBus.get().connect().then(() => EventBus.get().ensureStream()).catch(() => {});
   const app = Fastify({ logger: false }).withTypeProvider<TypeBoxTypeProvider>();
 
   await app.register(correlationId);

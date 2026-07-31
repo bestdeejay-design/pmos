@@ -4,6 +4,17 @@ import { Type } from "@fastify/type-provider-typebox";
 import { eq, count } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import * as schema from "../db/schema.js";
+import { EventBus } from "@pmos/event-bus";
+
+// Best-effort event publish. Skipped silently if the bus isn't initialised
+// (e.g. unit tests) or NATS is unreachable — never breaks the HTTP request.
+function emit(subject: string, row: unknown): void {
+  try {
+    EventBus.get().publish(subject, row).catch((e) => console.error('[event] publish ' + subject + ' failed:', e));
+  } catch {
+    /* EventBus not initialised — skip */
+  }
+}
 
 function fail(status: number, code: string, message: string): never {
   const e: any = new Error(message);
@@ -54,6 +65,7 @@ export const integrationsRoutes: FastifyPluginAsync = async (app) => {
   }, { additionalProperties: true }), response: { 201: Type.Any() } }
   }, async (req, reply) => {
     const [row] = await db.insert(schema.webhooks).values(req.body as any).returning();
+    emit('pmos.integrations.webhooks.created', row);
     return reply.code(201).send(row);
   });
 
@@ -76,6 +88,7 @@ export const integrationsRoutes: FastifyPluginAsync = async (app) => {
     const [row] = await db.update(schema.webhooks).set({ ...(req.body as any), updatedAt: new Date() })
       .where(eq(schema.webhooks.id, (req.params as any).id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "webhooks not found");
+    emit('pmos.integrations.webhooks.updated', row);
     return reply.send(row);
   });
 
@@ -84,6 +97,7 @@ export const integrationsRoutes: FastifyPluginAsync = async (app) => {
   }, async (req, reply) => {
     const [row] = await db.delete(schema.webhooks).where(eq(schema.webhooks.id, (req.params as any).id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "webhooks not found");
+    emit('pmos.integrations.webhooks.deleted', row);
     return reply.code(204).send();
   });
 

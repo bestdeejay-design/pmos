@@ -109,6 +109,10 @@ pnpm install
 pnpm --filter @pmos/<name> run typecheck
 pnpm --filter @pmos/<name> test        # needs no DB for unit (health) tests
 pnpm --filter @pmos/<name> run db:migrate   # needs Postgres up (docker compose)
+# Migrations are already generated for all 16 services (migrations/0001_init.sql).
+# Regenerate after editing a schema: pnpm --filter @pmos/<name> exec drizzle-kit generate
+# Events: CRUD mutations in routes publish pmos.<svc>.<resource>.(created|updated|deleted)
+# via @pmos/event-bus; app.ts does best-effort connect()+ensureStream() at startup.
 ```
 
 Each service exposes: `GET /health` (`{ok,db,nats,uptime}`), `GET /metrics` (prom-client),

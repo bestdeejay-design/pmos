@@ -4,6 +4,17 @@ import { Type } from "@fastify/type-provider-typebox";
 import { eq, count } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import * as schema from "../db/schema.js";
+import { EventBus } from "@pmos/event-bus";
+
+// Best-effort event publish. Skipped silently if the bus isn't initialised
+// (e.g. unit tests) or NATS is unreachable — never breaks the HTTP request.
+function emit(subject: string, row: unknown): void {
+  try {
+    EventBus.get().publish(subject, row).catch((e) => console.error('[event] publish ' + subject + ' failed:', e));
+  } catch {
+    /* EventBus not initialised — skip */
+  }
+}
 
 function fail(status: number, code: string, message: string): never {
   const e: any = new Error(message);

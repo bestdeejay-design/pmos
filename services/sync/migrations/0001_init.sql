@@ -1,14 +1,10 @@
--- Migration 0001_init for sync
--- Schema: sync_
--- TODO(svc-sync): replace stub with real DDL from schema.ts / FEATURES.md.
-CREATE TABLE IF NOT EXISTS sync_sync_meta (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  key TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Idempotency table (SAGA.md / ADR-004): every service has this.
-CREATE TABLE IF NOT EXISTS sync_processed_events (
-  event_id UUID PRIMARY KEY,
-  processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS "sync_folders" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"path" text NOT NULL,
+	"auto_import" boolean DEFAULT false NOT NULL,
+	"auto_export" boolean DEFAULT false NOT NULL,
+	"profile_scope" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"last_scan_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );

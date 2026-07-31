@@ -1,14 +1,11 @@
--- Migration 0001_init for files
--- Schema: files_
--- TODO(svc-files): replace stub with real DDL from schema.ts / FEATURES.md.
-CREATE TABLE IF NOT EXISTS files_files_meta (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  key TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Idempotency table (SAGA.md / ADR-004): every service has this.
-CREATE TABLE IF NOT EXISTS files_processed_events (
-  event_id UUID PRIMARY KEY,
-  processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS "file_meta" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"filename" text NOT NULL,
+	"mime_type" text NOT NULL,
+	"size" integer DEFAULT 0 NOT NULL,
+	"owner_type" text,
+	"owner_id" uuid,
+	"storage_path" text NOT NULL,
+	"profile_ids" uuid[] DEFAULT '{}' NOT NULL,
+	"uploaded_at" timestamp with time zone DEFAULT now() NOT NULL
 );

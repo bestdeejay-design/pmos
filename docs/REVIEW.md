@@ -65,5 +65,7 @@
 - [x] **Drizzle-схемы для всех 16 сервисов** (typecheck 18/18 Done, тесты 16×2 green)
 - [x] **Роуты (CRUD + сервисные эндпоинты) для всех 16 сервисов**
 - [x] **Contract-тесты (OpenAPI-conformance) для всех 16 сервисов** (CI `test:contract`, 16/16 green)
+- [x] **Миграции БД для всех 16 сервисов** (`migrations/0001_init.sql`, сгенерированы из Drizzle-схем через `drizzle-kit generate`; search-rag содержит `CREATE EXTENSION vector`)
+- [x] **Шина событий подключена к роутам** (`@pmos/event-bus`): CRUD мутации публикуют `pmos.<svc>.<resource>.(created|updated|deleted)`; `app.ts` делает best-effort `connect()`+`ensureStream()` при старте
 - [x] docker-compose поднимает инфру + gateway
 - [x] Runbook (AGENT.md) описывает путь до сдачи без участия человека

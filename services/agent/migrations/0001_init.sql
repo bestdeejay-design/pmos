@@ -1,14 +1,10 @@
--- Migration 0001_init for agent
--- Schema: agent_
--- TODO(svc-agent): replace stub with real DDL from schema.ts / FEATURES.md.
-CREATE TABLE IF NOT EXISTS agent_agent_meta (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  key TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Idempotency table (SAGA.md / ADR-004): every service has this.
-CREATE TABLE IF NOT EXISTS agent_processed_events (
-  event_id UUID PRIMARY KEY,
-  processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS "agent_messages" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"title" text NOT NULL,
+	"body" text NOT NULL,
+	"type" text NOT NULL,
+	"source" text,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"actions" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );

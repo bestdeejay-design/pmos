@@ -1,14 +1,27 @@
--- Migration 0001_init for email
--- Schema: email_
--- TODO(svc-email): replace stub with real DDL from schema.ts / FEATURES.md.
-CREATE TABLE IF NOT EXISTS email_email_meta (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  key TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS "emails" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"account_id" uuid NOT NULL,
+	"message_id" text NOT NULL,
+	"from" text NOT NULL,
+	"subject" text,
+	"body" text,
+	"received_at" timestamp with time zone,
+	"is_archived" boolean DEFAULT false NOT NULL,
+	"converted_note_id" uuid,
+	"converted_task_id" uuid,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
-
--- Idempotency table (SAGA.md / ADR-004): every service has this.
-CREATE TABLE IF NOT EXISTS email_processed_events (
-  event_id UUID PRIMARY KEY,
-  processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "imap_accounts" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"host" text NOT NULL,
+	"port" integer DEFAULT 993 NOT NULL,
+	"ssl" boolean DEFAULT true NOT NULL,
+	"username" text NOT NULL,
+	"encrypted_password" text NOT NULL,
+	"sync_enabled" boolean DEFAULT true NOT NULL,
+	"last_sync_at" timestamp with time zone,
+	"profile_ids" uuid[] DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );

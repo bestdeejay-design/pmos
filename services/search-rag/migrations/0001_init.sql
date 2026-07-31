@@ -1,14 +1,11 @@
--- Migration 0001_init for search-rag
--- Schema: search_rag_
--- TODO(svc-search-rag): replace stub with real DDL from schema.ts / FEATURES.md.
-CREATE TABLE IF NOT EXISTS search_rag_search_rag_meta (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  key TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- Idempotency table (SAGA.md / ADR-004): every service has this.
-CREATE TABLE IF NOT EXISTS search_rag_processed_events (
-  event_id UUID PRIMARY KEY,
-  processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CREATE EXTENSION IF NOT EXISTS vector;
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "embeddings" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"entity_type" text NOT NULL,
+	"entity_id" uuid NOT NULL,
+	"content" text NOT NULL,
+	"embedding" vector(1536) NOT NULL,
+	"profile_ids" uuid[] DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );

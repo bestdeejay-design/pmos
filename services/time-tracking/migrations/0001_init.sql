@@ -1,14 +1,21 @@
--- Migration 0001_init for time-tracking
--- Schema: time_tracking_
--- TODO(svc-time-tracking): replace stub with real DDL from schema.ts / FEATURES.md.
-CREATE TABLE IF NOT EXISTS time_tracking_time_tracking_meta (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  key TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS "pomodoro_sessions" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"mode" text NOT NULL,
+	"started_at" timestamp with time zone NOT NULL,
+	"ended_at" timestamp with time zone,
+	"planned_min" integer,
+	"completed" boolean DEFAULT false NOT NULL,
+	"task_id" uuid,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
-
--- Idempotency table (SAGA.md / ADR-004): every service has this.
-CREATE TABLE IF NOT EXISTS time_tracking_processed_events (
-  event_id UUID PRIMARY KEY,
-  processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "timesheet" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"task_id" uuid,
+	"description" text,
+	"started_at" timestamp with time zone NOT NULL,
+	"ended_at" timestamp with time zone,
+	"duration_sec" integer,
+	"profile_ids" uuid[] DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
