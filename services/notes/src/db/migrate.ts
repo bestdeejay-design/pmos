@@ -5,6 +5,7 @@ import postgres from "postgres";
 const url = process.env.DATABASE_URL ?? "postgres://pmos:pmos@localhost:5432/pmos";
 const schemaName = process.env.DATABASE_SCHEMA ?? "public";
 const client = postgres(url, { onnotice: () => {} });
+await client.unsafe(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`);
 await client.unsafe(`SET search_path TO "${schemaName}"`);
 const db = drizzle(client);
 
