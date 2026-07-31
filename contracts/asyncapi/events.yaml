@@ -55,6 +55,51 @@ tags:
   - name: ai
     description: AI-сервисы
 
+x-implemented-wire-events:
+  format: "pmos.<svc>.<resource>.<action>  (action in created|updated|deleted)"
+  stream: TSSRUP
+  note: >
+    Автоматически публикуются CRUD-мутациями (scripts/gen-routes.mjs, emit()).
+    Остальные события каталога ниже — 📋 запланированы (FEATURES/SAGA), каркасом не шлются.
+    canonical subject example: pmos.notes.notes.created
+  subjects:
+    - pmos.agent.agent-messages.created
+    - pmos.agent.agent-messages.updated
+    - pmos.agent.agent-messages.deleted
+    - pmos.calendar.meetings.created
+    - pmos.calendar.meetings.updated
+    - pmos.calendar.meetings.deleted
+    - pmos.email.imap.created
+    - pmos.email.imap.updated
+    - pmos.email.imap.deleted
+    - pmos.external-calendars.calendars.created
+    - pmos.external-calendars.calendars.updated
+    - pmos.external-calendars.calendars.deleted
+    - pmos.files.files.created
+    - pmos.files.files.updated
+    - pmos.files.files.deleted
+    - pmos.integrations.webhooks.created
+    - pmos.integrations.webhooks.updated
+    - pmos.integrations.webhooks.deleted
+    - pmos.notes.notes.created
+    - pmos.notes.notes.updated
+    - pmos.notes.notes.deleted
+    - pmos.profiles.profiles.created
+    - pmos.profiles.profiles.updated
+    - pmos.profiles.profiles.deleted
+    - pmos.projects.projects.created
+    - pmos.projects.projects.updated
+    - pmos.projects.projects.deleted
+    - pmos.sync.sync-folders.created
+    - pmos.sync.sync-folders.updated
+    - pmos.sync.sync-folders.deleted
+    - pmos.tasks.tasks.created
+    - pmos.tasks.tasks.updated
+    - pmos.tasks.tasks.deleted
+    - pmos.time-tracking.timesheet.created
+    - pmos.time-tracking.timesheet.updated
+    - pmos.time-tracking.timesheet.deleted
+
 channels:
 
   # ────────────────────────── Profiles ──────────────────────────
