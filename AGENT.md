@@ -176,6 +176,10 @@ The project is **delivered** only when ALL hold:
 - [ ] `E2E` Playwright: ≥3 critical scenarios green (create note → search; recurring task →
       new task; webhook delivery).
 - [ ] `CI` (`.github/workflows/ci.yml` per ADR-002) green on the delivery commit.
+- [ ] **GitHub Repo Hygiene**: run the `github-repo-hygiene` skill checklist —
+      `README.md` (EN) reflects the delivered state, `README.ru.md` mirrors it,
+      `LICENSE`/`CODE_OF_CONDUCT.md`/`CONTRIBUTING.md`/`SECURITY.md` present,
+      repo `description` + `topics` searchable, GitHub Pages link working.
 - [ ] `docs/REVIEW.md` updated: all ADR-007 §5 conflicts marked RESOLVED; any new
       decisions recorded as ADR-008+ if needed.
 
