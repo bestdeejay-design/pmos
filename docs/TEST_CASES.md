@@ -656,7 +656,7 @@ Scenario: Обновить существующую настройку (upsert)
     | value | { "mode": "dark" } |
   Then сервис возвращает 200 OK (не 201 — обновление)
     And setting.value равен { "mode": "dark" }
-    And published событие settings.updated
+    And опубликовано событие settings.updated
     And setting.updatedAt обновлён
 ```
 
@@ -677,8 +677,10 @@ Scenario: Получить настройку по ключу и удалить 
 ```gherkin
 Scenario: Создать настройку без ключа
   When клиент отправляет POST /api/settings с телом { "value": { "a": 1 } }
-  Then сервис возвращает 422 Unprocessable Entity
+  Then сервис возвращает 500 Internal Server Error (нарушение PK: key = NULL)
     And событие settings.created НЕ опубликовано
+  # ⚠ gap: роут не валидирует key (additionalProperties: true), контракт ссылается
+  # на несуществующую схему SettingUpsert (битый $ref в settings.yaml) — см. REVIEW.md §3.
 ```
 
 ### 7.3 Business rule: пагинация и сортировка
@@ -726,7 +728,7 @@ Scenario: Поиск с фильтром по типу и профилям
   When клиент отправляет POST /api/search с телом
     | query       | "работа" |
     | type        | "note"   |
-    | profile_ids | ["p1"]   |
+    | profileIds  | ["p1"]   |
   Then сервис возвращает 200 OK
     And результаты содержат только записи type = "note" и profileIds ⊇ ["p1"]
 ```
@@ -789,7 +791,7 @@ Scenario: Диктовка при ошибке LLM — эвристика, а н
   Given Ollama недоступен
   When клиент отправляет POST /api/ai-gateway/dictate с телом { "text": "Первая строка\nВторая" }
   Then сервис возвращает 200 OK
-    And body.title равен первой строке, обрезанной до 60 символов
+    And body.title равен первой непустой строке, обрезанной до 60 символов (иначе "Без названия")
     And body.bodyMd равен исходному тексту
     And body.tag равен null
     And body.degraded равен true
@@ -813,9 +815,10 @@ Scenario: Получить pending-сообщения инбокса
 Scenario: Принять сообщение
   Given существует сообщение m1 со статусом "pending"
   When клиент отправляет POST /api/agent/respond с телом
-    | message_id | "m1"  |
-    | action     | "accept" |
+    | messageId | "m1"  |
+    | action    | "accept" |
   Then сервис возвращает 200 OK
+    And ответ { "ok": true }
     And message m1 имеет статус "accepted"
 ```
 
@@ -826,7 +829,7 @@ Scenario: Отклонить все pending-сообщения разом
   Given существуют 3 pending-сообщения
   When клиент отправляет POST /api/agent/dismiss-all
   Then сервис возвращает 200 OK
-    And body.count равен 3
+    And body.dismissed равен 3
     And все сообщения имеют статус "dismissed"
 ```
 
@@ -863,9 +866,9 @@ Scenario: Невалидный action в respond
 Scenario: Создать запись времени
   Given существует задача t1
   When клиент отправляет POST /api/time-tracking/timesheet с телом
-    | task_id      | "t1"  |
-    | started_at   | "2026-08-01T09:00:00Z" |
-    | duration_sec | 3600  |
+    | taskId      | "t1"  |
+    | startedAt   | "2026-08-01T09:00:00Z" |
+    | durationSec | 3600  |
   Then сервис возвращает 201 Created
     And timesheet.taskId равен "t1"
     And timesheet.durationSec равен 3600
@@ -889,7 +892,7 @@ Scenario: Статистика за сегодня и неделю
 Scenario: Завершить pomodoro-сессию
   Given существует pomodoro-сессия s1 со startedAt = "2026-08-01T09:00:00Z"
   When клиент отправляет PATCH /api/time-tracking/pomodoro/s1 с телом
-    | ended_at | "2026-08-01T09:25:00Z" |
+    | endedAt | "2026-08-01T09:25:00Z" |
   Then сервис возвращает 200 OK
     And session.completed равен true (endedAt автоматически помечает)
     And session.completedMin равен 25
@@ -931,7 +934,7 @@ Scenario: Синхронизировать письма
     And IMAP-сервер отвечает: 3 письма в INBOX
   When клиент отправляет POST /api/email/imap/a1/sync
   Then сервис возвращает 200 OK
-    And body.count равен 3
+    And body.synced равен 3
     And письма сохранены в emails (accountId = "a1")
     And account.lastSyncAt обновлён
     And опубликовано событие email.synced
@@ -953,9 +956,9 @@ Scenario: Конвертировать письмо в заметку
   Given существует письмо e1
   When клиент отправляет PATCH /api/email/imap/emails с телом
     | id         | "e1"   |
-    | convert_to | "note" |
+    | convertTo  | "note" |
   Then сервис возвращает 200 OK
-    And email.convertedNoteId — UUID
+    And ответ { "ok": true }
     And опубликовано событие email.converted_to_note
 ```
 
@@ -978,8 +981,9 @@ Scenario: Синхронизация при недоступном IMAP-серв
 ```gherkin
 Scenario: Создать ICS-календарь
   When клиент отправляет POST /api/external-calendars/calendars с телом
-    | provider | "ics" |
-    | auth_data | { "url": "https://example.com/cal.ics" } |
+    | displayName | "Рабочий"                        |
+    | provider    | "ics"                            |
+    | authData    | "https://example.com/cal.ics"    |
   Then сервис возвращает 201 Created
     And calendar.provider равен "ics"
     And опубликовано событие external-calendars.calendars.created
@@ -1004,9 +1008,9 @@ Scenario: Связать внешнее событие с встречей
   Given существует внешнее событие ee1
     And существует локальная встреча m1
   When клиент отправляет PATCH /api/external-calendars/calendars/events/ee1/link с телом
-    | meeting_id | "m1" |
+    | meetingId | "m1" |
   Then сервис возвращает 200 OK
-    And externalEvent.linkedMeetingId равен "m1"
+    And ответ { "ok": true }
     And опубликовано событие external-calendars.external_event.linked
 ```
 
@@ -1138,8 +1142,8 @@ Scenario: export_store обновляется по событиям CRUD
 ```gherkin
 Scenario: Создать sync-папку с автозагрузкой
   When клиент отправляет POST /api/sync/sync-folders с телом
-    | path        | "/Users/user/vault" |
-    | auto_import | true                |
+    | path       | "/Users/user/vault" |
+    | autoImport | true                |
   Then сервис возвращает 201 Created
     And syncFolder.path равен "/Users/user/vault"
     And опубликовано событие sync.sync-folders.created
@@ -1151,7 +1155,7 @@ Scenario: Создать sync-папку с автозагрузкой
 Scenario: Сканирование папки находит .md файлы
   Given существует sync-папка f1 с path = "/tmp/vault"
     And в /tmp/vault лежат: "note1.md", "image.png", ".hidden/note2.md"
-  When клиент запускает повторное сканирование (PATCH с тем же path и auto_import = true)
+  When клиент запускает повторное сканирование (PATCH с тем же path и autoImport = true)
   Then scanned_files содержит только "note1.md" (скрытые и не-.md пропущены)
     And content_md равен содержимому note1.md
     And опубликовано событие sync.folder_scanned

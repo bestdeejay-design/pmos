@@ -46,7 +46,18 @@
   но `contracts/asyncapi/events.yaml` описывает канал `pmos.settings.changed` и не включает settings
   в `x-implemented-wire-events`. При синхронизации каталога привести к wire-факту.
 - **PATCH `/settings/:key`** реализован в коде, но отсутствует в `contracts/openapi/settings.yaml`
-  (conformance-тест его не проверяет) — дополнить контракт.
+  (в контракте у `/settings/{key}` только `get`/`delete`) — дополнить контракт.
+- **Битый `$ref` в `contracts/openapi/settings.yaml`:** `SettingUpsert` (используется в `requestBody`
+  POST `/settings`) не определён в `components.schemas` (есть только `Setting`). Контракт-тест
+  проверяет только маршруты, поэтому дефект не ловится — определить схему.
+- **settings POST не валидирует key:** роут принимает `{ additionalProperties: true }`, вставка с
+  `key = undefined` падает на PK → 500 `INTERNAL_ERROR` вместо контрактной 422.
+- **`/sync-folders/files`** реализован в коде sync (стр. 129), но отсутствует в
+  `contracts/openapi/sync.yaml` — дополнить контракт.
+- **TEST_CASES §§7–16 выверены против кода** (2026-08-01): исправлены camelCase-поля
+  (`convertTo`, `meetingId`, `messageId`, `profileIds`, `autoImport`, `taskId/startedAt/durationSec`,
+  `endedAt`), ответы (`{ synced }`, `{ dismissed }`, `{ ok: true }`), fallback title
+  (60 симв. / «Без названия»), §7.2 переписан (500 вместо 422).
 - Frontend (React SPA) и desktop (Tauri) — вне backend-DoD; агент фокусируется на бэкенде.
 - Роуты (`src/routes/index.ts`) пока stub (только `/health-check`) — агент реализует их по
   OpenAPI-контрактам; схемы БД и типы уже готовы как образец.
