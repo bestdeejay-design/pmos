@@ -1,37 +1,49 @@
-# ЦУП (Personal OS) — backend monorepo
+# PMOS — Personal OS (backend monorepo)
 
-ЦУП («Центр Управления Полётами») — персональная операционная система: единое
-хранилище заметок, задач, календаря, проектов, файлов, профилей и AI-ассистента,
-связанных через асинхронную шину событий.
+> **🌐 Versions:** [English](README.md) · [Русский](README.ru.md) · [Website (GitHub Pages)](https://bestdeejay-design.github.io/pmos/)
 
-> **Статус:** все 16 сервисов реализованы и проверены (CRUD + семантика + события через
-> NATS JetStream). 5 cross-service саг из `docs/SAGA.md` работают и покрыты интеграционными
-> тестами против реального Postgres + NATS. Проверки: typecheck 18/18, contract 16/16,
+PMOS («Personal Management Operating System») — a personal operating system: a unified
+store for notes, tasks, calendar, projects, files, profiles and an AI assistant, all
+connected through an asynchronous event bus.
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-strict-blue)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-22-green)](https://nodejs.org/)
+[![Fastify](https://img.shields.io/badge/Fastify-5-000000)](https://fastify.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)](https://www.postgresql.org/)
+[![NATS](https://img.shields.io/badge/NATS-2.10_JetStream-27aae1)](https://nats.io/)
+[![Tests](https://img.shields.io/badge/tests-90/90-green)](./services)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+> **Status:** all 16 services are implemented and verified (CRUD + business logic + events
+> over NATS JetStream). 5 cross-service sagas from `docs/SAGA.md` work and are covered by
+> integration tests against real Postgres + NATS. Checks: typecheck 18/18, contract 16/16,
 > unit + integration 90/90 green.
 
-## Стек
+> **Try it:** the docs are also published as a static website — <https://bestdeejay-design.github.io/pmos/>
+
+## Stack
 
 - **Node.js 22**, **pnpm 10+** (workspaces), **TypeScript** (strict).
-- **Fastify 5** + **TypeBox** — HTTP, роуты монтируются на `/api/<svc>/v1`.
-- **PostgreSQL 16** — schema-per-service изоляция (ADR-004).
-- **NATS 2.10 JetStream** — шина событий (`@pmos/event-bus`), at-least-once.
-- **Drizzle ORM** — схемы + миграции (`drizzle-kit`).
-- **Vitest** — unit + contract (OpenAPI-conformance) тесты.
-- **Docker / OrbStack** — инфра и сборка сервисов.
+- **Fastify 5** + **TypeBox** — HTTP, routes mounted at `/api/<svc>/v1`.
+- **PostgreSQL 16** — schema-per-service isolation (ADR-004).
+- **NATS 2.10 JetStream** — event bus (`@pmos/event-bus`), at-least-once.
+- **Drizzle ORM** — schemas + migrations (`drizzle-kit`).
+- **Vitest** — unit + contract (OpenAPI-conformance) tests.
+- **Docker / OrbStack** — infrastructure and service builds.
 
-## Быстрый старт
+## Quick start
 
 ```bash
-# 1. Установка
+# 1. Install
 pnpm install
 
-# 2. Инфра (Postgres + NATS)
+# 2. Infrastructure (Postgres + NATS)
 docker compose -f platform/docker/docker-compose.yml --profile core up -d
 
-# 3. Миграции для всех сервисов (нужен Postgres)
+# 3. Migrations for all services (needs Postgres)
 pnpm --filter "./services/*" run db:migrate
 
-# 4. Запуск одного сервиса локально
+# 4. Run a single service locally
 DATABASE_URL=postgres://pmos:***@localhost:5432/pmos \
 DATABASE_SCHEMA=notes_ NATS_URL=nats://localhost:4222 \
 PORT=3001 SERVICE_NAME=notes pnpm --filter @pmos/notes start
@@ -40,31 +52,32 @@ PORT=3001 SERVICE_NAME=notes pnpm --filter @pmos/notes start
 curl http://localhost:3001/api/notes/v1/health-check
 ```
 
-Полный стек (16 сервисов + gateway) поднимается профилем `all`:
+The full stack (16 services + gateway) starts with the `all` profile:
 
 ```bash
 docker compose -f platform/docker/docker-compose.yml --profile all up -d
 # gateway: http://localhost:8080/api/health
 ```
 
-## Структура репозитория
+## Repository structure
 
 ```
 pmos/
-├── AGENT.md                        Runbook для автономного агента-сборщика
-├── DELIVERY.md                     Delivery Gate: запуск, что реализовано, тесты, ограничения
-├── README.md                       ← вы здесь
+├── AGENT.md                        Runbook for the autonomous build agent
+├── DELIVERY.md                     Delivery Gate: how to run, what's done, tests, limitations
+├── README.md                       ← you are here (English)
+├── README.ru.md                    Russian version of this README
 ├── package.json                    root scripts: typecheck/test/build/db:migrate
 ├── pnpm-workspace.yaml             workspaces: services/*, platform/*
 │
-├── platform/                       общая инфраструктура
-│   ├── shared-types/               @pmos/shared — EventEnvelope, доменные типы, DTO
+├── platform/                       shared infrastructure
+│   ├── shared-types/               @pmos/shared — EventEnvelope, domain types, DTOs
 │   ├── event-bus/                  @pmos/event-bus — NATS JetStream publisher/consumer (durable, DLQ)
 │   └── docker/
-│       ├── docker-compose.yml      профили: core (Postgres+NATS) / all (16 сервисов + gateway)
-│       └── nginx.conf              api-gateway (reverse-proxy на все сервисы)
+│       ├── docker-compose.yml      profiles: core (Postgres+NATS) / all (16 services + gateway)
+│       └── nginx.conf              api-gateway (reverse proxy to all services)
 │
-├── services/                       16 микросервисов, единый шаблон (см. ниже)
+├── services/                       16 microservices, uniform template (see below)
 │   ├── notes/              3001  notes_
 │   ├── tasks/              3002  tasks_
 │   ├── calendar/           3003  calendar_
@@ -82,151 +95,136 @@ pmos/
 │   ├── export-import/      3015  export_import_
 │   └── sync/               3016  sync_
 │
-├── contracts/                      машинная правда (что реально в коде)
-│   ├── openapi/                    16 × <svc>.yaml — OpenAPI-спеки, conformance 16/16
+├── contracts/                      machine truth (what actually ships)
+│   ├── openapi/                    16 × <svc>.yaml — OpenAPI specs, conformance 16/16
 │   ├── asyncapi/
-│   │   └── events.yaml              каталог событий (2 391 строка)
-│   │                               x-implemented-wire-events = что реально публикуется
-│   └── test/                        вспомогательные фикстуры контрактов
+│   │   └── events.yaml             event catalog (2,391 lines)
+│   │                               x-implemented-wire-events = what is actually published
+│   └── test/                        contract test fixtures
 │
-├── scripts/                         генераторы (воспроизводимость каркаса)
-│   ├── scaffold-services.mjs        каркас нового сервиса
-│   ├── gen-openapi.mjs              OpenAPI-спеки из контрактов
-│   ├── gen-schemas.mjs              Drizzle-схемы
-│   ├── gen-routes.mjs               CRUD-роуты + emit() событий
-│   ├── gen-semantics.mjs            ручная семантика поверх CRUD (править так, НЕ gen-routes)
-│   └── gen-contract-tests.mjs       OpenAPI-conformance тесты
+├── scripts/                         generators (scaffold reproducibility)
+│   ├── scaffold-services.mjs       new service scaffold
+│   ├── gen-openapi.mjs             OpenAPI specs from contracts
+│   ├── gen-schemas.mjs             Drizzle schemas
+│   ├── gen-routes.mjs              CRUD routes + emit() events
+│   ├── gen-semantics.mjs           hand-written semantics on top of CRUD (edit this, NOT gen-routes)
+│   └── gen-contract-tests.mjs      OpenAPI-conformance tests
 │
-├── docs/                            архитектурная и проектная документация
-│   ├── ARCHITECTURE.md              общая архитектура
-│   ├── FEATURES.md                  функциональные требования (✅ 85 / 📋 18)
-│   ├── SAGA.md                      cross-service сценарии (§1–§5)
-│   ├── REVIEW.md                    статус-матрица по сервисам
-│   ├── TEST_CASES.md                тест-кейсы
-│   ├── BACKLOG.md                   бэклог
-│   ├── DEV_GUIDE.md                 локальная разработка
+├── docs/                            architecture & project documentation
+│   ├── ARCHITECTURE.md             overall architecture
+│   ├── FEATURES.md                 functional requirements (✅ 85 done / 📋 18 planned)
+│   ├── SAGA.md                     cross-service scenarios (§1–§5)
+│   ├── REVIEW.md                   status matrix per service
+│   ├── TEST_CASES.md               test cases
+│   ├── BACKLOG.md                  backlog
+│   ├── DEV_GUIDE.md                local development
 │   └── ADR/
-│       ├── ADR-001.md … ADR-007.md  архитектурные решения
+│       ├── ADR-001.md … ADR-007.md architecture decision records
 │
-├── template-service/               выключен из сборки (артефакт скраффолда)
-└── tests/                           зарезервировано под E2E (сейчас пусто; E2E заменён
-                                    integration-тестами сервисов — 90/90)
+├── template-service/               excluded from build (scaffold artifact)
+└── tests/                           reserved for E2E (currently empty; E2E is replaced by
+                                     service integration tests — 90/90)
 ```
 
-### Шаблон сервиса (`services/<name>/`)
+### Service template (`services/<name>/`)
 
-Все 16 сервисов идентичны по структуре:
+All 16 services share the same structure:
 
 ```
 services/<name>/
 ├── src/
-│   ├── index.ts              точка входа: buildApp() + NATS + shutdown
-│   ├── app.ts                Fastify-приложение (роуты, плагины, health)
+│   ├── index.ts              entry point: buildApp() + NATS + shutdown
+│   ├── app.ts                Fastify app (routes, plugins, health)
 │   ├── db/
-│   │   ├── connection.ts     postgres.js + drizzle, search_path через startup-параметр
-│   │   ├── schema.ts         Drizzle-схема таблиц
-│   │   └── migrate.ts        применение миграций (drizzle-kit)
+│   │   ├── connection.ts     postgres.js + drizzle, search_path via startup parameter
+│   │   ├── schema.ts         Drizzle table schema
+│   │   └── migrate.ts        migrations (drizzle-kit)
 │   ├── events/
-│   │   ├── publish.ts        обёртка публикации событий (emit)
-│   │   └── subscribe.ts      обработчики подписок (саги, idempotency)
-│   ├── lib/                  семантика: бизнес-логика (llm.ts, imap.ts, zip.ts, …)
+│   │   ├── publish.ts        event publish wrapper (emit)
+│   │   └── subscribe.ts      subscription handlers (sagas, idempotency)
+│   ├── lib/                  business logic (llm.ts, imap.ts, zip.ts, …)
 │   ├── plugins/              correlationId, health, metrics
-│   └── routes/index.ts       Fastify + TypeBox-роуты (typed.get/post/…)
+│   └── routes/index.ts       Fastify + TypeBox routes (typed.get/post/…)
 ├── migrations/               *.sql + meta/_journal.json (drizzle-kit)
 ├── test/
 │   ├── health.test.ts        unit: health-check
 │   ├── contract.test.ts      unit: OpenAPI-conformance
-│   └── integration.*.test.ts integration: реальные Postgres + NATS (с сагами)
+│   └── integration.*.test.ts integration: real Postgres + NATS (incl. sagas)
 ├── Dockerfile, drizzle.config.ts, tsconfig.json, vitest.config.ts, package.json
 ```
 
-Сервисы и порты (AGENT.md §4):
+## Events (Event-Driven)
 
-| Service | Port | Schema | Phase |
-|---------|------|--------|-------|
-| notes | 3001 | notes_ | 1 |
-| tasks | 3002 | tasks_ | 1 |
-| profiles | 3006 | profiles_ | 1 |
-| settings | 3007 | settings_ | 1 |
-| calendar | 3003 | calendar_ | 2 |
-| projects | 3004 | projects_ | 2 |
-| files | 3005 | files_ | 2 |
-| search-rag | 3008 | search_rag_ | 2 |
-| ai-gateway | 3009 | ai_gateway_ | 3 |
-| agent | 3010 | agent_ | 3 |
-| integrations | 3014 | integrations_ | 3 |
-| export-import | 3015 | export_import_ | 3 |
-| time-tracking | 3011 | time_tracking_ | 4 |
-| email | 3012 | email_ | 4 |
-| external-calendars | 3013 | external_calendars_ | 4 |
-| sync | 3016 | sync_ | 4 |
+Every CRUD service publishes an event to NATS JetStream
+(format `pmos.<svc>.<resource>.<action>`, action ∈ `created|updated|deleted`),
+stream `TSSRUP` (subject `pmos.>`). Example: `pmos.notes.notes.created`.
 
-## События (Event-Driven)
+The full and current list of **actually published** subjects is in
+`contracts/asyncapi/events.yaml` → `x-implemented-wire-events`. Cross-service chains
+(sagas) from `docs/SAGA.md` are working: AI note-title generation (§1), agent triggers
+on task status change (§2), file text extraction & indexing (§3), external calendar
+import (§4), webhook delivery (§5).
 
-Каждый CRUD-мутации сервис публикует событие в NATS JetStream
-(формат `pmos.<svc>.<resource>.<action>`, action ∈ `created|updated|deleted`),
-stream `TSSRUP` (subject `pmos.>`). Пример: `pmos.notes.notes.created`.
-
-Полный и актуальный список **реально публикуемых** subject'ов — в
-`contracts/asyncapi/events.yaml` → `x-implemented-wire-events`. Кросс-сервисные цепочки
-(саги) из `docs/SAGA.md` работают: генерация AI-заголовков заметок (§1), триггеры агента
-по смене статуса задачи (§2), извлечение текста файлов и индексация (§3), импорт внешних
-встреч в календарь (§4), доставка webhook'ов (§5).
-
-## Проверки
+## Checks
 
 ```bash
-pnpm -r run typecheck        # strict TS, 18 пакетов
-pnpm --filter "./services/*" run test          # unit (vitest), без БД
+pnpm -r run typecheck        # strict TS, 18 packages
+pnpm --filter "./services/*" run test          # unit (vitest), no DB
 pnpm --filter "./services/*" run test:contract  # OpenAPI-conformance, 16/16
 pnpm --filter "./services/*" run build         # tsc → dist
 ```
 
-CI (`.github/workflows/ci.yml`) гонит typecheck + unit + contract на каждый push.
+CI (`.github/workflows/ci.yml`) runs typecheck + unit + contract on every push.
 
-## Документация
+## Documentation
 
-Полный каталог — общий объём **~4 460 строк доков + ~9 900 строк контрактов ≈ 14 400 строк**:
+Full catalog — **~4,460 lines of docs + ~9,900 lines of contracts ≈ 14,400 lines**:
 
-### Проектная документация (docs/)
+### Project docs (docs/)
 
-| Файл | Строк | Назначение |
-|------|------:|------------|
-| `docs/ARCHITECTURE.md` | 160 | Общая архитектура: сервисы, шина, потоки данных |
-| `docs/FEATURES.md` | 477 | Функциональные требования по каждому сервису (✅ 85 реализовано / 📋 18 план) |
-| `docs/SAGA.md` | 426 | 5 cross-service сценариев (§1–§5): события, idempotency, проверка |
-| `docs/REVIEW.md` | 106 | Статус-матрица: CRUD / фильтры / soft-delete / события / бизнес-логика |
-| `docs/TEST_CASES.md` | 864 | Тест-кейсы (сценарии проверки сервисов и саг) |
-| `docs/BACKLOG.md` | 366 | Бэклог: идеи, отложенные фичи, UI-слой |
-| `docs/DEV_GUIDE.md` | 525 | Локальная разработка: env, запуск, отладка, генераторы |
-
-### ADR — архитектурные решения (docs/ADR/)
-
-| Файл | Строк | Решение |
+| File | Lines | Purpose |
 |------|------:|---------|
-| `ADR-001.md` | 144 | Монорепо + pnpm workspaces, schema-per-service |
-| `ADR-002.md` | 177 | NATS JetStream как шина событий (at-least-once) |
-| `ADR-003.md` | 92 | Fastify + TypeBox (типизированные роуты, OpenAPI) |
-| `ADR-004.md` | 67 | Изоляция схем в Postgres (search_path на соединении) |
-| `ADR-005.md` | 131 | Контракты OpenAPI как источник правды + conformance-тесты |
-| `ADR-006.md` | 170 | Drizzle ORM + миграции, воспроизводимость |
-| `ADR-007.md` | 233 | **Канонические конвенции** (переименование tsrup→pmos, camelCase, версии EventEnvelope) — при конфликте с другими доками переименовывает их |
+| `docs/ARCHITECTURE.md` | 160 | Overall architecture: services, bus, data flows |
+| `docs/FEATURES.md` | 477 | Functional requirements per service (✅ 85 done / 📋 18 planned) |
+| `docs/SAGA.md` | 426 | 5 cross-service scenarios (§1–§5): events, idempotency, verification |
+| `docs/REVIEW.md` | 106 | Status matrix: CRUD / filters / soft-delete / events / business logic |
+| `docs/TEST_CASES.md` | 864 | Test cases (service & saga verification scenarios) |
+| `docs/BACKLOG.md` | 366 | Backlog: ideas, deferred features, UI layer |
+| `docs/DEV_GUIDE.md` | 525 | Local development: env, run, debugging, generators |
 
-### Runbook и гейты
+### ADR — Architecture Decision Records (docs/ADR/)
 
-| Файл | Строк | Назначение |
-|------|------:|------------|
-| `AGENT.md` | 235 | Главный runbook автономного агента-сборщика (фазы, гейты §5) |
-| `DELIVERY.md` | 59 | Delivery Gate: как запустить, что реализовано, ограничения |
-| `README.md` | 232 | ← этот файл |
+| File | Lines | Decision |
+|------|------:|----------|
+| `ADR-001.md` | 144 | Monorepo + pnpm workspaces, schema-per-service |
+| `ADR-002.md` | 177 | NATS JetStream as the event bus (at-least-once) |
+| `ADR-003.md` | 92 | Fastify + TypeBox (typed routes, OpenAPI) |
+| `ADR-004.md` | 67 | Postgres schema isolation (search_path per connection) |
+| `ADR-005.md` | 131 | OpenAPI contracts as source of truth + conformance tests |
+| `ADR-006.md` | 170 | Drizzle ORM + migrations, reproducibility |
+| `ADR-007.md` | 233 | **Canonical conventions** (tsrup→pmos rename, camelCase, EventEnvelope versioning) — overrides other docs on conflict |
 
-### Контракты (машинная правда)
+### Runbooks & gates
 
-| Файл | Строк | Назначение |
-|------|------:|------------|
-| `contracts/openapi/*.yaml` (16 шт.) | 7 519 | OpenAPI-спеки сервисов — conformance 16/16 |
-| `contracts/asyncapi/events.yaml` | 2 391 | Каталог событий шины + `x-implemented-wire-events` (реально шлётся) |
+| File | Lines | Purpose |
+|------|------:|---------|
+| `AGENT.md` | 235 | Main runbook for the autonomous build agent (phases, gates §5) |
+| `DELIVERY.md` | 59 | Delivery Gate: how to run, what's done, limitations |
+| `README.md` | — | ← this file |
 
-## Лицензия
+### Contracts (machine truth)
 
-MIT.
+| File | Lines | Purpose |
+|------|------:|---------|
+| `contracts/openapi/*.yaml` (16 files) | 7,519 | OpenAPI specs per service — conformance 16/16 |
+| `contracts/asyncapi/events.yaml` | 2,391 | Event bus catalog + `x-implemented-wire-events` (what actually ships) |
+
+## Contributing
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening issues or pull requests,
+and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community guidelines.
+Security issues: see [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE) © bestdeejay-design.
