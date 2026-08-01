@@ -6,7 +6,7 @@ PMOS («Personal Management Operating System») — a personal operating system:
 store for notes, tasks, calendar, projects, files, profiles and an AI assistant, all
 connected through an asynchronous event bus.
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-strict-blue)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5%20strict-blue)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-22-green)](https://nodejs.org/)
 [![Fastify](https://img.shields.io/badge/Fastify-5-000000)](https://fastify.dev/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)](https://www.postgresql.org/)
