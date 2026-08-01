@@ -3,6 +3,7 @@
 > Документ содержит конкретные Given-When-Then сценарии для unit, integration и contract тестов.
 > Формат: **Gherkin** (`Given ... When ... Then ...`).
 > Инструмент: **Vitest** (unit + integration), **Pact** (contract), **Playwright** (E2E).
+> Покрытие: **все 16 сервисов** (§1–§16) + cross-service саги (§17) + инфраструктура (§18–§19).
 
 ---
 
@@ -632,9 +633,555 @@ Scenario: Имя файла с Unicode и спецсимволами
 
 ---
 
-## 7. Cross-service scenarios (Integration)
+## 7. settings — Настройки (KV)
 
-### 7.1 Note creation → AI title generation
+### 7.1 Happy path: upsert, чтение, удаление
+
+```gherkin
+Scenario: Создать новую настройку
+  When клиент отправляет POST /api/settings с телом
+    | key   | "theme"    |
+    | value | { "mode": "dark" } |
+  Then сервис возвращает 201 Created
+    And setting.key равен "theme"
+    And setting.value равен { "mode": "dark" }
+    And опубликовано событие settings.created
+```
+
+```gherkin
+Scenario: Обновить существующую настройку (upsert)
+  Given существует настройка key = "theme", value = { "mode": "light" }
+  When клиент отправляет POST /api/settings с телом
+    | key   | "theme"    |
+    | value | { "mode": "dark" } |
+  Then сервис возвращает 200 OK (не 201 — обновление)
+    And setting.value равен { "mode": "dark" }
+    And published событие settings.updated
+    And setting.updatedAt обновлён
+```
+
+```gherkin
+Scenario: Получить настройку по ключу и удалить её
+  Given существует настройка key = "theme"
+  When клиент отправляет GET /api/settings/theme
+  Then сервис возвращает 200 OK
+    And setting.key равен "theme"
+  When клиент отправляет DELETE /api/settings/theme
+  Then сервис возвращает 204 No Content
+    And GET /api/settings/theme возвращает 404
+    And опубликовано событие settings.deleted
+```
+
+### 7.2 Validation error
+
+```gherkin
+Scenario: Создать настройку без ключа
+  When клиент отправляет POST /api/settings с телом { "value": { "a": 1 } }
+  Then сервис возвращает 422 Unprocessable Entity
+    And событие settings.created НЕ опубликовано
+```
+
+### 7.3 Business rule: пагинация и сортировка
+
+```gherkin
+Scenario: Список настроек с пагинацией
+  Given существует 25 настроек
+  When клиент отправляет GET /api/settings?limit=10&offset=0
+  Then сервис возвращает 200 OK
+    And в ответе 10 настроек
+    And settings отсортированы по updatedAt ASC
+```
+
+### 7.4 Business rule: graceful degradation Ollama
+
+```gherkin
+Scenario: Список моделей Ollama при недоступном сервисе
+  Given Ollama не запущен
+  When клиент отправляет GET /api/settings/ollama-models
+  Then сервис возвращает 200 OK (не 500)
+    And body равен { "models": [], "degraded": true }
+```
+
+---
+
+## 8. search-rag — Поиск + RAG
+
+### 8.1 Happy path: полнотекстовый поиск
+
+```gherkin
+Scenario: Найти заметку по подстроке
+  Given в search_rag_.embeddings существует запись entityType = "note", content = "Купить молоко"
+  When клиент отправляет POST /api/search с телом { "query": "молоко" }
+  Then сервис возвращает 200 OK
+    And результаты содержат заметку с content = "Купить молоко"
+    And результат НЕ содержит поле embedding (только метаданные)
+```
+
+### 8.2 Business rule: фильтры
+
+```gherkin
+Scenario: Поиск с фильтром по типу и профилям
+  Given существуют записи: note "A", task "B"
+    And note "A" имеет profileIds = ["p1"]
+  When клиент отправляет POST /api/search с телом
+    | query       | "работа" |
+    | type        | "note"   |
+    | profile_ids | ["p1"]   |
+  Then сервис возвращает 200 OK
+    And результаты содержат только записи type = "note" и profileIds ⊇ ["p1"]
+```
+
+### 8.3 Edge case: fallback при недоступном Ollama
+
+```gherkin
+Scenario: Семантический поиск при недоступном Ollama — чистый ILIKE
+  Given Ollama недоступен (embedding timeout 3s)
+  When клиент отправляет POST /api/search с телом { "query": "отчёт" }
+  Then сервис возвращает 200 OK
+    And результаты построены только по ILIKE-совпадениям
+    And сервис не возвращает ошибку (graceful degradation)
+```
+
+### 8.4 Business rule: идемпотентность индексации
+
+```gherkin
+Scenario: Повторное событие notes.created не создаёт дубликат
+  Given в embeddings уже есть запись (entityType = "note", entityId = "n1")
+  When обработчик получает повторное событие notes.created с entityId = "n1"
+  Then в embeddings остаётся 1 запись для (note, n1) (unique index, upsert)
+```
+
+---
+
+## 9. ai-gateway — AI-прокси
+
+### 9.1 Happy path: диктовка
+
+```gherkin
+Scenario: Диктовка структурирует текст
+  Given ai-gateway запущен, Ollama отвечает
+  When клиент отправляет POST /api/ai-gateway/dictate с телом
+    | text | "купить молоко хлеб яйца" |
+  Then сервис возвращает 200 OK
+    And body.title не пустой
+    And body.bodyMd не пустой
+    And body.degraded равен false
+    And опубликовано событие ai-gateway.dictation.completed
+```
+
+### 9.2 Business rule: восстановление пунктуации
+
+```gherkin
+Scenario: Восстановление пунктуации через LLM
+  Given Ollama отвечает
+  When клиент отправляет POST /api/ai-gateway/restore-punctuation с телом
+    | text | "привет как дела" |
+  Then сервис возвращает 200 OK
+    And body.text содержит пунктуацию (не равен исходному, если модель сработала)
+    And body.degraded равен false
+    And опубликовано событие ai-gateway.punctuation.restored
+```
+
+### 9.3 Edge case: эвристический fallback
+
+```gherkin
+Scenario: Диктовка при ошибке LLM — эвристика, а не 500
+  Given Ollama недоступен
+  When клиент отправляет POST /api/ai-gateway/dictate с телом { "text": "Первая строка\nВторая" }
+  Then сервис возвращает 200 OK
+    And body.title равен первой строке, обрезанной до 60 символов
+    And body.bodyMd равен исходному тексту
+    And body.tag равен null
+    And body.degraded равен true
+```
+
+---
+
+## 10. agent — ИИ-ассистент (inbox)
+
+### 10.1 Happy path: inbox и respond
+
+```gherkin
+Scenario: Получить pending-сообщения инбокса
+  Given существуют сообщения: 2 pending, 1 dismissed
+  When клиент отправляет GET /api/agent/inbox
+  Then сервис возвращает 200 OK
+    And в ответе только сообщения status = "pending"
+```
+
+```gherkin
+Scenario: Принять сообщение
+  Given существует сообщение m1 со статусом "pending"
+  When клиент отправляет POST /api/agent/respond с телом
+    | message_id | "m1"  |
+    | action     | "accept" |
+  Then сервис возвращает 200 OK
+    And message m1 имеет статус "accepted"
+```
+
+### 10.2 Business rule: dismiss-all
+
+```gherkin
+Scenario: Отклонить все pending-сообщения разом
+  Given существуют 3 pending-сообщения
+  When клиент отправляет POST /api/agent/dismiss-all
+  Then сервис возвращает 200 OK
+    And body.count равен 3
+    And все сообщения имеют статус "dismissed"
+```
+
+### 10.3 Business rule: дайджесты строятся из локального read model
+
+```gherkin
+Scenario: Дайджест на сегодня содержит сообщения, встречи и задачи
+  Given agent_messages содержит сообщение, созданное сегодня
+    And daily_events содержит встречу (kind = "meeting") на сегодня
+    And daily_events содержит задачу (kind = "task") на сегодня
+  When клиент отправляет GET /api/agent/today
+  Then сервис возвращает 200 OK
+    And body содержит messages, meetings и tasks (не пустые)
+    And agent не обращался к чужим БД (только локальные таблицы)
+```
+
+### 10.4 Validation error
+
+```gherkin
+Scenario: Невалидный action в respond
+  When клиент отправляет POST /api/agent/respond с телом
+    | message_id | "m1"  |
+    | action     | "explode" |
+  Then сервис возвращает 400 Bad Request
+```
+
+---
+
+## 11. time-tracking — Учёт времени
+
+### 11.1 Happy path: CRUD timesheet
+
+```gherkin
+Scenario: Создать запись времени
+  Given существует задача t1
+  When клиент отправляет POST /api/time-tracking/timesheet с телом
+    | task_id      | "t1"  |
+    | started_at   | "2026-08-01T09:00:00Z" |
+    | duration_sec | 3600  |
+  Then сервис возвращает 201 Created
+    And timesheet.taskId равен "t1"
+    And timesheet.durationSec равен 3600
+    And опубликовано событие time-tracking.timesheet.created
+```
+
+### 11.2 Business rule: статистика
+
+```gherkin
+Scenario: Статистика за сегодня и неделю
+  Given существуют записи: 1h сегодня, 3h в этой неделе, 5h на прошлой неделе
+  When клиент отправляет GET /api/time-tracking/timesheet/stats
+  Then сервис возвращает 200 OK
+    And body.todayTotal равен 3600
+    And body.weekTotal равен 14400 (4h: 1h сегодня + 3h ранее на неделе)
+```
+
+### 11.3 Business rule: завершение pomodoro
+
+```gherkin
+Scenario: Завершить pomodoro-сессию
+  Given существует pomodoro-сессия s1 со startedAt = "2026-08-01T09:00:00Z"
+  When клиент отправляет PATCH /api/time-tracking/pomodoro/s1 с телом
+    | ended_at | "2026-08-01T09:25:00Z" |
+  Then сервис возвращает 200 OK
+    And session.completed равен true (endedAt автоматически помечает)
+    And session.completedMin равен 25
+    And опубликовано событие time-tracking.pomodoro.updated
+```
+
+### 11.4 Validation error
+
+```gherkin
+Scenario: Создать pomodoro с невалидным mode
+  When клиент отправляет POST /api/time-tracking/pomodoro с телом
+    | mode | "quantum" |
+  Then сервис возвращает 400 Bad Request
+```
+
+---
+
+## 12. email — IMAP-почта
+
+### 12.1 Happy path: аккаунт и синхронизация
+
+```gherkin
+Scenario: Создать IMAP-аккаунт
+  When клиент отправляет POST /api/email/imap с телом
+    | host      | "imap.example.com" |
+    | port      | 993                |
+    | ssl       | true               |
+    | username  | "user@example.com" |
+    | password  | "secret"           |
+  Then сервис возвращает 201 Created
+    And аккаунт создан
+    And ответ НЕ содержит encryptedPassword
+    And опубликовано событие email.imap.created
+```
+
+```gherkin
+Scenario: Синхронизировать письма
+  Given существует IMAP-аккаунт a1 с валидными credentials
+    And IMAP-сервер отвечает: 3 письма в INBOX
+  When клиент отправляет POST /api/email/imap/a1/sync
+  Then сервис возвращает 200 OK
+    And body.count равен 3
+    And письма сохранены в emails (accountId = "a1")
+    And account.lastSyncAt обновлён
+    And опубликовано событие email.synced
+```
+
+### 12.2 Business rule: пароль шифруется AES-256-GCM
+
+```gherkin
+Scenario: Пароль хранится в зашифрованном виде
+  When клиент отправляет POST /api/email/imap с password = "secret"
+  Then в БД поле encryptedPassword имеет формат "enc:<iv>:<tag>:<data>"
+    And plaintext "secret" отсутствует в БД
+```
+
+### 12.3 Business rule: конвертация письма в заметку
+
+```gherkin
+Scenario: Конвертировать письмо в заметку
+  Given существует письмо e1
+  When клиент отправляет PATCH /api/email/imap/emails с телом
+    | id         | "e1"   |
+    | convert_to | "note" |
+  Then сервис возвращает 200 OK
+    And email.convertedNoteId — UUID
+    And опубликовано событие email.converted_to_note
+```
+
+### 12.4 Error: IMAP недоступен
+
+```gherkin
+Scenario: Синхронизация при недоступном IMAP-сервере
+  Given IMAP-сервер не отвечает
+  When клиент отправляет POST /api/email/imap/a1/sync
+  Then сервис возвращает 502 Bad Gateway
+    And body.code равен "IMAP_UNAVAILABLE"
+```
+
+---
+
+## 13. external-calendars — Внешние календари
+
+### 13.1 Happy path: ICS-календарь и синхронизация
+
+```gherkin
+Scenario: Создать ICS-календарь
+  When клиент отправляет POST /api/external-calendars/calendars с телом
+    | provider | "ics" |
+    | auth_data | { "url": "https://example.com/cal.ics" } |
+  Then сервис возвращает 201 Created
+    And calendar.provider равен "ics"
+    And опубликовано событие external-calendars.calendars.created
+```
+
+```gherkin
+Scenario: Синхронизировать ICS-календарь
+  Given существует ICS-календарь c1
+    And URL возвращает ICS с 2 VEVENT
+  When клиент отправляет POST /api/external-calendars/calendars/sync/c1
+  Then сервис возвращает 200 OK
+    And body.synced равен 2
+    And новые события сохранены (externalEvents)
+    And для новых событий опубликовано external_events.created
+    And calendar.lastSyncAt обновлён
+```
+
+### 13.2 Business rule: связывание с локальной встречей
+
+```gherkin
+Scenario: Связать внешнее событие с встречей
+  Given существует внешнее событие ee1
+    And существует локальная встреча m1
+  When клиент отправляет PATCH /api/external-calendars/calendars/events/ee1/link с телом
+    | meeting_id | "m1" |
+  Then сервис возвращает 200 OK
+    And externalEvent.linkedMeetingId равен "m1"
+    And опубликовано событие external-calendars.external_event.linked
+```
+
+### 13.3 Error: провайдер не сконфигурирован
+
+```gherkin
+Scenario: Синхронизация Google Calendar без OAuth
+  Given существует календарь с provider = "google"
+    And OAuth flow не реализован
+  When клиент отправляет POST /api/external-calendars/calendars/sync/c1
+  Then сервис возвращает 502 Bad Gateway
+    And body.code равен "PROVIDER_NOT_CONFIGURED"
+```
+
+---
+
+## 14. integrations — Webhooks и API-ключи
+
+### 14.1 Happy path: CRUD webhook
+
+```gherkin
+Scenario: Создать webhook
+  When клиент отправляет POST /api/integrations/webhooks с телом
+    | url    | "https://example.com/hook" |
+    | events | ["notes.created"]          |
+  Then сервис возвращает 201 Created
+    And webhook.id — UUID
+    And webhook.active равен true (по умолчанию)
+    And опубликовано событие integrations.webhooks.created
+```
+
+### 14.2 Business rule: API-ключ хранится как SHA-256 хеш
+
+```gherkin
+Scenario: Создать API-ключ — raw ключ возвращается один раз
+  When клиент отправляет POST /api/integrations/api-keys с телом { "name": "My App" }
+  Then сервис возвращает 201 Created
+    And body.apiKey начинается с "pk_"
+    And в БД хранится keyHash (SHA-256), не raw-ключ
+    And body содержит keyPrefix (первые 8 символов)
+  When клиент отправляет GET /api/integrations/api-keys
+  Then ответ содержит keyPrefix, но НЕ содержит apiKey и keyHash
+```
+
+### 14.3 Business rule: доставка webhook
+
+```gherkin
+Scenario: Событие notes.created доставляется на webhook
+  Given существует активный webhook с events = ["notes.created"]
+    And внешний сервер отвечает 200
+  When клиент создаёт заметку (публикуется notes.created)
+  Then webhook_delivery создан со статусом "delivered"
+    And delivery.eventType нормализован до "notes.created"
+    And payload — полный EventEnvelope
+    And заголовок X-Webhook-Signature — HMAC-SHA256
+```
+
+### 14.4 Error: удаление несуществующего webhook
+
+```gherkin
+Scenario: Удалить несуществующий webhook
+  When клиент отправляет DELETE /api/integrations/webhooks/00000000-0000-0000-0000-000000000000
+  Then сервис возвращает 404 Not Found
+```
+
+---
+
+## 15. export-import — Экспорт/импорт
+
+### 15.1 Happy path: экспорт ZIP
+
+```gherkin
+Scenario: Экспортировать все данные в ZIP
+  Given export_store содержит записи по notes и tasks
+  When клиент отправляет GET /api/export-import/export?format=zip
+  Then сервис возвращает 200 OK
+    And Content-Disposition содержит "pmos-export-<сегодня>.zip"
+    And body — бинарный ZIP архив
+    And архив содержит manifest.json и файлы по типам сущностей
+    And создана запись в export_jobs (kind = "export", status = "completed")
+```
+
+### 15.2 Happy path: импорт текста
+
+```gherkin
+Scenario: Импортировать текст как заметку
+  When клиент отправляет POST /api/export-import/import с телом
+    | format  | "text"   |
+    | content | "Импортированная заметка" |
+  Then сервис возвращает 201 Created
+    And body.id — UUID
+    And body.status существует
+    And опубликовано событие export-import.import.imported
+```
+
+### 15.3 Business rule: импорт JSON с валидацией
+
+```gherkin
+Scenario: Импортировать массив сущностей из JSON
+  When клиент отправляет POST /api/export-import/import с телом
+    | format  | "json" |
+    | content | "[{\"title\":\"A\"},{\"title\":\"B\"}]" |
+  Then сервис возвращает 200 OK
+    And body.imported равен 2
+    And body.items содержит 2 элемента
+
+Scenario: Импортировать JSON с пустой сущностью — 422
+  When клиент отправляет POST /api/export-import/import с телом
+    | format  | "json" |
+    | content | "[{\"type\":\"note\"}]" |
+  Then сервис возвращает 422 Unprocessable Entity (нет title и content)
+```
+
+### 15.4 Business rule: read model строится из событий
+
+```gherkin
+Scenario: export_store обновляется по событиям CRUD
+  Given клиент создаёт заметку (notes.created)
+  Then в export_store появилась запись entityType = "note" с id созданной заметки
+    And повторное получение того же события не создаёт дубликат (processed_events)
+```
+
+---
+
+## 16. sync — Синхронизация папок
+
+### 16.1 Happy path: CRUD sync-папки
+
+```gherkin
+Scenario: Создать sync-папку с автозагрузкой
+  When клиент отправляет POST /api/sync/sync-folders с телом
+    | path        | "/Users/user/vault" |
+    | auto_import | true                |
+  Then сервис возвращает 201 Created
+    And syncFolder.path равен "/Users/user/vault"
+    And опубликовано событие sync.sync-folders.created
+```
+
+### 16.2 Business rule: сканирование .md файлов
+
+```gherkin
+Scenario: Сканирование папки находит .md файлы
+  Given существует sync-папка f1 с path = "/tmp/vault"
+    And в /tmp/vault лежат: "note1.md", "image.png", ".hidden/note2.md"
+  When клиент запускает повторное сканирование (PATCH с тем же path и auto_import = true)
+  Then scanned_files содержит только "note1.md" (скрытые и не-.md пропущены)
+    And content_md равен содержимому note1.md
+    And опубликовано событие sync.folder_scanned
+```
+
+### 16.3 Business rule: лимит размера файла
+
+```gherkin
+Scenario: Файл больше 512 KB — content пустой
+  Given в папке есть "huge.md" размером 600 KB
+  When клиент запускает сканирование
+  Then scanned_files содержит запись для "huge.md"
+    And content_md равен "" (пустая строка)
+```
+
+### 16.4 Business rule: удаление папки каскадит файлы
+
+```gherkin
+Scenario: Удалить sync-папку — scanned_files удаляются
+  Given существует sync-папка f1 с 2 сканированными файлами
+  When клиент отправляет DELETE /api/sync/sync-folders/f1
+  Then сервис возвращает 204 No Content
+    And сканированные файлы папки f1 удалены
+```
+
+---
+
+## 17. Cross-service scenarios (Integration)
+
+### 17.1 Note creation → AI title generation
 
 ```gherkin
 Scenario: Создание заметки запускает AI-генерацию заголовка
@@ -660,7 +1207,7 @@ Scenario: AI-таймаут — заметка остаётся с пустым 
     And заметка существует и доступна
 ```
 
-### 7.2 Task status change → agent trigger
+### 17.2 Task status change → agent trigger
 
 ```gherkin
 Scenario: Закрытие задачи с дедлайном запускает триггер deadline_soon
@@ -685,7 +1232,7 @@ Scenario: Создание неназначенной задачи → agent п�
     And message.text содержит "без назначенного исполнителя"
 ```
 
-### 7.3 File upload → text extraction → embedding creation
+### 17.3 File upload → text extraction → embedding creation
 
 ```gherkin
 Scenario: Загрузка текстового файла создаёт embedding
@@ -712,7 +1259,7 @@ Scenario: Загрузка .txt файла при недоступном Ollama 
     And файл доступен в результатах текстового поиска (ILIKE)
 ```
 
-### 7.4 Webhook delivery chain
+### 17.4 Webhook delivery chain
 
 ```gherkin
 Scenario: Создание заметки вызывает webhook
@@ -746,9 +1293,9 @@ Scenario: Webhook dead-letter после 3 неудач
 
 ---
 
-## 8. API Gateway / инфраструктура
+## 18. API Gateway / инфраструктура
 
-### 8.1 correlationId propagation
+### 18.1 correlationId propagation
 
 ```gherkin
 Scenario: correlationId пробрасывается через HTTP-запрос и событие
@@ -765,7 +1312,7 @@ Scenario: correlationId генерируется автоматически, е�
     And событие notes.created содержит тот же UUID
 ```
 
-### 8.2 Healthcheck
+### 18.2 Healthcheck
 
 ```gherkin
 Scenario: healthcheck возвращает ok
@@ -783,7 +1330,7 @@ Scenario: healthcheck отражает состояние БД
     And тело содержит { "ok": false, "db": false, "nats": ... }
 ```
 
-### 8.3 Metrics
+### 18.3 Metrics
 
 ```gherkin
 Scenario: metrics возвращают prometheus-формат
@@ -799,7 +1346,7 @@ Scenario: metrics возвращают prometheus-формат
       - service_info
 ```
 
-### 8.4 Public API rate limit
+### 18.4 Public API rate limit
 
 ```gherkin
 Scenario: Rate limit срабатывает после 100 запросов в минуту
@@ -812,7 +1359,7 @@ Scenario: Rate limit срабатывает после 100 запросов в �
 
 ---
 
-## 9. E2E сценарии (Playwright)
+## 19. E2E сценарии (Playwright)
 
 ```gherkin
 Scenario: Полный цикл создания и поиска заметки
@@ -850,9 +1397,18 @@ Scenario: Создание рекуррентной задачи на Kanban
 | calendar | 2 | 1 | 1 | 2 | 2 | — |
 | projects | 1 | 1 | 1 | 1 | 2 | — |
 | files | 3 | 2 | 1 | 2 | 2 | 2 (embedding) |
-| integrations | — | — | — | — | — | 3 (webhooks) |
+| settings | 3 | 1 | — | 2 | — | — |
+| search-rag | 1 | — | — | 2 | 1 | — |
+| ai-gateway | 1 | — | — | 1 | 1 | — |
+| agent | 2 | 1 | — | 2 | — | — |
+| time-tracking | 1 | 1 | — | 2 | — | — |
+| email | 2 | — | — | 2 | — | — |
+| external-calendars | 2 | — | — | 1 | — | — |
+| integrations | 1 | — | 1 | 2 | — | 3 (webhooks) |
+| export-import | 2 | — | — | 2 | — | — |
+| sync | 1 | — | — | 3 | — | — |
 | api-gateway | — | — | — | — | — | 4 (correlationId, health, metrics, rate limit) |
-| **Всего** | **15** | **8** | **7** | **9** | **11** | **12** |
+| **Всего** | **31** | **11** | **8** | **28** | **13** | **12** |
 
 ---
 

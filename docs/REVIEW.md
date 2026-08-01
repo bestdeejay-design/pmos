@@ -40,7 +40,13 @@
 
 ## 3. Остаточные риски (для строящего агента, не блокируют старт)
 
-- `TEST_CASES.md` покрывает 6 из 16 сервисов — остальные дописываются по ходу.
+- `TEST_CASES.md` покрывает **все 16 сервисов** (Gherkin-секции §1–§16 + cross-service §17).
+- Frontend (React SPA) и desktop (Tauri) — вне backend-DoD; агент фокусируется на бэкенде.
+- **Расхождение settings-событий:** код публикует `pmos.settings.settings.{created,updated,deleted}`,
+  но `contracts/asyncapi/events.yaml` описывает канал `pmos.settings.changed` и не включает settings
+  в `x-implemented-wire-events`. При синхронизации каталога привести к wire-факту.
+- **PATCH `/settings/:key`** реализован в коде, но отсутствует в `contracts/openapi/settings.yaml`
+  (conformance-тест его не проверяет) — дополнить контракт.
 - Frontend (React SPA) и desktop (Tauri) — вне backend-DoD; агент фокусируется на бэкенде.
 - Роуты (`src/routes/index.ts`) пока stub (только `/health-check`) — агент реализует их по
   OpenAPI-контрактам; схемы БД и типы уже готовы как образец.

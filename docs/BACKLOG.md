@@ -1,366 +1,77 @@
-# BACKLOG.md — План работ по миграции в ЦУП
+# BACKLOG.md — Идеи, отложенные функции и UI-слой
 
-## Общая оценка: 10-12 недель до полного cutover
-
----
-
-## Phase 0: Foundation (1-2 недели)
-
-**Цель**: настроить инфраструктуру нового проекта, общие типы, шину событий, CI/CD.
-
-**Сервисы**: shared-types (`@pmos/shared`), event-bus (`@pmos/event-bus`), api-gateway (конфиг).
-
-> ⚠️ `shared-types` и `event-bus` — фундамент (ADR-007 §5.C9), строятся первыми, не «фичи».
-> Все конвенции (Fastify, `/api/<svc>/v1`, event `version`, camelCase) зафиксированы в **ADR-007** и обязательны.
-
-### P0.1 Создать монорепозиторий
-
-| | |
-|---|---|
-| **Service** | — |
-| **Task** | Инициализировать npm workspaces в корне `pmos/` |
-| **Dependencies** | — |
-| **Effort** | S |
-| **Acceptance** | `pnpm install` работает, eslint/prettier настроен |
-| **Risk** | Низкий |
-
-### P0.2 @pmos/shared — базовые типы
-
-| | |
-|---|---|
-| **Service** | shared-types |
-| **Task** | Создать пакет `platform/shared-types/` с интерфейсами: Event, Profile, Note, Task, Meeting, Project, FileMeta, Settings |
-| **Dependencies** | P0.1 |
-| **Effort** | M |
-| **Acceptance** | Все сервисы могут импортировать `@pmos/shared` |
-| **Action** | Перенести типы из `frontend/src/types.ts` и `backend/src/types.ts`, унифицировать |
-
-### P0.3 Event Bus SDK
-
-| | |
-|---|---|
-| **Service** | event-bus |
-| **Task** | NATS клиент: publish(subject, event), subscribe(subject, handler), requestReply |
-| **Dependencies** | P0.2 (Event тип) |
-| **Effort** | M |
-| **Acceptance** | Два процесса могут обмениваться событиями через NATS |
-| **Action** | docker-compose: nats:4222 |
-
-### P0.4 CI/CD
-
-| | |
-|---|---|
-| **Service** | — |
-| **Task** | GitHub Actions: lint → typecheck → test → build |
-| **Dependencies** | P0.1 |
-| **Effort** | S |
-| **Acceptance** | PR не мержится без зелёного CI |
-
-### P0.5 api-gateway (nginx)
-
-| | |
-|---|---|
-| **Service** | api-gateway |
-| **Task** | nginx.conf: SPA → /, API → заглушки (502 пока сервисов нет) |
-| **Dependencies** | P0.1 |
-| **Effort** | S |
-| **Acceptance** | docker compose up → localhost:8080 → SPA грузится |
+> **Статус:** backend-ядро ЦУП **сдано** (Delivery Gate, см. `DELIVERY.md`): 16 сервисов,
+> 5 саг, 90/90 тестов, CI. Ниже — то, что осознанно отложено за пределы backend-DoD,
+> и идеи, не имеющие пока владельца. Приоритеты: P1 (ближайшие), P2 (плановые), P3 (когда-нибудь).
 
 ---
 
-## Phase 1: Core Services (2-4 недели)
+## 1. UI-слой: frontend + desktop (P1)
 
-**Цель**: выделить независимые сервисы ядра: profiles, settings, notes, tasks.
+Backend-API полностью готов и покрыт контрактами — UI строится поверх `/api/<svc>/v1`.
 
-### P1.1 profiles service
+| Задача | Сервисы | Описание | Приоритет |
+|---|---|---|---|
+| React SPA | frontend | Восстановить/переписать SPA на новом API. В legacy-монолите SPA уже была — перенести страницы, разбить `api.ts` по сервисам | P1 |
+| E2E (Playwright) | e2e | 5 critical scenarios: создать заметку, задача с рекурренсом, встреча+reminder, файл→поиск, webhook. Директория `tests/` зарезервирована (сейчас пуста — заменена integration 90/90) | P1 |
+| Desktop (Tauri) | desktop | Обновить `desktop/` на новый стек: только Docker lifecycle + WebView (ADR без Rust-логики) | P3 |
+| WS-пуши клиенту | agent, calendar | Push сообщений агента / напоминаний в браузер через WebSocket (механизм описан в ARCHITECTURE.md, не реализован) | P2 |
 
-| | |
-|---|---|
-| **Service** | profiles |
-| **Task** | Fastify сервис с CRUD profiles. Публикует `profiles.*` события. |
-| **Dependencies** | P0.2, P0.3 |
-| **Effort** | S |
-| **Acceptance** | `GET /api/profiles` возвращает профили | notes/tasks подписываются на события |
+## 2. Отложенные функции backend (из `FEATURES.md` 📋)
 
-### P1.2 settings service
+Каталог функций: `docs/FEATURES.md` (✅ 85 сдано / 📋 18 отложено).
 
-| | |
-|---|---|
-| **Service** | settings |
-| **Task** | Fastify сервис: KV CRUD + `GET /api/settings/ollama-models` |
-| **Dependencies** | P0.2, P0.3 |
-| **Effort** | S |
-| **Acceptance** | `POST /api/settings` → `settings.changed` → подписчики получают |
+### P2 — функциональные расширения
 
-### P1.3 notes service — CRUD + templates
+| Функция | Сервис | Описание |
+|---|---|---|
+| Active profile + цветовая маркировка + скрытие | profiles | Выбор активного профиля, цвета, скрытие из списка |
+| Markdown-рендеринг | notes | Серверный рендер body, заголовок как plain text |
+| Kanban-доска | tasks | Колонки с drag-and-drop между статусами; динамические колонки из settings (`kanban_columns`); ручная сортировка в колонке |
+| Drag-and-drop в календаре | calendar | Перенос встречи и изменение длительности мышью |
+| Напоминания (fire_at + WS push) | calendar | fire_at + push клиенту |
+| Недавние запросы | search-rag | Хранятся в localStorage (frontend) |
+| Auto-export | sync | Заметки → `.md`-файлы на диск |
+| Public API mirror | integrations | `/api/v1/notes\|tasks\|projects\|calendar` поверх webhook/API-key |
 
-| | |
-|---|---|
-| **Service** | notes |
-| **Task** | Fastify сервис: CRUD notes + templates + reorder. Публикует `notes.*` события. Подписывается на `profiles.*`. |
-| **Dependencies** | P1.1 |
-| **Effort** | L |
-| **Acceptance** | Все CRUD операции, ручная сортировка, шаблоны, архивирование |
-| **Risk** | Большой объём логики (связи с проектами/встречами/задачами) |
+### P3 — AI-расширения
 
-### P1.4 tasks service — CRUD + kanban + priorities
+| Функция | Сервис | Описание |
+|---|---|---|
+| Dictation-диктовка | ai-gateway | Запись голоса → распознавание → AI-форматирование (body+title+tag) |
+| Облачные модели | ai-gateway | Прокси до cloud API (OpenAI, Anthropic, Google) — сейчас только локальные (Ollama chain) |
+| Триггер meeting_ended | agent | После встречи: предложить создать заметку |
+| Триггер project_plan | agent | План проекта на основе goal |
+| DND-окно + дневной лимит | agent | Не беспокоить в заданные часы; ≤ N сообщений в день |
 
-| | |
-|---|---|
-| **Service** | tasks |
-| **Task** | Fastify сервис: CRUD tasks, kanban status, priorities ranking, recurrence, streaks, dependencies |
-| **Dependencies** | P1.1 |
-| **Effort** | L |
-| **Acceptance** | Все CRUD, ранжирование, рекурренс создаёт новую задачу, streaks растут |
-| **Risk** | Рекурренс + streaks — самая сложная логика, требует хороших unit-тестов |
+## 3. Инфраструктура и качество (P2)
 
-### P1.5 Frontend: рефакторинг api.ts
+| Задача | Где | Описание |
+|---|---|---|
+| Pact-брокер (consumer-driven) | contracts | Заменить OpenAPI-conformance на Pact (ADR-002 §3 TODO, ADR-005) |
+| DLQ-админ-панель | event-bus | Просмотр и replay сообщений dead letter queue (SAGA.md §TODO) |
+| Perf: caching, query opt | все | Медленные запросы, N+1 (после появления реальной нагрузки) |
+| Healthchecks в docker-compose | platform/docker | Graceful startup/shutdown для профиля `all` |
+| mTLS между сервисами | platform | Опционально для production (ARCHITECTURE.md §Безопасность) |
 
-| | |
-|---|---|
-| **Service** | frontend |
-| **Task** | Разделить `api.ts` на модули по сервисам: `api/notes.ts`, `api/tasks.ts`, etc. |
-| **Dependencies** | P1.1, P1.3, P1.4 |
-| **Effort** | M |
-| **Acceptance** | Фронтенд работает через новый api-client |
+## 4. Идеи (P3, нет владельца)
 
----
-
-## Phase 2: Calendar + Projects + Files (4-6 недель)
-
-**Цель**: выделить сервисы календаря, проектов и файлов, запустить search-rag.
-
-### P2.1 calendar service
-
-| | |
-|---|---|
-| **Service** | calendar |
-| **Task** | Fastify сервис: CRUD meetings, recurrence, reminders, ICS export |
-| **Dependencies** | P1.1 |
-| **Effort** | M |
-| **Acceptance** | Рекуррентные встречи, ICS экспорт, reminders с WS push |
-
-### P2.2 projects service
-
-| | |
-|---|---|
-| **Service** | projects |
-| **Task** | Fastify сервис: CRUD projects, items dashboard, Gantt |
-| **Dependencies** | P1.1 |
-| **Effort** | M |
-| **Acceptance** | GET /api/projects/:id/items возвращает notes+tasks+meetings+files |
-
-### P2.3 files service
-
-| | |
-|---|---|
-| **Service** | files |
-| **Task** | Fastify сервис: upload, download, text extraction, metadata |
-| **Dependencies** | P1.1 |
-| **Effort** | M |
-| **Acceptance** | Файлы загружаются, скачиваются, текст извлекается |
-
-### P2.4 search-rag service
-
-| | |
-|---|---|
-| **Service** | search-rag |
-| **Task** | Fastify сервис: подписка на notes/tasks/meetings/files события, построение embedding index, POST /api/search |
-| **Dependencies** | P1.3, P1.4, P2.1, P2.3 |
-| **Effort** | L |
-| **Acceptance** | Поиск находит новые заметки/задачи/встречи/файлы после их создания |
-| **Risk** | pgvector extension требует настройки PostgreSQL |
+- Полнотекстовый поиск по вложениям (сейчас — только извлечённый текст файлов в pgvector).
+- Шаблоны встреч/задач (аналог шаблонов заметок).
+- Статистика и дашборды времени (time-tracking → агрегаты за период на UI).
+- Локализация API-сообщений об ошибках.
+- Rate limiting на api-gateway (nginx) для публичного API.
 
 ---
 
-## Phase 3: AI + Integrations (6-8 недель)
+## Сводка
 
-**Цель**: выделить AI gateway, agent, export-import, integrations.
+| Приоритет | Задач | Тип |
+|---|---|---|
+| P1 | 3 | UI-слой: SPA, E2E, desktop |
+| P2 | 13 | Функциональные расширения + инфраструктура |
+| P3 | 8 | AI-фичи и идеи |
 
-### P3.1 ai-gateway service
-
-| | |
-|---|---|
-| **Service** | ai-gateway |
-| **Task** | Fastify сервис: прокси к Ollama с fallback chain, /dictate, /restore-punctuation |
-| **Dependencies** | P1.2 (settings для моделей) |
-| **Effort** | M |
-| **Acceptance** | Dictation возвращает body+title+tag, fallback работает при отказе модели |
-
-### P3.2 agent service
-
-| | |
-|---|---|
-| **Service** | agent |
-| **Task** | Fastify сервис: inbox, triggers (daily digest, deadline_soon, meeting_ended, etc.), digests (today/week) |
-| **Dependencies** | P1.1, P1.3, P1.4, P2.1, P2.2, P3.1 |
-| **Effort** | L |
-| **Acceptance** | Триггеры создают сообщения, WS пушит клиенту, digest показывает данные |
-
-### P3.3 export-import service
-
-| | |
-|---|---|
-| **Service** | export-import |
-| **Task** | Fastify сервис: ZIP export всех данных, text/JSON import |
-| **Dependencies** | P1.3, P1.4, P2.1, P2.2, P2.3 |
-| **Effort** | M |
-| **Acceptance** | ZIP скачивается, import создаёт сущности |
-
-### P3.4 integrations service
-
-| | |
-|---|---|
-| **Service** | integrations |
-| **Task** | Fastify сервис: API keys CRUD, webhooks CRUD + delivery + retry, public API (api/v1) |
-| **Dependencies** | P0.3 (подписка на события всех сервисов) |
-| **Effort** | M |
-| **Acceptance** | Webhook вызывается при notes.created, API keys валидируются |
-
----
-
-## Phase 4: Advanced Services (8-10 недель)
-
-**Цель**: выделить email, external-calendars, time-tracking, sync.
-
-### P4.1 email service
-
-| | |
-|---|---|
-| **Service** | email |
-| **Task** | Fastify сервис: IMAP accounts CRUD, sync worker, emails list, conversion to note/task |
-| **Dependencies** | P1.1, P1.3, P1.4 |
-| **Effort** | L |
-| **Acceptance** | Email синхронизируется, конвертируется в заметку |
-
-### P4.2 external-calendars service
-
-| | |
-|---|---|
-| **Service** | external-calendars |
-| **Task** | Fastify сервис: Google OAuth, Yandex CalDAV, ICS URL sync |
-| **Dependencies** | P2.1 (linked_meeting_id) |
-| **Effort** | M |
-| **Acceptance** | Google календарь синхронизируется |
-
-### P4.3 time-tracking service
-
-| | |
-|---|---|
-| **Service** | time-tracking |
-| **Task** | Fastify сервис: timesheet CRUD + stats, pomodoro sessions CRUD |
-| **Dependencies** | P1.4 (task_id) |
-| **Effort** | M |
-| **Acceptance** | Timesheet записывается, статистика считается |
-
-### P4.4 sync service
-
-| | |
-|---|---|
-| **Service** | sync |
-| **Task** | Fastify сервис: sync-folders CRUD, watch/scan, auto-import/export |
-| **Dependencies** | P1.3 (notes), P2.3 (files) |
-| **Effort** | M |
-| **Acceptance** | .md файл импортируется как заметка |
-
----
-
-## Phase 5: Migration & Cutover (10-12 недель)
-
-**Цель**: параллельный запуск старого и нового стеков, поэтапное отключение монолита.
-
-### Стратегия миграции (Strangler Fig)
-
-```
-Шаг 1: Новые сервисы + старый монолит работают параллельно
-        ┌──────────┐    ┌──────────┐
-        │  Новый   │    │  Старый  │
-        │  API GW  │    │  Монолит │
-        │  :8080   │    │  :8081   │
-        └────┬─────┘    └────┬─────┘
-             │               │
-             ▼               ▼
-        Новые сервисы    Старые роуты
-        (только Phase 1) (всё остальное)
-
-Шаг 2-4: Каждый Phase добавляет новые сервисы, отключает старые роуты
-
-Шаг 5: Монолит остановлен, все запросы → новые сервисы
-```
-
-### P5.1 Event bridge
-
-| | |
-|---|---|
-| **Task** | Заглушка в старом монолите: на каждое изменение данных дублировать событие в NATS |
-| **Effort** | M |
-| **Risk** | Double-write может привести к рассинхронизации |
-
-### P5.2 Parallel run — Core Services
-
-| | |
-|---|---|
-| **Task** | Новые profiles/settings/notes/tasks + старые. Фронтенд переключается на новые роуты. |
-| **Dependencies** | P1.x |
-| **Effort** | L |
-| **Acceptance** | Все заметки/задачи создаются через новые сервисы |
-
-### P5.3 Parallel run — Calendar + Projects + Files + Search
-
-| | |
-|---|---|
-| **Dependencies** | P2.x |
-| **Effort** | L |
-
-### P5.4 Parallel run — AI + Integrations
-
-| | |
-|---|---|
-| **Dependencies** | P3.x |
-| **Effort** | M |
-
-### P5.5 Parallel run — Advanced
-
-| | |
-|---|---|
-| **Dependencies** | P4.x |
-| **Effort** | M |
-
-### P5.6 Decommission
-
-| | |
-|---|---|
-| **Task** | Остановить старый монолит. Удалить код `backend/src/routes/`. |
-| **Dependencies** | P5.2-P5.5 |
-| **Effort** | S |
-| **Acceptance** | Ни один запрос не идёт к старому бэкенду |
-
----
-
-## Phase 6: Polish (12+ недель)
-
-**Цель**: E2E, оптимизация, документация, упаковка.
-
-| Task | Effort | Description |
-|------|--------|-------------|
-| E2E тесты Playwright | L | 5 critical scenarios |
-| Performance: caching, query opt | M | Медленные запросы, N+1 проблемы |
-| Documentation for devs | M | README каждого сервиса |
-| Tauri desktop: new stack | S | Обновить stack/ директорию |
-| Docker Compose: healthchecks | S | Graceful startup/shutdown |
-
----
-
-## Сводная таблица
-
-| Phase | Weeks | Сервисы | Итог |
-|-------|-------|---------|------|
-| P0 | 1-2 | shared-types, event-bus, api-gateway, CI/CD | Инфраструктура готова |
-| P1 | 2-4 | profiles, settings, notes, tasks | Ядро работает |
-| P2 | 4-6 | calendar, projects, files, search-rag | Продуктивность |
-| P3 | 6-8 | ai-gateway, agent, export-import, integrations | AI + интеграции |
-| P4 | 8-10 | email, external-calendars, time-tracking, sync | Продвинутые |
-| P5 | 10-12 | Migration bridge + cutover | Монолит выключен |
-| P6 | 12+ | E2E, perf, docs, Tauri | Полировка |
-
-**Total**: ~12 сервисов, ~12 недель (при full-time работе одного разработчика + Sisyphus).
+Все backend-задачи P0–P4 из исходного плана миграции **выполнены** (см. `docs/REVIEW.md`,
+`docs/SAGA.md`); исходный «план миграции 10-12 недель» более не актуален — репозиторий уже
+работает как новый стек (strangler-фаза не потребовалась, монолит не входил в scope).

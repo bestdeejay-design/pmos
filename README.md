@@ -178,18 +178,18 @@ CI (`.github/workflows/ci.yml`) runs typecheck + unit + contract on every push.
 
 ## Documentation
 
-Full catalog — **~4,460 lines of docs + ~9,900 lines of contracts ≈ 14,400 lines**:
+Full catalog — **~4,700 lines of docs + ~9,900 lines of contracts ≈ 14,600 lines**:
 
 ### Project docs (docs/)
 
 | File | Lines | Purpose |
 |------|------:|---------|
-| `docs/ARCHITECTURE.md` | 160 | Overall architecture: services, bus, data flows |
+| `docs/ARCHITECTURE.md` | 183 | Overall architecture: services, bus, data flows |
 | `docs/FEATURES.md` | 477 | Functional requirements per service (✅ 85 done / 📋 18 planned) |
 | `docs/SAGA.md` | 426 | 5 cross-service scenarios (§1–§5): events, idempotency, verification |
 | `docs/REVIEW.md` | 106 | Status matrix: CRUD / filters / soft-delete / events / business logic |
-| `docs/TEST_CASES.md` | 864 | Test cases (service & saga verification scenarios) |
-| `docs/BACKLOG.md` | 366 | Backlog: ideas, deferred features, UI layer |
+| `docs/TEST_CASES.md` | 1,420 | Gherkin test cases for **all 16 services** + sagas + infra |
+| `docs/BACKLOG.md` | 77 | Backlog: ideas, deferred features, UI layer |
 | `docs/DEV_GUIDE.md` | 525 | Local development: env, run, debugging, generators |
 
 ### ADR — Architecture Decision Records (docs/ADR/)
