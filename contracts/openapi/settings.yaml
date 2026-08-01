@@ -137,12 +137,16 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [data]
+                required: [models, degraded]
                 properties:
-                  data:
+                  models:
                     type: array
+                    description: Имена доступных моделей Ollama
                     items:
                       type: string
+                  degraded:
+                    type: boolean
+                    description: true, если Ollama недоступна (пустой список, сервис работает в деградированном режиме)
         '500':
           $ref: '#/components/responses/InternalError'
 

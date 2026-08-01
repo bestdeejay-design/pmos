@@ -5,7 +5,6 @@ import { eq, count, and, asc, desc, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import * as schema from "../db/schema.js";
 import { EventBus } from "@pmos/event-bus";
-
 function emit(subject: string, row: unknown): void {
   try {
     EventBus.get().publish(subject, row).catch((e) => console.error("[event] publish " + subject + " failed:", e));
@@ -95,16 +94,56 @@ export const projectsRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(204).send();
   });
 
-  // ───────────── non-CRUD endpoints (backlog, see AGENT.md §4) ─────────────
-  typed.get("/projects/:id/items", async (_req, reply) => {
-    // TODO(semantics): GET /projects/{id}/items — non-CRUD endpoint, not in the baseline
-    // reference pattern. Implement domain logic or remove from contract.
-    return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });
+  // ───────────── project dashboard (event-driven index) ─────────────
+  typed.get("/projects/:id/items", {
+    schema: {
+      params: Type.Object({ id: Type.String() }),
+      response: {
+        200: Type.Object({
+          notes: Type.Array(Type.Any()),
+          tasks: Type.Array(Type.Any()),
+          meetings: Type.Array(Type.Any()),
+          files: Type.Array(Type.Any()),
+        }),
+        404: Type.Any(),
+      },
+    },
+  }, async (req, reply) => {
+    const id = (req.params as any).id;
+    const proj = await db.select({ id: schema.projects.id }).from(schema.projects).where(eq(schema.projects.id, id)).limit(1);
+    if (!proj[0]) return fail(404, "NOT_FOUND", "projects not found");
+    const rows = await db.select().from(schema.projectItems).where(eq(schema.projectItems.projectId, id));
+    const groupKey: Record<string, string> = { note: "notes", task: "tasks", meeting: "meetings", file: "files" };
+    const grouped: Record<string, unknown[]> = { notes: [], tasks: [], meetings: [], files: [] };
+    for (const r of rows) {
+      const key = groupKey[r.entityType];
+      if (key && grouped[key]) grouped[key]!.push(r);
+    }
+    return reply.send({ notes: grouped.notes, tasks: grouped.tasks, meetings: grouped.meetings, files: grouped.files });
   });
 
-  typed.get("/projects/:id/gantt", async (_req, reply) => {
-    // TODO(semantics): GET /projects/{id}/gantt — non-CRUD endpoint, not in the baseline
-    // reference pattern. Implement domain logic or remove from contract.
-    return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });
+  typed.get("/projects/:id/gantt", {
+    schema: {
+      params: Type.Object({ id: Type.String() }),
+      response: { 200: Type.Object({ tasks: Type.Array(Type.Any()) }), 404: Type.Any() },
+    },
+  }, async (req, reply) => {
+    const id = (req.params as any).id;
+    const proj = await db.select({ id: schema.projects.id }).from(schema.projects).where(eq(schema.projects.id, id)).limit(1);
+    if (!proj[0]) return fail(404, "NOT_FOUND", "projects not found");
+    const rows = await db.select().from(schema.projectItems)
+      .where(and(eq(schema.projectItems.projectId, id), eq(schema.projectItems.entityType, "task")));
+    const tasks = rows.map((r) => {
+      const payload = (r.payload ?? {}) as Record<string, unknown>;
+      const dependencies = Array.isArray(payload.dependencies) ? payload.dependencies : [];
+      return {
+        id: r.entityId,
+        title: r.title ?? "",
+        start: r.startDate ?? null,
+        end: (payload.endDate ?? payload.deadline ?? null) as string | null,
+        dependencies,
+      };
+    });
+    return reply.send({ tasks });
   });
 };

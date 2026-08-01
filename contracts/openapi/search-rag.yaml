@@ -187,6 +187,11 @@ components:
         limit:
           type: integer
           description: 'Лимит результатов'
+        offset:
+          type: integer
+          minimum: 0
+          default: 0
+          description: 'Смещение для пагинации'
     SearchResult:
       type: object
       description: Результаты поиска

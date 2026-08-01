@@ -451,6 +451,73 @@ components:
           lastSyncAt: '2026-07-30T09:00:00Z'
           profileIds: [f1a2b3c4-d5e6-7890-abcd-ef1234567890]
 
+    ImapAccountCreate:
+      type: object
+      description: Данные для создания IMAP-аккаунта
+      required:
+        - host
+        - port
+        - ssl
+        - username
+      properties:
+        host:
+          type: string
+          description: 'IMAP хост'
+        port:
+          type: integer
+          description: 'IMAP порт'
+        ssl:
+          type: boolean
+          description: 'SSL'
+        username:
+          type: string
+          description: 'Логин'
+        password:
+          type: string
+          description: 'Пароль (шифруется сервисом перед хранением)'
+        encryptedPassword:
+          type: string
+          description: 'Заранее зашифрованный пароль (альтернатива password)'
+        syncEnabled:
+          type: boolean
+          description: 'Синхронизация включена'
+        profileIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: 'UUID профилей'
+
+    ImapAccountUpdate:
+      type: object
+      description: Частичное обновление IMAP-аккаунта
+      required: []
+      properties:
+        host:
+          type: string
+          description: 'IMAP хост'
+        port:
+          type: integer
+          description: 'IMAP порт'
+        ssl:
+          type: boolean
+          description: 'SSL'
+        username:
+          type: string
+          description: 'Логин'
+        password:
+          type: string
+          description: 'Новый пароль (шифруется сервисом)'
+        syncEnabled:
+          type: boolean
+          description: 'Синхронизация включена'
+        profileIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: 'UUID профилей'
+
   responses:
     ValidationError:
       description: Ошибка валидации запроса

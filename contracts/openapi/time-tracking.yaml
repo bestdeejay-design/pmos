@@ -221,9 +221,14 @@ paths:
                     items:
                       type: object
                   byProject:
-                    type: array
-                    items:
-                      type: object
+                    oneOf:
+                      - type: array
+                        items:
+                          type: object
+                      - type: object
+                    description: >
+                      Группировка по проектам. Требует join timesheet → tasks → projects;
+                      пока projectId отсутствует в timesheet, возвращается пустой объект {}.
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -551,6 +556,9 @@ components:
         plannedMin:
           type: integer
           description: 'Плановые минуты'
+        completedMin:
+          type: integer
+          description: 'Фактически отработанные минуты (заполняется при завершении)'
         completed:
           type: boolean
           description: 'Завершён'
@@ -565,6 +573,7 @@ components:
           startedAt: '2026-07-30T10:00:00Z'
           endedAt: '2026-07-30T10:25:00Z'
           plannedMin: 25
+          completedMin: 25
           completed: true
           taskId: t1a2b3c4-d5e6-7890-abcd-ef1234567890
     PomodoroCreate:

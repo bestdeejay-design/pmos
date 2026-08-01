@@ -1,0 +1,1 @@
+ALTER TABLE "pomodoro_sessions" ADD COLUMN "completed_min" integer;

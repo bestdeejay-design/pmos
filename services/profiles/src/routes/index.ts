@@ -17,6 +17,9 @@ function fail(status: number, code: string, message: string): never {
   e.statusCode = status; e.code = code; throw e;
 }
 
+// #RRGGBB hex color (contract: pattern ^#[0-9a-fA-F]{6}$).
+const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
 // columns present on the backing table (used to guard optional order-by)
 const tableCols = new Set<string>(["id", "name", "color", "description", "isDefault", "avatarUrl", "createdAt", "updatedAt"]);
 const colExists = (c: string): boolean => tableCols.has(c);
@@ -61,7 +64,16 @@ export const profilesRoutes: FastifyPluginAsync = async (app) => {
   typed.post("/profiles", {
     schema: { body: Type.Object({}, { additionalProperties: true }), response: { 201: Type.Any() } },
   }, async (req, reply) => {
-    const [row] = await db.insert(schema.profiles).values(req.body as any).returning();
+    const body = req.body as any;
+    // Color must be #RRGGBB hex (contract pattern ^#[0-9a-fA-F]{6}$).
+    if (body.color !== undefined && typeof body.color === "string" && !COLOR_RE.test(body.color)) {
+      return fail(422, "VALIDATION_ERROR", "color invalid format");
+    }
+    // First created profile automatically becomes the default one.
+    const existing = await totalOf(schema.profiles);
+    const values: any = { ...body };
+    if (existing === 0) values.isDefault = true;
+    const [row] = await db.insert(schema.profiles).values(values).returning();
     emit("pmos.profiles.profiles.created", row);
     return reply.code(201).send(row);
   });
@@ -77,7 +89,12 @@ export const profilesRoutes: FastifyPluginAsync = async (app) => {
   typed.patch("/profiles/:profileId", {
     schema: { params: Type.Object({ profileId: Type.String() }), body: Type.Object({}, { additionalProperties: true }), response: { 200: Type.Any() } },
   }, async (req, reply) => {
-    const patch: any = { ...(req.body as any) };
+    const body = req.body as any;
+    // Color must be #RRGGBB hex (contract pattern ^#[0-9a-fA-F]{6}$).
+    if (body.color !== undefined && typeof body.color === "string" && !COLOR_RE.test(body.color)) {
+      return fail(422, "VALIDATION_ERROR", "color invalid format");
+    }
+    const patch: any = { ...body };
     if (colExists("updatedAt")) patch.updatedAt = new Date().toISOString();
     const [row] = await db.update(schema.profiles).set(patch)
       .where(eq(schema.profiles.id, (req.params as any).profileId)).returning();
@@ -89,7 +106,15 @@ export const profilesRoutes: FastifyPluginAsync = async (app) => {
   typed.delete("/profiles/:profileId", {
     schema: { params: Type.Object({ profileId: Type.String() }) },
   }, async (req, reply) => {
-    const [row] = await db.delete(schema.profiles).where(eq(schema.profiles.id, (req.params as any).profileId)).returning();
+    const id = (req.params as any).profileId;
+    const [prev] = await db.select().from(schema.profiles).where(eq(schema.profiles.id, id)).limit(1);
+    if (!prev) return fail(404, "NOT_FOUND", "profiles not found");
+    // Cannot delete the default profile.
+    if (prev.isDefault) return fail(409, "CONFLICT", "Cannot delete default profile");
+    // Cannot delete the last remaining profile.
+    const total = await totalOf(schema.profiles);
+    if (total <= 1) return fail(409, "CONFLICT", "Cannot delete the last remaining profile");
+    const [row] = await db.delete(schema.profiles).where(eq(schema.profiles.id, id)).returning();
     if (!row) return fail(404, "NOT_FOUND", "profiles not found");
     emit("pmos.profiles.profiles.deleted", row);
     return reply.code(204).send();

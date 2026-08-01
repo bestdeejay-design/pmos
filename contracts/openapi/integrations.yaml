@@ -470,6 +470,9 @@ components:
         active:
           type: boolean
           description: 'Активен'
+        secret:
+          type: string
+          description: 'Секрет для подписи'
     ApiKey:
       type: object
       description: API-ключ
@@ -485,9 +488,12 @@ components:
         name:
           type: string
           description: 'Название ключа'
-        keyHash:
+        keyPrefix:
           type: string
-          description: 'SHA256 хеш ключа (только чтение)'
+          description: 'Первые 8 символов сырого ключа (для распознавания)'
+        key:
+          type: string
+          description: 'Сырой ключ pk_… — возвращается только при создании (один раз)'
         active:
           type: boolean
           description: 'Активен'
@@ -499,7 +505,8 @@ components:
         |-
           id: k1a2b3c4-d5e6-7890-abcd-ef1234567890
           name: Zapier
-          keyHash: sha256:abc123
+          keyPrefix: pk_a1b2c3
+          key: pk_a1b2c3d4e5f6…
           active: true
           createdAt: '2026-07-30T10:00:00Z'
     ApiKeyCreate:

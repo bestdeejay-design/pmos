@@ -11,12 +11,15 @@ CREATE TABLE IF NOT EXISTS "external_calendars" (
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "external_events" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"calendar_id" uuid NOT NULL,
-	"uid" text NOT NULL,
-	"title" text NOT NULL,
-	"start_time" timestamp with time zone NOT NULL,
-	"end_time" timestamp with time zone NOT NULL,
-	"all_day" boolean DEFAULT false NOT NULL,
+	"external_calendar_id" uuid NOT NULL,
+	"external_event_id" text NOT NULL,
+	"summary" text,
+	"description" text,
+	"start_time" text,
+	"end_time" text,
+	"recurrence_rule" text,
+	"location" text,
 	"linked_meeting_id" uuid,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "external_events_external_calendar_id_external_event_id_unique" UNIQUE("external_calendar_id", "external_event_id")
 );

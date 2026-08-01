@@ -6,11 +6,14 @@ import metrics from "./plugins/metrics.js";
 import { errorHandler } from "./lib/errors.js";
 import { EventBus } from "@pmos/event-bus";
 import { filesRoutes } from "./routes/index.js";
+import { registerSubscribers } from "./events/subscribe.js";
 
 export async function buildApp() {
   EventBus.init({ serviceName: "files", url: process.env.NATS_URL });
   // Best-effort: connect + ensure the JetStream stream exists. Skipped if NATS is down.
   await EventBus.get().connect().then(() => EventBus.get().ensureStream()).catch(() => {});
+  // Best-effort: activate inbound event handlers (text-extraction self-subscription).
+  await registerSubscribers(EventBus.get()).catch(() => {});
   const app = Fastify({ logger: false }).withTypeProvider<TypeBoxTypeProvider>();
 
   await app.register(correlationId);

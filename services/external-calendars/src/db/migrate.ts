@@ -13,6 +13,9 @@ const db = drizzle(client);
 // default tracking table is shared across the DB; with 16 services each shipping a
 // 0000_init.sql of the same name, the first applied migration would make the rest
 // silently skip. Isolating the table per schema prevents that collision.
+console.log("Running migrations for schema:", schemaName);
+console.log("Migrations folder: ./migrations");
+console.log("Migrations table:", `${schemaName}_migrations`);
 await migrate(db, { migrationsFolder: "./migrations", migrationsTable: `${schemaName}_migrations` });
 console.log("migrations applied for", process.env.SERVICE_NAME);
 await client.end();

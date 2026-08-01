@@ -6,11 +6,18 @@ import metrics from "./plugins/metrics.js";
 import { errorHandler } from "./lib/errors.js";
 import { EventBus } from "@pmos/event-bus";
 import { search_ragRoutes } from "./routes/index.js";
+import { registerSubscribers } from "./events/subscribe.js";
 
 export async function buildApp() {
   EventBus.init({ serviceName: "search-rag", url: process.env.NATS_URL });
   // Best-effort: connect + ensure the JetStream stream exists. Skipped if NATS is down.
   await EventBus.get().connect().then(() => EventBus.get().ensureStream()).catch(() => {});
+  // Best-effort: register inbound event subscribers (SAGA read model). Skipped if NATS is down.
+  try {
+    await registerSubscribers(EventBus.get());
+  } catch (e) {
+    console.error("[search-rag] registerSubscribers skipped:", e);
+  }
   const app = Fastify({ logger: false }).withTypeProvider<TypeBoxTypeProvider>();
 
   await app.register(correlationId);

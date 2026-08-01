@@ -207,6 +207,12 @@ components:
         text:
           type: string
           description: 'Обработанный текст'
+        degraded:
+          type: boolean
+          description: 'true — внешний LLM недоступен, возвращён исходный текст без обработки'
+      example:
+        text: 'Привет, как дела?'
+        degraded: false
     DictationResult:
       type: object
       description: Результат диктовки
@@ -223,11 +229,15 @@ components:
         tag:
           type: string
           description: 'Предложенный тег'
+        degraded:
+          type: boolean
+          description: 'true — LLM недоступен/ответ не распарсен, использованы эвристики'
       example:
         |-
           title: Купить молоко
           bodyMd: Нужно купить молоко и хлеб
           tag: shopping
+          degraded: false
 
   responses:
     ValidationError:

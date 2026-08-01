@@ -73,10 +73,9 @@ paths:
                   type: string
                   format: binary
                 profileIds:
-                  type: array
-                  items:
-                    type: string
-                    format: uuid
+                  type: string
+                  description: JSON-encoded массив UUID профилей (например, ["<uuid1>","<uuid2>"])
+                  example: '["a1b2c3d4-e5f6-7890-abcd-ef1234567890"]'
                 ownerType:
                   type: string
                 ownerId:
@@ -95,6 +94,16 @@ paths:
                 $ref: '#/components/schemas/FileMeta'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '413':
+          description: Файл превышает лимит 50MB
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -170,6 +179,14 @@ paths:
       responses:
         '200':
           description: Бинарный контент файла
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+            Content-Disposition:
+              schema:
+                type: string
+                description: 'attachment; filename="<original-filename>"'
           content:
             application/octet-stream:
               schema:

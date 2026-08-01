@@ -28,12 +28,17 @@ paths:
             default: zip
       responses:
         '200':
-          description: Архив с данными
+          description: >
+            Экспорт данных. При format=zip — архив с manifest.json и файлами по типам;
+            при format=json — объект с manifest и массивами по типам.
           content:
             application/zip:
               schema:
                 type: string
                 format: binary
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResult'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -52,7 +57,17 @@ paths:
               $ref: '#/components/schemas/ImportRequest'
       responses:
         '200':
-          description: Импорт выполнен
+          description: Импорт JSON — объект с количеством и элементами
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportResult'
+        '201':
+          description: Импорт текста — создан import_item (kind=note)
           headers:
             x-correlation-id:
               schema:
@@ -61,14 +76,15 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [id, status]
                 properties:
-                  importedNotes:
-                    type: integer
-                  importedTasks:
-                    type: integer
-                  importedCalendars:
-                    type: integer
+                  id:
+                    type: string
+                  status:
+                    type: string
         '400':
+          $ref: '#/components/responses/ValidationError'
+        '422':
           $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
@@ -199,13 +215,53 @@ components:
       properties:
         format:
           type: string
+          enum: [text, json]
           description: 'Формат: text|json'
         content:
           type: string
           description: 'Содержимое для импорта'
-        target:
+        title:
           type: string
-          description: 'Цель: note|task|calendar'
+          description: 'Заголовок (для text-импорта)'
+    ExportResult:
+      type: object
+      description: JSON-экспорт всех данных (format=json)
+      additionalProperties: true
+      properties:
+        manifest:
+          type: object
+          required: [exportedAt, service, counts]
+          properties:
+            exportedAt:
+              type: string
+              format: date-time
+            service:
+              type: string
+            counts:
+              type: object
+              additionalProperties:
+                type: integer
+    ImportResult:
+      type: object
+      description: Результат JSON-импорта
+      required: [imported, items]
+      properties:
+        imported:
+          type: integer
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, kind, status]
+            properties:
+              id:
+                type: string
+              kind:
+                type: string
+              title:
+                type: [string, 'null']
+              status:
+                type: string
 
   responses:
     ValidationError:

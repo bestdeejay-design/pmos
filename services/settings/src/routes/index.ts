@@ -58,12 +58,21 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ data: rows, pagination: { offset, limit, total } });
   });
 
+  // KV upsert per contract (operationId upsertSetting): same key updates in place.
   typed.post("/settings", {
-    schema: { body: Type.Object({}, { additionalProperties: true }), response: { 201: Type.Any() } },
+    schema: { body: Type.Object({}, { additionalProperties: true }), response: { 200: Type.Any(), 201: Type.Any() } },
   }, async (req, reply) => {
-    const [row] = await db.insert(schema.settings).values(req.body as any).returning();
-    emit("pmos.settings.settings.created", row);
-    return reply.code(201).send(row);
+    const body = req.body as any;
+    const now = new Date().toISOString();
+    const [prev] = await db.select().from(schema.settings).where(eq(schema.settings.key, body.key)).limit(1);
+    const [row] = await db.insert(schema.settings).values({ ...body, updatedAt: now })
+      .onConflictDoUpdate({
+        target: schema.settings.key,
+        set: { value: body.value, updatedAt: now },
+      })
+      .returning();
+    emit(prev ? "pmos.settings.settings.updated" : "pmos.settings.settings.created", row);
+    return reply.code(prev ? 200 : 201).send(row);
   });
 
   typed.get("/settings/:key", {
@@ -95,10 +104,25 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(204).send();
   });
 
-  // ───────────── non-CRUD endpoints (backlog, see AGENT.md §4) ─────────────
-  typed.get("/settings/ollama-models", async (_req, reply) => {
-    // TODO(semantics): GET /settings/ollama-models — non-CRUD endpoint, not in the baseline
-    // reference pattern. Implement domain logic or remove from contract.
-    return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });
+  // ───────────── non-CRUD endpoints ─────────────
+  // Lists Ollama models from the local Ollama instance. Graceful degradation:
+  // if Ollama is unreachable we return an empty list with degraded:true (no 500).
+  typed.get("/settings/ollama-models", {
+    schema: {
+      response: { 200: Type.Object({ models: Type.Array(Type.String()), degraded: Type.Boolean() }) },
+    },
+  }, async (_req, reply) => {
+    const base = process.env.OLLAMA_URL ?? "http://localhost:11434";
+    try {
+      const res = await fetch(`${base}/api/tags`, { signal: AbortSignal.timeout(2000) });
+      if (!res.ok) return reply.send({ models: [], degraded: true });
+      const data = await res.json() as any;
+      const models = Array.isArray(data?.models)
+        ? data.models.map((m: any) => m.name).filter((n: unknown): n is string => typeof n === "string")
+        : [];
+      return reply.send({ models, degraded: false });
+    } catch {
+      return reply.send({ models: [], degraded: true });
+    }
   });
 };

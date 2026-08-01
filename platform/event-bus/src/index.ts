@@ -11,7 +11,7 @@
  * Every published message is an EventEnvelope with version + correlationId (ADR-007 §3).
  */
 
-import { connect, type NatsConnection, type JetStreamClient, type JetStreamManager, StringCodec, type PubAck } from "nats";
+import { connect, consumerOpts, createInbox, type NatsConnection, type JetStreamClient, type JetStreamManager, StringCodec, type PubAck } from "nats";
 import type { EventEnvelope } from "@pmos/shared";
 
 const sc = StringCodec();
@@ -94,27 +94,33 @@ export class EventBus {
   ): Promise<void> {
     if (!this.js) await this.connect();
     const js = this.js!;
-    // nats.js typings expose subscribe options as a builder chain; we pass a
-    // plain object and cast. Runtime-correct per NATS JetStream semantics.
-    const subOpts = {
-      callback: async (err: unknown, msg: { data: Uint8Array; ack: () => void; nak: () => void }) => {
-        if (err) { console.error(`[event-bus] subscribe error on ${subject}:`, err); return; }
-        try {
-          const env = JSON.parse(sc.decode(msg.data)) as EventEnvelope<T>;
-          await handler(env);
-          msg.ack();
-        } catch (e) {
-          msg.nak();
-          console.error(`[event-bus] handler failed for ${subject}:`, e);
-        }
-      },
-      manualAck: true,
-      max_deliver: 3,
-      ack_wait: 30_000,
-      durable: opts?.durable,
-    } as unknown as Parameters<typeof js.subscribe>[1];
-    const sub = js.subscribe(subject, subOpts);
-    void sub;
+    // Push consumer via the builder API — nats.js requires a deliver inbox and
+    // an explicit ack policy; a bare options object silently breaks.
+    const co = consumerOpts();
+    // Ephemeral push consumer — only live events, no full-stream replay.
+    co.deliverNew();
+    if (opts?.durable) co.durable(opts.durable);
+    if (opts?.queue) co.deliverGroup(opts.queue);
+    co.ackExplicit();
+    co.maxDeliver(3);
+    co.ackWait(30_000);
+    co.deliverTo(createInbox());
+    co.manualAck();
+    co.callback((err, msg) => {
+      if (err) { console.error(`[event-bus] subscribe error on ${subject}:`, err); return; }
+      if (!msg) return;
+      try {
+        const env = JSON.parse(sc.decode(msg.data)) as EventEnvelope<T>;
+        void handler(env).then(
+          () => msg.ack(),
+          (e) => { msg.nak(); console.error(`[event-bus] handler failed for ${subject}:`, e); },
+        );
+      } catch (e) {
+        msg.nak();
+        console.error(`[event-bus] handler failed for ${subject}:`, e);
+      }
+    });
+    await js.subscribe(subject, co);
   }
 
   async requestReply<TReq, TRes>(subject: string, data: TReq, timeoutMs = 5000): Promise<TRes> {

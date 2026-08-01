@@ -45,7 +45,14 @@ export const notesRelations = relations(notes, ({ many }) => ({
   links: many(noteLinks),
 }));
 
+// Idempotency ledger for inbound events (SAGA.md: check processed_events before mutating).
+export const processedEvents = pgTable("processed_events", {
+  eventId: uuid("event_id").primaryKey(),
+  processedAt: timestamp("processed_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+});
+
 export type NoteRow = typeof notes.$inferSelect;
 export type NoteInsert = typeof notes.$inferInsert;
 export type TemplateRow = typeof templates.$inferSelect;
 export type NoteLinkRow = typeof noteLinks.$inferSelect;
+export type ProcessedEventRow = typeof processedEvents.$inferSelect;
