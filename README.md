@@ -50,18 +50,94 @@ docker compose -f platform/docker/docker-compose.yml --profile all up -d
 ## Структура репозитория
 
 ```
-platform/
-  shared-types/      @pmos/shared   — EventEnvelope, доменные типы
-  event-bus/         @pmos/event-bus — NATS JetStream publisher/consumer
-  docker/            docker-compose.yml, nginx.conf (api-gateway)
-services/<name>/    16 сервисов (notes, tasks, calendar, …)
-contracts/
-  openapi/           OpenAPI-спеки (машинная правда, 16/16)
-  asyncapi/events.yaml  Каталог событий (x-implemented-wire-events = что реально шлётся)
-scripts/             Генераторы: scaffold-services, gen-openapi, gen-schemas,
-                     gen-routes, gen-contract-tests (воспроизводимость)
-docs/                ADR-001..007, ARCHITECTURE, FEATURES, SAGA, DEV_GUIDE, REVIEW, TEST_CASES
-AGENT.md             Runbook для автономного агента-сборщика
+pmos/
+├── AGENT.md                        Runbook для автономного агента-сборщика
+├── DELIVERY.md                     Delivery Gate: запуск, что реализовано, тесты, ограничения
+├── README.md                       ← вы здесь
+├── package.json                    root scripts: typecheck/test/build/db:migrate
+├── pnpm-workspace.yaml             workspaces: services/*, platform/*
+│
+├── platform/                       общая инфраструктура
+│   ├── shared-types/               @pmos/shared — EventEnvelope, доменные типы, DTO
+│   ├── event-bus/                  @pmos/event-bus — NATS JetStream publisher/consumer (durable, DLQ)
+│   └── docker/
+│       ├── docker-compose.yml      профили: core (Postgres+NATS) / all (16 сервисов + gateway)
+│       └── nginx.conf              api-gateway (reverse-proxy на все сервисы)
+│
+├── services/                       16 микросервисов, единый шаблон (см. ниже)
+│   ├── notes/              3001  notes_
+│   ├── tasks/              3002  tasks_
+│   ├── calendar/           3003  calendar_
+│   ├── projects/           3004  projects_
+│   ├── files/              3005  files_
+│   ├── profiles/           3006  profiles_
+│   ├── settings/           3007  settings_
+│   ├── search-rag/         3008  search_rag_
+│   ├── ai-gateway/         3009  ai_gateway_
+│   ├── agent/              3010  agent_
+│   ├── time-tracking/      3011  time_tracking_
+│   ├── email/              3012  email_
+│   ├── external-calendars/ 3013  external_calendars_
+│   ├── integrations/       3014  integrations_
+│   ├── export-import/      3015  export_import_
+│   └── sync/               3016  sync_
+│
+├── contracts/                      машинная правда (что реально в коде)
+│   ├── openapi/                    16 × <svc>.yaml — OpenAPI-спеки, conformance 16/16
+│   ├── asyncapi/
+│   │   └── events.yaml              каталог событий (2 391 строка)
+│   │                               x-implemented-wire-events = что реально публикуется
+│   └── test/                        вспомогательные фикстуры контрактов
+│
+├── scripts/                         генераторы (воспроизводимость каркаса)
+│   ├── scaffold-services.mjs        каркас нового сервиса
+│   ├── gen-openapi.mjs              OpenAPI-спеки из контрактов
+│   ├── gen-schemas.mjs              Drizzle-схемы
+│   ├── gen-routes.mjs               CRUD-роуты + emit() событий
+│   ├── gen-semantics.mjs            ручная семантика поверх CRUD (править так, НЕ gen-routes)
+│   └── gen-contract-tests.mjs       OpenAPI-conformance тесты
+│
+├── docs/                            архитектурная и проектная документация
+│   ├── ARCHITECTURE.md              общая архитектура
+│   ├── FEATURES.md                  функциональные требования (✅ 85 / 📋 18)
+│   ├── SAGA.md                      cross-service сценарии (§1–§5)
+│   ├── REVIEW.md                    статус-матрица по сервисам
+│   ├── TEST_CASES.md                тест-кейсы
+│   ├── BACKLOG.md                   бэклог
+│   ├── DEV_GUIDE.md                 локальная разработка
+│   └── ADR/
+│       ├── ADR-001.md … ADR-007.md  архитектурные решения
+│
+├── template-service/               выключен из сборки (артефакт скраффолда)
+└── tests/                           зарезервировано под E2E (сейчас пусто; E2E заменён
+                                    integration-тестами сервисов — 90/90)
+```
+
+### Шаблон сервиса (`services/<name>/`)
+
+Все 16 сервисов идентичны по структуре:
+
+```
+services/<name>/
+├── src/
+│   ├── index.ts              точка входа: buildApp() + NATS + shutdown
+│   ├── app.ts                Fastify-приложение (роуты, плагины, health)
+│   ├── db/
+│   │   ├── connection.ts     postgres.js + drizzle, search_path через startup-параметр
+│   │   ├── schema.ts         Drizzle-схема таблиц
+│   │   └── migrate.ts        применение миграций (drizzle-kit)
+│   ├── events/
+│   │   ├── publish.ts        обёртка публикации событий (emit)
+│   │   └── subscribe.ts      обработчики подписок (саги, idempotency)
+│   ├── lib/                  семантика: бизнес-логика (llm.ts, imap.ts, zip.ts, …)
+│   ├── plugins/              correlationId, health, metrics
+│   └── routes/index.ts       Fastify + TypeBox-роуты (typed.get/post/…)
+├── migrations/               *.sql + meta/_journal.json (drizzle-kit)
+├── test/
+│   ├── health.test.ts        unit: health-check
+│   ├── contract.test.ts      unit: OpenAPI-conformance
+│   └── integration.*.test.ts integration: реальные Postgres + NATS (с сагами)
+├── Dockerfile, drizzle.config.ts, tsconfig.json, vitest.config.ts, package.json
 ```
 
 Сервисы и порты (AGENT.md §4):
@@ -110,12 +186,46 @@ CI (`.github/workflows/ci.yml`) гонит typecheck + unit + contract на ка
 
 ## Документация
 
-- `AGENT.md` — что и как собирает агент (главный runbook).
-- `docs/ADR/ADR-007.md` — **канонические** конвенции (переименование tsrup→pmos,
-  camelCase, версионирование EventEnvelope). Переименовывает все остальные доки при конфликте.
-- `docs/FEATURES.md` — функциональные требования (✅ каркас / 📋 план).
-- `docs/SAGA.md` — Cross-service сценарии.
-- `docs/DEV_GUIDE.md` — локальная разработка.
+Полный каталог — общий объём **~4 460 строк доков + ~9 900 строк контрактов ≈ 14 400 строк**:
+
+### Проектная документация (docs/)
+
+| Файл | Строк | Назначение |
+|------|------:|------------|
+| `docs/ARCHITECTURE.md` | 160 | Общая архитектура: сервисы, шина, потоки данных |
+| `docs/FEATURES.md` | 477 | Функциональные требования по каждому сервису (✅ 85 реализовано / 📋 18 план) |
+| `docs/SAGA.md` | 426 | 5 cross-service сценариев (§1–§5): события, idempotency, проверка |
+| `docs/REVIEW.md` | 106 | Статус-матрица: CRUD / фильтры / soft-delete / события / бизнес-логика |
+| `docs/TEST_CASES.md` | 864 | Тест-кейсы (сценарии проверки сервисов и саг) |
+| `docs/BACKLOG.md` | 366 | Бэклог: идеи, отложенные фичи, UI-слой |
+| `docs/DEV_GUIDE.md` | 525 | Локальная разработка: env, запуск, отладка, генераторы |
+
+### ADR — архитектурные решения (docs/ADR/)
+
+| Файл | Строк | Решение |
+|------|------:|---------|
+| `ADR-001.md` | 144 | Монорепо + pnpm workspaces, schema-per-service |
+| `ADR-002.md` | 177 | NATS JetStream как шина событий (at-least-once) |
+| `ADR-003.md` | 92 | Fastify + TypeBox (типизированные роуты, OpenAPI) |
+| `ADR-004.md` | 67 | Изоляция схем в Postgres (search_path на соединении) |
+| `ADR-005.md` | 131 | Контракты OpenAPI как источник правды + conformance-тесты |
+| `ADR-006.md` | 170 | Drizzle ORM + миграции, воспроизводимость |
+| `ADR-007.md` | 233 | **Канонические конвенции** (переименование tsrup→pmos, camelCase, версии EventEnvelope) — при конфликте с другими доками переименовывает их |
+
+### Runbook и гейты
+
+| Файл | Строк | Назначение |
+|------|------:|------------|
+| `AGENT.md` | 235 | Главный runbook автономного агента-сборщика (фазы, гейты §5) |
+| `DELIVERY.md` | 59 | Delivery Gate: как запустить, что реализовано, ограничения |
+| `README.md` | 232 | ← этот файл |
+
+### Контракты (машинная правда)
+
+| Файл | Строк | Назначение |
+|------|------:|------------|
+| `contracts/openapi/*.yaml` (16 шт.) | 7 519 | OpenAPI-спеки сервисов — conformance 16/16 |
+| `contracts/asyncapi/events.yaml` | 2 391 | Каталог событий шины + `x-implemented-wire-events` (реально шлётся) |
 
 ## Лицензия
 
