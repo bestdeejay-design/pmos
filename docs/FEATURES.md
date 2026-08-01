@@ -46,7 +46,7 @@
 | **События** | `settings.changed` |
 | **Зависимости** | — (Shared Kernel, читается всеми) |
 | **Фронтенд** | AgentSettings (все вкладки) |
-| **Статус** | ✅ каркас KV CRUD | 📋 Ollama models list |
+| **Статус** | ✅ каркас KV CRUD | ✅ Ollama models list (/settings/ollama-models) |
 
 ### 3. notes — Заметки
 
@@ -64,15 +64,15 @@
 | Функция | Статус | Описание |
 |---------|--------|----------|
 | CRUD заметок | ✅ каркас | Markdown тело, теги, заголовок |
-| Ручная сортировка | 📋 | Drag-and-drop переупорядочивание |
-| Поиск по заметкам | 📋 | Через ILIKE body_md |
-| AI-генерация заголовка | 📋 | POST /api/notes/generate-title → {title, tag} |
-| Шаблоны | 📋 | Предустановленные шаблоны для новых заметок |
+| Ручная сортировка | ✅ | PUT /api/notes/order |
+| Поиск по заметкам | ✅ | ILIKE по body_md |
+| AI-генерация заголовка | ✅ | Сага §1: notes.created → ai-gateway → title_generated → notes |
+| Шаблоны | ✅ | Предустановленные шаблоны для новых заметок |
 | Привязка к проекту | ✅ каркас | linked_project_id |
 | Привязка к встрече | ✅ каркас | linked_meeting_id |
 | Привязка к задаче | ✅ каркас | linked_task_id |
-| Фильтр по профилю | 📋 | profile_ids |
-| Архивирование | 📋 | Мягкое удаление |
+| Фильтр по профилю | ✅ | profileId (querystring) |
+| Архивирование | ✅ | isArchived, мягкое удаление |
 | Markdown-рендеринг | 📋 | На сервере, заголовок как plain text |
 | Dictation-диктовка | 📋 | Запись голоса → распознавание → AI-форматирование |
 
@@ -95,13 +95,13 @@
 | Kanban-доска | 📋 | Колонки с drag-and-drop между статусами |
 | Динамические колонки | 📋 | Настраиваются через settings (kanban_columns) |
 | Ручная сортировка в колонке | 📋 | Drag-and-drop reorder |
-| Рекуррентные задачи | 📋 | По расписанию, автозакрытие и создание новой |
-| Streaks (серии) | 📋 | current_streak / best_streak |
-| Зависимости задач | 📋 | task_dependencies: блокирующие задачи |
+| Рекуррентные задачи | ✅ | По расписанию, автозакрытие и создание новой |
+| Streaks (серии) | ✅ | current_streak / best_streak |
+| Зависимости задач | ✅ | task_dependencies: блокирующие задачи |
 | Приоритеты (ранжирование) | ✅ каркас | Вес + ручной ранг, сортированный список |
-| Фильтр по профилю | 📋 | profile_ids |
-| Фильтр по проекту | 📋 | project_id |
-| Архивирование | 📋 | Мягкое удаление |
+| Фильтр по профилю | ✅ | profileId (querystring) |
+| Фильтр по проекту | ✅ | projectId (querystring) |
+| Архивирование | ✅ | isArchived, мягкое удаление |
 
 ### 5. calendar — Встречи (локальный календарь)
 
@@ -119,11 +119,12 @@
 | Функция | Статус | Описание |
 |---------|--------|----------|
 | CRUD встреч | ✅ каркас | Название, время, all-day, описание, место |
-| Рекуррентные встречи | 📋 | Правило recurrence (freq, interval, until) |
-| ICS экспорт | ✅ каркас | GET /api/calendar/:id/ics → .ics файл |
+| Рекуррентные встречи | ✅ | Правило recurrence (freq, interval, until) |
+| ICS экспорт | ✅ | GET /api/calendar/:id/ics → .ics файл (RFC5545) |
+| ICS импорт | ✅ | Сага §4: external_events.created → встреча (RFC5545, RRULE) |
 | Drag-and-drop в календаре | 📋 | Перенос и изменение длительности |
 | Напоминания | 📋 | fire_at + WebSocket push |
-| Фильтр по профилю | 📋 | profile_ids |
+| Фильтр по профилю | ✅ | profileId (querystring), диапазон from/to |
 | Привязка к проекту | ✅ каркас | linked_project_id |
 
 ### 6. projects — Проекты
@@ -164,7 +165,7 @@
 |---------|--------|----------|
 | Загрузка файлов | ✅ каркас | Multipart upload, лимит 50MB |
 | Скачивание | ✅ каркас | GET /api/files/:id/download |
-| Извлечение текста | 📋 | Для .txt, .md — прямой текст |
+| Извлечение текста | ✅ | Сага §3: uploaded → text_extracted (txt/md/PDF/docx) |
 | Метаданные | ✅ каркас | filename, mime, size, owner_type/id, uploaded_at |
 | Привязка к проекту | ✅ каркас | owner_type/owner_id (polymorphic) |
 | Привязка профилей | ✅ каркас | profile_ids |
@@ -184,14 +185,14 @@
 
 | Функция | Статус | Описание |
 |---------|--------|----------|
-| Текстовый поиск (ILIKE) | 📋 | PostgreSQL ILIKE по body_md, title, description, extracted_text |
-| Семантический поиск | ✅ каркас | Ollama embedding (nomic-embed-text) + cosine similarity |
-| Фильтры: тип | 📋 | note/task/meeting/file |
-| Фильтры: тег | 📋 | tags |
-| Фильтры: проект | 📋 | project_id |
-| Фильтры: профиль | 📋 | profile_ids |
+| Текстовый поиск (ILIKE) | ✅ | PostgreSQL ILIKE по body_md, title, description, extracted_text |
+| Семантический поиск | ✅ | Ollama embedding (nomic-embed-text) + cosine similarity |
+| Фильтры: тип | ✅ | note/task/meeting/file |
+| Фильтры: тег | ✅ | tags |
+| Фильтры: проект | ✅ | projectId (в body /search) |
+| Фильтры: профиль | ✅ | profileIds (в body /search) |
 | Недавние запросы | 📋 | Хранятся в localStorage |
-| Graceful degradation | ✅ каркас | Если Ollama недоступен — ILIKE fallback |
+| Graceful degradation | ✅ | Если Ollama недоступен — ILIKE fallback |
 
 ### 9. ai-gateway — AI Gateway
 
@@ -208,12 +209,12 @@
 
 | Функция | Статус | Описание |
 |---------|--------|----------|
-| Dictation (текст → body+title+tag) | ✅ каркас | Ollama: парсинг ТЕЛО: и ЗАГОЛОВОК: из ответа |
-| Restore punctuation | 📋 | Восстановление пунктуации в тексте |
-| Fallback chain | 📋 | DB setting → env → hardcoded модель |
-| Timeout | 📋 | 60s timeout на модель, переключение на следующую |
-| Regex-парсинг ответа | 📋 | `/^ТЕЛ[ОА]:\s*(.*)/is` |
-| Модели: Ollama | ✅ каркас | Локальные GGUF, MLX |
+| Dictation (текст → body+title+tag) | ✅ | Ollama: парсинг ТЕЛО: и ЗАГОЛОВОК: из ответа |
+| Restore punctuation | ✅ | Восстановление пунктуации в тексте |
+| Fallback chain | ✅ | env → hardcoded модель, Ollama → эвристика |
+| Timeout | ✅ | 30s timeout на вызов, abort + эвристика |
+| Regex-парсинг ответа | ✅ | `/^ТЕЛ[ОА]:\s*(.*)/is` (parseDictation) |
+| Модели: Ollama | ✅ | Локальные GGUF, MLX |
 | Модели: облачные | 📋 | Прокси до cloud API (OpenAI, Anthropic, Google) |
 
 ### 10. agent — AI-ассистент
@@ -231,12 +232,12 @@
 
 | Функция | Статус | Описание |
 |---------|--------|----------|
-| Daily digest | 📋 | Утром: сводка встреч и задач на сегодня |
-| Weekly digest | 📋 | Сводка на неделю |
-| Inbox сообщений | 📋 | Список с действиями (accept/reject/reply) |
+| Daily digest | ✅ | Утром: сводка встреч и задач на сегодня |
+| Weekly digest | ✅ | Сводка на неделю |
+| Inbox сообщений | ✅ | Список с действиями (accept/reject/reply) |
 | Триггер: meeting_ended | 📋 | После встречи: предложение создать заметку |
-| Триггер: deadline_soon | 📋 | За N часов до дедлайна: напоминание |
-| Триггер: task_no_assignee | 📋 | Неназначенные задачи в проекте |
+| Триггер: deadline_soon | ✅ | За N часов до дедлайна: напоминание |
+| Триггер: task_no_assignee | ✅ | Неназначенные задачи в проекте |
 | Триггер: project_plan | 📋 | План проекта на основе goal |
 | DND-окно | 📋 | Не беспокоить в заданные часы |
 | Дневной лимит | 📋 | Не более N сообщений в день |
@@ -257,11 +258,11 @@
 
 | Функция | Статус | Описание |
 |---------|--------|----------|
-| IMAP аккаунты CRUD | ✅ каркас | Хост, порт, SSL, username, encrypted password |
-| Синхронизация писем | 📋 | По расписанию + вручную |
-| Конвертация → note | 📋 | Создание заметки из письма |
-| Конвертация → task | 📋 | Создание задачи из письма |
-| Фильтр писем | 📋 | По аккаунту, профилю, архиву |
+| IMAP аккаунты CRUD | ✅ | Хост, порт, SSL, username, encrypted password |
+| Синхронизация писем | ✅ | По расписанию + вручную |
+| Конвертация → note | ✅ | Создание заметки из письма |
+| Конвертация → task | ✅ | Создание задачи из письма |
+| Фильтр писем | ✅ | По аккаунту (accountId), архиву (isArchived) |
 
 ### 12. external-calendars — Внешние календари
 
@@ -279,11 +280,11 @@
 | Функция | Статус | Описание |
 |---------|--------|----------|
 | Google Calendar OAuth | 📋 | Auth flow + token refresh |
-| Yandex Calendar (CalDAV) | 📋 | Basic auth + CalDAV sync |
-| ICS URL | 📋 | Парсинг .ics по URL |
+| Yandex Calendar (CalDAV) | ✅ | Basic auth + CalDAV sync |
+| ICS URL | ✅ | Парсинг .ics по URL |
 | CRUD календарей | ✅ каркас | display_name, sync_enabled |
-| Синхронизация | 📋 | GET /api/calendars/sync/:id |
-| Связывание событий | ✅ каркас | external_event → linked_meeting |
+| Синхронизация | ✅ | GET /api/calendars/sync/:id |
+| Связывание событий | ✅ | external_event → linked_meeting |
 
 ### 13. integrations — Webhooks + API Keys
 
@@ -300,11 +301,11 @@
 
 | Функция | Статус | Описание |
 |---------|--------|----------|
-| API keys CRUD | ✅ каркас | SHA256 Bearer token |
-| Webhook CRUD | ✅ каркас | URL + events + secret |
-| Webhook delivery | ✅ каркас | POST на URL, логирование |
-| Retry with backoff | 📋 | 1min → 5min → 15min → 1h → 6h, max 5 |
-| Dead letter | 📋 | После 5 неудач — остановка |
+| API keys CRUD | ✅ | SHA256 Bearer token |
+| Webhook CRUD | ✅ | URL + events + secret |
+| Webhook delivery | ✅ | POST на URL, логирование deliveries |
+| Retry with backoff | ✅ | ackWait/maxDeliver + retry по статусам |
+| Dead letter | ✅ | После N неудач — остановка |
 | Public API mirror | 📋 | /api/v1/notes|tasks|projects|calendar |
 
 ### 14. time-tracking — Тайм-трекинг
@@ -342,9 +343,9 @@
 
 | Функция | Статус | Описание |
 |---------|--------|----------|
-| ZIP экспорт | 📋 | notes/*.md + tasks.json + projects.json + calendar.ics + files/ |
-| Импорт текста | 📋 | Создание заметки из plain text |
-| Импорт JSON | 📋 | Пакетный импорт в notes/tasks/calendar |
+| ZIP экспорт | ✅ | notes/*.md + tasks.json + projects.json + calendar.ics + files/ |
+| Импорт текста | ✅ | Создание заметки из plain text |
+| Импорт JSON | ✅ | Пакетный импорт в notes/tasks/calendar |
 
 ### 16. sync — Синхронизация папок
 
@@ -362,8 +363,8 @@
 | Функция | Статус | Описание |
 |---------|--------|----------|
 | CRUD папок | ✅ каркас | path, auto_import, auto_export |
-| Сканирование | 📋 | last_scan_at, периодическая проверка |
-| Auto-import | 📋 | .md файлы → заметки |
+| Сканирование | ✅ | last_scan_at, периодическая проверка |
+| Auto-import | ✅ | .md файлы → заметки (при сканировании, если autoImport) |
 | Auto-export | 📋 | Заметки → .md файлы на диск |
 
 ### 17. api-gateway — Единый вход
@@ -385,14 +386,14 @@
 | **Компоненты** | NATS JetStream, SDK (publish/subscribe wrapper) |
 | **События** | Все события из Event Catalog |
 | **Зависимости** | — (инфраструктура) |
-| **Статус** | 📋 запланировано |
+| **Статус** | ✅ реализован (platform/event-bus: publish/subscribe, durable consumers, DLQ) |
 
 ### 19. shared-types — Общие типы
 
 | | |
 |---|---|
 | **Назначение** | Пакет `@pmos/shared` с интерфейсами, event schemas, DTO, branded types |
-| **Статус** | 📋 запланировано |
+| **Статус** | ✅ реализован (platform/shared-types) |
 
 ---
 

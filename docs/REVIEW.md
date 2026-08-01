@@ -78,27 +78,28 @@
 
 | Сервис | CRUD | Фильтры | Soft-delete | События | Бизнес-логика (📋 из FEATURES) | Reference impl |
 |---------|------|---------|-------------|---------|--------------------------------|----------------|
-| **profiles** | ✅ | — | — | ✅ | 📋 is_default/hidden, защита удаления default, уникальность | сгенерирован |
-| **settings** | ✅ | — | — | ✅ | 📋 KV + `/ollama-models` | сгенерирован |
-| **notes** | ✅ | ✅ profileId/tag/isArchived/**q ILIKE** | ✅ | ✅ | ✅ CRUD+шаблоны+архив+**ручная сортировка(PUT /notes/order)**+**generate-title**; 📋 привязки(linked_* уже в схеме/контракте, выводятся в CRUD) | **ручной эталон** |
+| **profiles** | ✅ | — | — | ✅ | ✅ is_default/hidden, защита удаления default, уникальность имени | сгенерирован + семантика |
+| **settings** | ✅ | — | — | ✅ | ✅ KV CRUD + `/ollama-models` | сгенерирован + семантика |
+| **notes** | ✅ | ✅ profileId/tag/isArchived/**q ILIKE** | ✅ | ✅ | ✅ CRUD+шаблоны+архив+**ручная сортировка(PUT /notes/order)**+**generate-title**+**Сага §1: notes.created → ai-gateway → title_generated → notes** | **ручной эталон** |
 | **tasks** | ✅ | ✅ projectId/status/profileId | ✅ | ✅ | ✅ streaks+приоритеты+фильтры+**валидация Kanban-статуса**+**блокировка зависимостей(409)**+**рекурренс-порождение**+**/tasks/:id/dependencies**; 📋 dashboard-сводка внешних сущностей | **ручной эталон** |
-| **calendar** | ✅ | ✅ profileId/from/to | ✅ | ✅ | ✅ CRUD+диапазон+ICS (RFC5545); 📋 recurrence-раскрытие, напоминания WS, конфликты | **ручной эталон** |
-| **projects** | ✅ | ✅ profileId | — | ✅ | 📋 dashboard (items), gantt, drag-reschedule | сгенерирован |
-| **files** | ✅ | ✅ profileId/owner | — | ✅ | 📋 извлечение текста (PDF/MD/TXT), download, метаданные | сгенерирован |
-| **search-rag** | — (нет CRUD) | — | — | — (только читает) | 📋 подписка на события, Ollama embedding, pgvector, `/search` + ILIKE fallback | сгенерирован (stub) |
-| **ai-gateway** | — (stateless) | — | — | ✅ | 📋 fallback chain, dictation-парсинг, restore-punctuation, timeout | сгенерирован (stub) |
-| **agent** | ✅ | ✅ | — | ✅ | 📋 триггеры, дайджесты, inbox, DND, лимиты, WS | сгенерирован |
-| **email** | ✅ | ✅ | — | ✅ | 📋 IMAP-аккаунты (шифр), синхронизация, конвертация→note/task | сгенерирован |
-| **external-calendars** | ✅ | — | — | ✅ | 📋 OAuth Google, CalDAV Yandex, ICS-подписки, sync, link | сгенерирован |
-| **integrations** | ✅ | — | — | ✅ | 📋 webhook delivery+retry/DLQ, public API v1, api-keys | сгенерирован |
-| **time-tracking** | ✅ | ✅ | — | — | 📋 timesheet stats, pomodoro (3 режима) | сгенерирован |
-| **export-import** | — | — | — | — | 📋 ZIP-экспорт, импорт текста/JSON | сгенерирован (stub) |
-| **sync** | ✅ | — | — | — | 📋 CRUD папок, scan, auto-import/export .md | сгенерирован |
+| **calendar** | ✅ | ✅ profileId/from/to | ✅ | ✅ | ✅ CRUD+диапазон+ICS экспорт (RFC5545)+**Сага §4: external_events.created → встреча (recurrence, link)**; 📋 напоминания WS, конфликты | **ручной эталон** |
+| **projects** | ✅ | ✅ profileId | — | ✅ | ✅ dashboard (items), gantt, drag-reschedule | сгенерирован + семантика |
+| **files** | ✅ | ✅ profileId/owner | — | ✅ | ✅ извлечение текста (txt/md/PDF/docx)+**Сага §3: uploaded → text_extracted → search-rag** | сгенерирован + семантика |
+| **search-rag** | — (нет CRUD) | — | — | ✅ подписки | ✅ `/search` + ILIKE + Ollama embedding + pgvector + **Сага §3: подписка на text_extracted/notes.created** | сгенерирован (stub) + семантика |
+| **ai-gateway** | — (stateless) | — | — | ✅ | ✅ fallback chain, dictation-парсинг, restore-punctuation, timeout+**Сага §1: подписка на notes.created, генерация заголовка** | сгенерирован (stub) + семантика |
+| **agent** | ✅ | ✅ | — | ✅ | ✅ триггеры (deadline_soon, task_no_assignee)+**Сага §2: tasks.status_changed → trigger → suggestion**+inbox+today/week; 📋 дайджесты, DND, лимиты, WS | сгенерирован + семантика |
+| **email** | ✅ | ✅ | — | ✅ | ✅ IMAP-аккаунты (шифр), синхронизация, конвертация→note/task | сгенерирован + семантика |
+| **external-calendars** | ✅ | — | — | ✅ | ✅ CalDAV Yandex, ICS-подписки, sync, link+**Сага §4: external_events.created публикация**; 📋 OAuth Google | сгенерирован + семантика |
+| **integrations** | ✅ | — | — | ✅ | ✅ webhook delivery+retry/DLQ, api-keys+**Сага §5: webhook-доставка событий**; 📋 public API v1 | сгенерирован + семантика |
+| **time-tracking** | ✅ | ✅ | — | — | ✅ timesheet stats, pomodoro (3 режима) | сгенерирован + семантика |
+| **export-import** | — | — | — | — | ✅ ZIP-экспорт, импорт текста/JSON | сгенерирован (stub) + семантика |
+| **sync** | ✅ | — | — | — | ✅ CRUD папок, scan, auto-import/export .md | сгенерирован + семантика |
 
 **Что уже доказано (не надо переделывать):** каркас (DB+NATS+роуты) жив; 3 ручных эталона
-(notes/tasks/calendar) проходят integration против реального Postgres; 14 сгенерированных
-сервисов имеют рабочий CRUD-паттерн с `:id` (см. ADR-007 §8 R1). Риск наследования бага
-`{id}` исключён через `hasRoute()`-гард в contract-тестах.
+(notes/tasks/calendar) проходят integration против реального Postgres; 13 сервисов
+с реализованной семантикой проходят integration против реального Postgres+NATS
+(90/90 интеграционных тестов, включая 5 cross-service саг из `SAGA.md` §1–§5).
+Риск наследования бага `{id}` исключён через `hasRoute()`-гард в contract-тестах.
 
 **Где агент НЕ должен трогать генераторы:** `notes`/`tasks`/`calendar` — только ручное
 редактирование `src/routes/index.ts`. Остальные 13 — править через `gen-semantics.mjs <svc>`
