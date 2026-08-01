@@ -10,7 +10,9 @@
 services:
   # ───────────────────────── Infrastructure ─────────────────────────
   postgres:
-    image: postgres:16-alpine
+    # pgvector/pgvector:pg16 — includes the `vector` extension required by search-rag
+    # (postgres:16-alpine does NOT ship pgvector; search-rag migrations would fail).
+    image: pgvector/pgvector:pg16
     profiles: ["core", "all", "phase1", "phase2", "phase3", "phase4"]
     environment:
       POSTGRES_USER: pmos

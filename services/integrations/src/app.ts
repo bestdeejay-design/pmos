@@ -6,6 +6,7 @@ import metrics from "./plugins/metrics.js";
 import { errorHandler } from "./lib/errors.js";
 import { EventBus } from "@pmos/event-bus";
 import { integrationsRoutes } from "./routes/index.js";
+import { registerSubscribers } from "./events/subscribe.js";
 
 export async function buildApp() {
   EventBus.init({ serviceName: "integrations", url: process.env.NATS_URL });
@@ -19,5 +20,13 @@ export async function buildApp() {
   await app.register(integrationsRoutes, { prefix: "/api/integrations/v1" });
 
   app.setErrorHandler(errorHandler);
+
+  // Inbound webhook-delivery subscribers — best-effort (no NATS -> no events).
+  try {
+    await registerSubscribers(EventBus.get());
+  } catch (err) {
+    console.error("[integrations] event subscribers unavailable:", err);
+  }
+
   return app;
 }

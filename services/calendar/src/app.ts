@@ -6,6 +6,7 @@ import metrics from "./plugins/metrics.js";
 import { errorHandler } from "./lib/errors.js";
 import { EventBus } from "@pmos/event-bus";
 import { calendarRoutes } from "./routes/index.js";
+import { registerSubscribers } from "./events/subscribe.js";
 
 export async function buildApp() {
   EventBus.init({ serviceName: "calendar", url: process.env.NATS_URL });
@@ -19,5 +20,9 @@ export async function buildApp() {
   await app.register(calendarRoutes, { prefix: "/api/calendar/v1" });
 
   app.setErrorHandler(errorHandler);
+
+  // Wire event subscribers (best-effort, don't fail health-check if NATS is down)
+  registerSubscribers(EventBus.get()).catch(() => {});
+
   return app;
 }

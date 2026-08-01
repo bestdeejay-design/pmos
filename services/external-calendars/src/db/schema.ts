@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, boolean, integer, jsonb, vector, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const externalCalendars = pgTable("external_calendars", {
@@ -14,14 +14,23 @@ export const externalCalendars = pgTable("external_calendars", {
 
 export const externalEvents = pgTable("external_events", {
   id: uuid("id").defaultRandom().primaryKey(),
-  calendarId: uuid("calendar_id").notNull(),
-  uid: text("uid").notNull(),
-  title: text("title").notNull(),
-  startTime: timestamp("start_time", { mode: "string", withTimezone: true }).notNull(),
-  endTime: timestamp("end_time", { mode: "string", withTimezone: true }).notNull(),
-  allDay: boolean("all_day").notNull().default(false),
+  externalCalendarId: uuid("external_calendar_id").notNull(),
+  externalEventId: text("external_event_id").notNull(),
+  summary: text("summary"),
+  description: text("description"),
+  startTime: text("start_time"),
+  endTime: text("end_time"),
+  recurrenceRule: text("recurrence_rule"),
+  location: text("location"),
   linkedMeetingId: uuid("linked_meeting_id"),
   createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+});
+
+export const processedEvents = pgTable("processed_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  eventId: text("event_id").notNull().unique(),
+  eventType: text("event_type").notNull(),
+  processedAt: timestamp("processed_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const externalCalendarRelations = relations(externalCalendars, ({ many }) => ({

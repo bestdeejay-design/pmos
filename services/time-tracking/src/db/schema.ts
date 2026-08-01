@@ -18,6 +18,7 @@ export const pomodoroSessions = pgTable("pomodoro_sessions", {
   startedAt: timestamp("started_at", { mode: "string", withTimezone: true }).notNull(),
   endedAt: timestamp("ended_at", { mode: "string", withTimezone: true }),
   plannedMin: integer("planned_min"),
+  completedMin: integer("completed_min"), // фактически отработанные минуты
   completed: boolean("completed").notNull().default(false),
   taskId: uuid("task_id"),
   createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),

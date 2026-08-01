@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@fastify/type-provider-typebox";
-import { eq, count, and, asc, desc, sql } from "drizzle-orm";
+import { eq, count, and, asc, desc, sql, gte, lte, isNotNull } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import * as schema from "../db/schema.js";
 import { EventBus } from "@pmos/event-bus";
@@ -24,6 +24,27 @@ const colExists = (c: string): boolean => tableCols.has(c);
 async function totalOf(t: any, where?: any): Promise<number> {
   const r = await db.select({ total: count() }).from(t).where(where).limit(1);
   return r[0]?.total ?? 0;
+}
+
+// Local-timezone day/week window helpers. DB stores timestamptz as ISO (UTC),
+// so comparing against these UTC instants yields local calendar boundaries.
+function startOfTodayIso(): string {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+}
+function startOfTomorrowIso(): string {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+}
+function startOfWeekIso(): string {
+  const now = new Date();
+  const diffToMonday = (now.getDay() + 6) % 7; // Sunday=6, Monday=0
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMonday).toISOString();
+}
+function startOfNextWeekIso(): string {
+  const now = new Date();
+  const diffToMonday = (now.getDay() + 6) % 7;
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMonday + 7).toISOString();
 }
 
 export const time_trackingRoutes: FastifyPluginAsync = async (app) => {
@@ -51,7 +72,9 @@ export const time_trackingRoutes: FastifyPluginAsync = async (app) => {
     const offset = Number(q.offset ?? 0);
     const limit = Number(q.limit ?? 20);
     const conds: any[] = [];
-
+    if (q.taskId) conds.push(eq(schema.timesheet.taskId, q.taskId));
+    if (q.from) conds.push(gte(schema.timesheet.startedAt, q.from));
+    if (q.to) conds.push(lte(schema.timesheet.startedAt, q.to));
 
     const where = conds.length ? and(...conds) : undefined;
     const rows = await db.select().from(schema.timesheet).where(where)
@@ -97,22 +120,133 @@ export const time_trackingRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(204).send();
   });
 
-  // ───────────── non-CRUD endpoints (backlog, see AGENT.md §4) ─────────────
-  typed.get("/timesheet/stats", async (_req, reply) => {
-    // TODO(semantics): GET /timesheet/stats — non-CRUD endpoint, not in the baseline
-    // reference pattern. Implement domain logic or remove from contract.
-    return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });
+  // ───────────── timesheet stats ─────────────
+  // Aggregates today/week totals (durationSec sums) and grouped per-task totals.
+  // byProject requires a task→project join that the timesheet table cannot serve
+  // (no projectId column) — returned as {} until the join is available.
+  typed.get("/timesheet/stats", {
+    schema: {
+      querystring: Type.Object({
+        from: Type.Optional(Type.String()),
+        to: Type.Optional(Type.String()),
+      }),
+      response: { 200: Type.Object({
+        todayTotal: Type.Integer(),
+        weekTotal: Type.Integer(),
+        byTask: Type.Array(Type.Any()),
+        byProject: Type.Any(),
+      }) },
+    },
+  }, async (req, reply) => {
+    const q = req.query as any;
+    const baseConds: any[] = [];
+    if (q.from) baseConds.push(gte(schema.timesheet.startedAt, q.from));
+    if (q.to) baseConds.push(lte(schema.timesheet.startedAt, q.to));
+    const sumSql = sql<number>`coalesce(sum(${schema.timesheet.durationSec}), 0)::int`;
+
+    const todayTotal = (await db.select({ total: sumSql }).from(schema.timesheet)
+      .where(and(gte(schema.timesheet.startedAt, startOfTodayIso()), lte(schema.timesheet.startedAt, startOfTomorrowIso()), ...baseConds))
+      .limit(1))[0]?.total ?? 0;
+
+    const weekTotal = (await db.select({ total: sumSql }).from(schema.timesheet)
+      .where(and(gte(schema.timesheet.startedAt, startOfWeekIso()), lte(schema.timesheet.startedAt, startOfNextWeekIso()), ...baseConds))
+      .limit(1))[0]?.total ?? 0;
+
+    const byTaskRows = await db.select({
+      taskId: schema.timesheet.taskId,
+      total: sumSql,
+    }).from(schema.timesheet)
+      .where(and(isNotNull(schema.timesheet.taskId), ...baseConds))
+      .groupBy(schema.timesheet.taskId);
+
+    return reply.send({ todayTotal, weekTotal, byTask: byTaskRows, byProject: {} });
   });
 
-  typed.get("/pomodoro", async (_req, reply) => {
-    // TODO(semantics): GET /pomodoro — non-CRUD endpoint, not in the baseline
-    // reference pattern. Implement domain logic or remove from contract.
-    return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });
+  // ───────────── pomodoro sessions ─────────────
+  typed.get("/pomodoro", {
+    schema: {
+      querystring: Type.Object({
+        offset: Type.Optional(Type.Integer({ minimum: 0 })),
+        limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
+      }),
+      response: { 200: Type.Object({
+        data: Type.Array(Type.Any()),
+        pagination: Type.Object({ offset: Type.Integer(), limit: Type.Integer(), total: Type.Integer() }),
+      }) },
+    },
+  }, async (req, reply) => {
+    const q = req.query as any;
+    const offset = Number(q.offset ?? 0);
+    const limit = Number(q.limit ?? 20);
+    const rows = await db.select().from(schema.pomodoroSessions)
+      .orderBy(desc(schema.pomodoroSessions.startedAt)).limit(limit).offset(offset);
+    const total = await totalOf(schema.pomodoroSessions);
+    return reply.send({ data: rows, pagination: { offset, limit, total } });
   });
 
-  typed.patch("/pomodoro/:id", async (_req, reply) => {
-    // TODO(semantics): PATCH /pomodoro/{id} — non-CRUD endpoint, not in the baseline
-    // reference pattern. Implement domain logic or remove from contract.
-    return reply.code(501).send({ code: "NOT_IMPLEMENTED", message: "endpoint planned (see AGENT.md §4 backlog)" });
+  // Start a session: modes pomodoro|flowtime|countdown.
+  typed.post("/pomodoro", {
+    schema: {
+      body: Type.Object({
+        mode: Type.String(),
+        plannedMin: Type.Optional(Type.Integer()),
+        taskId: Type.Optional(Type.String()),
+      }, { additionalProperties: true }),
+      response: { 201: Type.Any() },
+    },
+  }, async (req, reply) => {
+    const body = req.body as any;
+    if (!["pomodoro", "flowtime", "countdown"].includes(body.mode)) {
+      return fail(400, "VALIDATION_ERROR", "mode must be one of: pomodoro, flowtime, countdown");
+    }
+    const [row] = await db.insert(schema.pomodoroSessions).values({
+      mode: body.mode,
+      startedAt: new Date().toISOString(),
+      plannedMin: body.plannedMin ?? null,
+      taskId: body.taskId ?? null,
+      completed: false,
+    }).returning();
+    emit("pmos.time-tracking.pomodoro.created", row);
+    return reply.code(201).send(row);
+  });
+
+  // Complete/update a session: sets endedAt, marks completed, computes completedMin
+  // (elapsed minutes between startedAt and endedAt).
+  typed.patch("/pomodoro/:id", {
+    schema: {
+      params: Type.Object({ id: Type.String() }),
+      body: Type.Object({}, { additionalProperties: true }),
+      response: { 200: Type.Any(), 404: Type.Any() },
+    },
+  }, async (req, reply) => {
+    const id = (req.params as any).id;
+    const body = req.body as any;
+    const [prev] = await db.select().from(schema.pomodoroSessions).where(eq(schema.pomodoroSessions.id, id)).limit(1);
+    if (!prev) return fail(404, "NOT_FOUND", "pomodoro not found");
+
+    const patch: any = {};
+    if (body.endedAt !== undefined) patch.endedAt = body.endedAt;
+    if (body.completed === true) {
+      patch.completed = true;
+      if (!patch.endedAt) patch.endedAt = new Date().toISOString();
+    } else if (body.completed === false) {
+      patch.completed = false;
+    }
+    // Plain field updates (no completion intent) leave endedAt/completed untouched.
+    if (body.mode !== undefined) patch.mode = body.mode;
+    if (body.plannedMin !== undefined) patch.plannedMin = body.plannedMin;
+    if (body.taskId !== undefined) patch.taskId = body.taskId;
+
+    if (patch.endedAt) {
+      const ms = new Date(patch.endedAt).getTime() - new Date(prev.startedAt).getTime();
+      if (ms >= 0) patch.completedMin = Math.round(ms / 60000);
+      patch.completed = true; // ended session is a completed session
+    }
+
+    const [row] = await db.update(schema.pomodoroSessions).set(patch)
+      .where(eq(schema.pomodoroSessions.id, id)).returning();
+    if (!row) return fail(404, "NOT_FOUND", "pomodoro not found");
+    emit("pmos.time-tracking.pomodoro.updated", row);
+    return reply.send(row);
   });
 };

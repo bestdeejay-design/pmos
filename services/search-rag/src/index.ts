@@ -11,12 +11,12 @@ async function main() {
   await app.listen({ port: PORT, host: HOST });
   logger.info({ service: "search-rag", port: PORT }, "service started");
 
-  // Event bus bootstrap (ADR-003 / ADR-007 §3)
+  // Event bus bootstrap (ADR-003 / ADR-007 §3).
+  // Subscribers are registered in buildApp() (src/app.ts) — do not re-register here.
   const bus = EventBus.init({ serviceName: "search-rag", eventVersion: 1 });
   try {
     await bus.connect();
     await bus.ensureStream();
-    await import("./events/subscribe.js").then((m) => m.registerSubscribers(bus));
     logger.info({ service: "search-rag" }, "event bus connected");
   } catch (err) {
     logger.error({ err }, "event bus unavailable — running without events");

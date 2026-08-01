@@ -11,12 +11,12 @@ async function main() {
   await app.listen({ port: PORT, host: HOST });
   logger.info({ service: "integrations", port: PORT }, "service started");
 
-  // Event bus bootstrap (ADR-003 / ADR-007 §3)
+  // Event bus bootstrap (ADR-003 / ADR-007 §3). Subscribers are wired in
+  // buildApp() (src/app.ts) so every app instance — including tests — gets them.
   const bus = EventBus.init({ serviceName: "integrations", eventVersion: 1 });
   try {
     await bus.connect();
     await bus.ensureStream();
-    await import("./events/subscribe.js").then((m) => m.registerSubscribers(bus));
     logger.info({ service: "integrations" }, "event bus connected");
   } catch (err) {
     logger.error({ err }, "event bus unavailable — running without events");

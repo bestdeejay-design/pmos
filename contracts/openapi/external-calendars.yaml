@@ -188,8 +188,15 @@ paths:
               schema:
                 type: object
                 properties:
+                  synced:
+                    type: integer
+                    description: Количество upsert'нутых событий
+                  total:
+                    type: integer
+                    description: Всего VEVENT в источнике
                   syncedEvents:
                     type: integer
+                    description: 'Псевдоним synced (обратная совместимость)'
         '404':
           $ref: '#/components/responses/NotFoundError'
         '500':

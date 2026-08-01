@@ -167,6 +167,10 @@ paths:
                     type: array
                     items:
                       type: object
+                  messages:
+                    type: array
+                    items:
+                      type: object
         '500':
           $ref: '#/components/responses/InternalError'
 

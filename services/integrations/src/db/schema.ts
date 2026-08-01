@@ -4,9 +4,11 @@ import { relations } from "drizzle-orm";
 export const apiKeys = pgTable("api_keys", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
-  keyHash: text("key_hash").notNull(), // SHA256 of the plaintext key
+  keyHash: text("key_hash").notNull(), // SHA256 hex of the plaintext key
+  keyPrefix: text("key_prefix").notNull(), // first 8 chars of the plaintext key (lookup hint)
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at", { mode: "string", withTimezone: true }),
 });
 
 export const webhooks = pgTable("webhooks", {
@@ -21,12 +23,23 @@ export const webhooks = pgTable("webhooks", {
 export const webhookDeliveries = pgTable("webhook_deliveries", {
   id: uuid("id").defaultRandom().primaryKey(),
   webhookId: uuid("webhook_id").notNull(),
+  eventId: uuid("event_id"), // id of the triggering EventEnvelope
   eventType: text("event_type").notNull(),
-  payload: jsonb("payload"),
-  status: text("status").notNull().default("pending"), // pending | sent | failed | dead
-  attempt: integer("attempt").notNull().default(0),
+  payload: jsonb("payload"), // full EventEnvelope JSON
+  status: text("status").notNull().default("pending"), // pending | delivered | failed_4xx | dead
+  attempts: integer("attempts").notNull().default(0), // incremented per try
+  lastError: text("last_error"),
   nextRetryAt: timestamp("next_retry_at", { mode: "string", withTimezone: true }),
   createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+});
+
+// Idempotency ledger (SAGA.md / events.yaml): subscribers check event.id here before
+// mutating state so at-least-once NATS delivery never double-processes an event.
+export const processedEvents = pgTable("processed_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  eventId: text("event_id").notNull().unique(),
+  eventType: text("event_type"),
+  processedAt: timestamp("processed_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 });
 
 export const webhookRelations = relations(webhooks, ({ many }) => ({
@@ -36,6 +49,7 @@ export const webhookRelations = relations(webhooks, ({ many }) => ({
 export type ApiKeyRow = typeof apiKeys.$inferSelect;
 export type WebhookRow = typeof webhooks.$inferSelect;
 export type WebhookDeliveryRow = typeof webhookDeliveries.$inferSelect;
+export type ProcessedEventRow = typeof processedEvents.$inferSelect;
 export type ApiKeyInsert = typeof apiKeys.$inferInsert;
 export type WebhookInsert = typeof webhooks.$inferInsert;
 

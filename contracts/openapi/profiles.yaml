@@ -39,6 +39,8 @@ paths:
                 $ref: '#/components/schemas/Profile'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -136,6 +138,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -161,6 +165,8 @@ paths:
                 type: string
         '404':
           $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -248,6 +254,20 @@ components:
             details:
               resourceType: profile
               resourceId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    ConflictError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [CONFLICT]
+          example:
+            code: CONFLICT
+            message: Cannot delete default profile
+            details:
+              resourceType: profile
 
     InternalError:
       allOf:
@@ -398,6 +418,17 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/NotFoundError'
+
+    ConflictError:
+      description: Конфликт бизнес-правил (например, удаление default-профиля)
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ConflictError'
 
     InternalError:
       description: Внутренняя ошибка сервера

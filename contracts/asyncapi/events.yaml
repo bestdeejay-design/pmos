@@ -66,6 +66,10 @@ x-implemented-wire-events:
     - pmos.agent.agent-messages.created
     - pmos.agent.agent-messages.updated
     - pmos.agent.agent-messages.deleted
+    - pmos.agent.message_created
+    - pmos.agent.trigger_evaluated
+    - pmos.ai-gateway.dictation.completed
+    - pmos.ai-gateway.punctuation.restored
     - pmos.calendar.meetings.created
     - pmos.calendar.meetings.updated
     - pmos.calendar.meetings.deleted
@@ -102,6 +106,22 @@ x-implemented-wire-events:
     - pmos.time-tracking.timesheet.created
     - pmos.time-tracking.timesheet.updated
     - pmos.time-tracking.timesheet.deleted
+    - pmos.time-tracking.pomodoro.created
+    - pmos.time-tracking.pomodoro.updated
+    - pmos.email.synced
+    - pmos.email.converted_to_note
+    - pmos.email.converted_to_task
+    - pmos.external-calendars.external_events.created
+    - pmos.external-calendars.external_event.linked
+    - pmos.sync.folder_scanned
+    - pmos.notes.title_generated
+    - pmos.files.uploaded
+    - pmos.files.text_extracted
+    - pmos.tasks.tasks.status_changed
+    - pmos.export-import.import.imported
+    - pmos.integrations.api-keys.created
+    - pmos.settings.settings.updated
+    - pmos.settings.settings.deleted
 
 channels:
 
@@ -534,11 +554,11 @@ channels:
 
   # ────────────────────────── AI / Dictation ──────────────────────────
 
-  pmos.dictation.completed:
+  pmos.ai-gateway.dictation.completed:
     description: |
       Диктовка завершена.
       Публикуется ai-gateway после успешного распознавания речи и AI-форматирования
-      (парсинг ТЕЛО: и ЗАГОЛОВОК: из ответа Ollama).
+      (парсинг ТЕЛО: и ЗАГОЛОВОК: из ответа Ollama; при недоступности LLM — эвристика).
       api-gateway: пушит результат клиенту через WebSocket.
       agent: логирует завершение диктовки.
     tags:
@@ -551,7 +571,24 @@ channels:
         $ref: "#/components/messages/DictationCompleted"
     x-service-owner: ai-gateway
     x-dead-letter:
-      subject: pmos.dictation.completed.dlq
+      subject: pmos.ai-gateway.dictation.completed.dlq
+      maxRetries: 3
+
+  pmos.ai-gateway.punctuation.restored:
+    description: |
+      Восстановление пунктуации завершено.
+      Публикуется ai-gateway после обработки текста (или graceful fallback —
+      исходный текст без изменений при недоступности LLM).
+    tags:
+      - name: ai
+    subscribe:
+      operationId: onPunctuationRestored
+      summary: Punctuation restored
+      message:
+        $ref: "#/components/messages/PunctuationRestored"
+    x-service-owner: ai-gateway
+    x-dead-letter:
+      subject: pmos.ai-gateway.punctuation.restored.dlq
       maxRetries: 3
 
   # ────────────────────────── Agent ──────────────────────────
@@ -592,6 +629,117 @@ channels:
     x-service-owner: agent
     x-dead-letter:
       subject: pmos.agent.trigger_evaluated.dlq
+      maxRetries: 3
+
+  # ────────────────────────── Email ──────────────────────────
+
+  pmos.email.synced:
+    description: |
+      IMAP-аккаунт синхронизирован.
+      Публикуется email-service после успешного POST /imap/{id}/sync.
+      Содержит количество upsert'нутых писем.
+    tags:
+      - name: email
+    subscribe:
+      operationId: onEmailSynced
+      summary: Email account synced
+      message:
+        $ref: "#/components/messages/EmailSynced"
+    x-service-owner: email
+    x-dead-letter:
+      subject: pmos.email.synced.dlq
+      maxRetries: 3
+
+  pmos.email.converted_to_note:
+    description: |
+      Письмо конвертировано в заметку.
+      Публикуется email-service после PATCH /imap/emails c convertTo: "note".
+      notes-service консумирует событие и создаёт реальную заметку.
+    tags:
+      - name: email
+      - name: note
+    subscribe:
+      operationId: onEmailConvertedToNote
+      summary: Email converted to note
+      message:
+        $ref: "#/components/messages/EmailConvertedToNote"
+    x-service-owner: email
+    x-dead-letter:
+      subject: pmos.email.converted_to_note.dlq
+      maxRetries: 3
+
+  pmos.email.converted_to_task:
+    description: |
+      Письмо конвертировано в задачу.
+      Публикуется email-service после PATCH /imap/emails c convertTo: "task".
+      tasks-service консумирует событие и создаёт реальную задачу.
+    tags:
+      - name: email
+      - name: task
+    subscribe:
+      operationId: onEmailConvertedToTask
+      summary: Email converted to task
+      message:
+        $ref: "#/components/messages/EmailConvertedToTask"
+    x-service-owner: email
+    x-dead-letter:
+      subject: pmos.email.converted_to_task.dlq
+      maxRetries: 3
+
+  # ────────────────────── External Calendars ──────────────────────
+
+  pmos.external-calendars.external_events.created:
+    description: |
+      Внешнее событие создано/импортировано из ICS.
+      Публикуется external-calendars-service после POST /calendars/sync/{id}
+      для каждого НОВОГО VEVENT.
+      calendar-service консумирует событие и создаёт встречу (linked_meeting).
+    tags:
+      - name: calendar
+    subscribe:
+      operationId: onExternalEventCreated
+      summary: External event created
+      message:
+        $ref: "#/components/messages/ExternalEventCreated"
+    x-service-owner: external-calendars
+    x-dead-letter:
+      subject: pmos.external-calendars.external_events.created.dlq
+      maxRetries: 3
+
+  pmos.external-calendars.external_event.linked:
+    description: |
+      Внешнее событие связано с локальной встречей.
+      Публикуется external-calendars-service после PATCH /calendars/events/{id}/link.
+    tags:
+      - name: calendar
+    subscribe:
+      operationId: onExternalEventLinked
+      summary: External event linked to a meeting
+      message:
+        $ref: "#/components/messages/ExternalEventLinked"
+    x-service-owner: external-calendars
+    x-dead-letter:
+      subject: pmos.external-calendars.external_event.linked.dlq
+      maxRetries: 3
+
+  # ────────────────────────── Sync ──────────────────────────
+
+  pmos.sync.folder_scanned:
+    description: |
+      Папка синхронизации просканирована (фоновый auto-import).
+      Публикуется sync-service после POST /sync-folders или PATCH /sync-folders/{id}
+      при изменении path/autoImport. Содержит количество найденных .md файлов.
+    tags:
+      - name: file
+      - name: sync
+    subscribe:
+      operationId: onSyncFolderScanned
+      summary: Sync folder scanned
+      message:
+        $ref: "#/components/messages/SyncFolderScanned"
+    x-service-owner: sync
+    x-dead-letter:
+      subject: pmos.sync.folder_scanned.dlq
       maxRetries: 3
 
 components:
@@ -783,6 +931,13 @@ components:
       payload:
         $ref: "#/components/schemas/DictationCompletedPayload"
 
+    PunctuationRestored:
+      name: PunctuationRestored
+      title: Punctuation Restored
+      summary: Text punctuation was restored (or gracefully skipped)
+      payload:
+        $ref: "#/components/schemas/PunctuationRestoredPayload"
+
     AgentMessageCreated:
       name: AgentMessageCreated
       title: Agent Message Created
@@ -796,6 +951,51 @@ components:
       summary: An agent trigger rule was evaluated
       payload:
         $ref: "#/components/schemas/AgentTriggerEvaluatedPayload"
+
+    # Email
+    EmailSynced:
+      name: EmailSynced
+      title: Email Synced
+      summary: An IMAP account was synced
+      payload:
+        $ref: "#/components/schemas/EmailSyncedPayload"
+
+    EmailConvertedToNote:
+      name: EmailConvertedToNote
+      title: Email Converted To Note
+      summary: An email was converted to a note
+      payload:
+        $ref: "#/components/schemas/EmailConvertedToNotePayload"
+
+    EmailConvertedToTask:
+      name: EmailConvertedToTask
+      title: Email Converted To Task
+      summary: An email was converted to a task
+      payload:
+        $ref: "#/components/schemas/EmailConvertedToTaskPayload"
+
+    # External Calendars
+    ExternalEventCreated:
+      name: ExternalEventCreated
+      title: External Event Created
+      summary: An external calendar event was imported
+      payload:
+        $ref: "#/components/schemas/ExternalEventCreatedPayload"
+
+    ExternalEventLinked:
+      name: ExternalEventLinked
+      title: External Event Linked
+      summary: An external event was linked to a local meeting
+      payload:
+        $ref: "#/components/schemas/ExternalEventLinkedPayload"
+
+    # Sync
+    SyncFolderScanned:
+      name: SyncFolderScanned
+      title: Sync Folder Scanned
+      summary: A sync folder was scanned
+      payload:
+        $ref: "#/components/schemas/SyncFolderScannedPayload"
 
   # ────────────────────── Schemas ──────────────────────
 
@@ -1272,11 +1472,11 @@ components:
       type: object
       description: Данные о смене статуса задачи.
       properties:
-        id:
+        taskId:
           type: string
           format: uuid
           description: ID задачи.
-        previous_status:
+        oldStatus:
           type: string
           description: Предыдущий статус.
           enum:
@@ -1285,7 +1485,7 @@ components:
             - in_progress
             - done
             - archived
-        new_status:
+        newStatus:
           type: string
           description: Новый статус.
           enum:
@@ -1294,15 +1494,37 @@ components:
             - in_progress
             - done
             - archived
+        task:
+          type: object
+          description: Полный снимок задачи (title, deadline, assigneeId, projectId, status).
+          properties:
+            id:
+              type: string
+              format: uuid
+            title:
+              type: string
+            status:
+              type: string
+            deadline:
+              type: string
+              format: date-time
+              nullable: true
+            assigneeId:
+              type: string
+              format: uuid
+              nullable: true
+            projectId:
+              type: string
+              format: uuid
+              nullable: true
         changed_at:
           type: string
           format: date-time
           description: Время изменения статуса.
       required:
-        - id
-        - previous_status
-        - new_status
-        - changed_at
+        - taskId
+        - oldStatus
+        - newStatus
 
     TaskStatusChangedPayload:
       allOf:
@@ -1766,14 +1988,13 @@ components:
       type: object
       description: Результат диктовки (распознавание речи + AI-форматирование).
       properties:
-        note_id:
+        text:
           type: string
-          format: uuid
-          description: ID заметки, созданной из диктовки.
+          description: Исходный распознанный текст.
         title:
           type: string
           description: Сгенерированный AI заголовок.
-        body_md:
+        bodyMd:
           type: string
           description: Отформатированный AI текст в Markdown.
         tag:
@@ -1781,9 +2002,23 @@ components:
           description: Сгенерированный AI тег.
           nullable: true
       required:
-        - note_id
+        - text
         - title
-        - body_md
+        - bodyMd
+
+    PunctuationRestoredData:
+      type: object
+      description: Результат восстановления пунктуации.
+      properties:
+        text:
+          type: string
+          description: Исходный текст.
+        restoredText:
+          type: string
+          description: Текст с восстановленной пунктуацией (при fallback — исходный).
+      required:
+        - text
+        - restoredText
 
     DictationCompletedPayload:
       allOf:
@@ -1799,36 +2034,51 @@ components:
             - type
             - data
 
+    PunctuationRestoredPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["punctuation.restored"]
+            data:
+              $ref: "#/components/schemas/PunctuationRestoredData"
+          required:
+            - type
+            - data
+
     # ── Agent ──
 
     AgentMessageData:
       type: object
       description: Сообщение от AI-ассистента.
       properties:
-        id:
+        messageId:
           type: string
           format: uuid
           description: Уникальный идентификатор сообщения.
-        content:
+        title:
+          type: string
+          description: Заголовок сообщения.
+        body:
           type: string
           description: Текст сообщения (может содержать Markdown).
-        message_type:
+        type:
           type: string
           description: Тип сообщения.
           enum:
-            - suggestion
-            - reminder
             - digest
-            - alert
-        created_at:
+            - trigger
+            - suggestion
+        source:
           type: string
-          format: date-time
-          description: Время создания сообщения.
+          description: Источник (событие-триггер), например tasks.status_changed.
       required:
-        - id
-        - content
-        - message_type
-        - created_at
+        - messageId
+        - title
+        - body
+        - type
 
     AgentMessageCreatedPayload:
       allOf:
@@ -1848,11 +2098,14 @@ components:
       type: object
       description: Результат оценки триггера AI-ассистента.
       properties:
-        trigger_id:
+        triggered:
+          type: boolean
+          description: Сработал ли триггер (false — ни один триггер не сработал).
+        triggerId:
           type: string
           format: uuid
           description: Уникальный идентификатор проверки триггера.
-        trigger_type:
+        triggerType:
           type: string
           description: Тип триггера.
           enum:
@@ -1862,22 +2115,16 @@ components:
             - project_plan
             - daily_digest
             - weekly_digest
-        evaluated_at:
+        evaluatedAt:
           type: string
           format: date-time
           description: Время оценки триггера.
-        fired:
-          type: boolean
-          description: Сработал ли триггер (true — условие выполнено, создано сообщение).
         result:
           type: string
           description: Описание результата (например, "создано напоминание" или "условие не выполнено").
           nullable: true
       required:
-        - trigger_id
-        - trigger_type
-        - evaluated_at
-        - fired
+        - triggered
 
     AgentTriggerEvaluatedPayload:
       allOf:
@@ -1889,6 +2136,256 @@ components:
               enum: ["agent.trigger_evaluated"]
             data:
               $ref: "#/components/schemas/AgentTriggerEvaluatedData"
+          required:
+            - type
+            - data
+
+    # ── Email ──
+
+    EmailSyncedData:
+      type: object
+      description: Результат синхронизации IMAP-аккаунта.
+      properties:
+        accountId:
+          type: string
+          format: uuid
+          description: ID IMAP-аккаунта.
+        count:
+          type: integer
+          description: Количество upsert'нутых писем.
+        correlationId:
+          type: string
+          format: uuid
+          description: Сквозной идентификатор запроса.
+      required:
+        - accountId
+        - count
+
+    EmailSyncedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["email.synced"]
+            data:
+              $ref: "#/components/schemas/EmailSyncedData"
+          required:
+            - type
+            - data
+
+    EmailConvertedToNoteData:
+      type: object
+      description: Письмо, конвертированное в заметку.
+      properties:
+        emailId:
+          type: string
+          format: uuid
+          description: ID письма.
+        subject:
+          type: string
+          description: Тема письма.
+        body:
+          type: string
+          description: Тело письма (snippet).
+        noteId:
+          type: string
+          format: uuid
+          description: ID созданной заметки (локальная запись о конвертации).
+        correlationId:
+          type: string
+          format: uuid
+          description: Сквозной идентификатор запроса.
+      required:
+        - emailId
+        - subject
+        - body
+        - noteId
+
+    EmailConvertedToNotePayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["email.converted_to_note"]
+            data:
+              $ref: "#/components/schemas/EmailConvertedToNoteData"
+          required:
+            - type
+            - data
+
+    EmailConvertedToTaskData:
+      type: object
+      description: Письмо, конвертированное в задачу.
+      properties:
+        emailId:
+          type: string
+          format: uuid
+          description: ID письма.
+        subject:
+          type: string
+          description: Тема письма.
+        body:
+          type: string
+          description: Тело письма (snippet).
+        taskId:
+          type: string
+          format: uuid
+          description: ID созданной задачи (локальная запись о конвертации).
+        correlationId:
+          type: string
+          format: uuid
+          description: Сквозной идентификатор запроса.
+      required:
+        - emailId
+        - subject
+        - body
+        - taskId
+
+    EmailConvertedToTaskPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["email.converted_to_task"]
+            data:
+              $ref: "#/components/schemas/EmailConvertedToTaskData"
+          required:
+            - type
+            - data
+
+    # ── External Calendars ──
+
+    ExternalEventCreatedData:
+      type: object
+      description: Внешнее событие, импортированное из ICS.
+      properties:
+        externalCalendarId:
+          type: string
+          format: uuid
+          description: ID внешнего календаря.
+        externalEventId:
+          type: string
+          format: uuid
+          description: ID записи external_events.
+        summary:
+          type: string
+          description: Заголовок события (SUMMARY).
+        description:
+          type: string
+          description: Описание события (DESCRIPTION).
+          nullable: true
+        startTime:
+          type: string
+          description: Время начала в ISO (DTSTART).
+        endTime:
+          type: string
+          description: Время окончания в ISO (DTEND).
+          nullable: true
+        recurrenceRule:
+          type: string
+          description: Правило повторения (RRULE).
+          nullable: true
+        location:
+          type: string
+          description: Место проведения (LOCATION).
+          nullable: true
+        correlationId:
+          type: string
+          format: uuid
+          description: Сквозной идентификатор запроса.
+      required:
+        - externalCalendarId
+        - externalEventId
+        - summary
+        - description
+        - startTime
+        - endTime
+
+    ExternalEventCreatedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["external-calendars.external_events.created"]
+            data:
+              $ref: "#/components/schemas/ExternalEventCreatedData"
+          required:
+            - type
+            - data
+
+    ExternalEventLinkedData:
+      type: object
+      description: Связь внешнего события с локальной встречей.
+      properties:
+        externalEventId:
+          type: string
+          format: uuid
+          description: ID записи external_events.
+        meetingId:
+          type: string
+          format: uuid
+          description: ID локальной встречи.
+        correlationId:
+          type: string
+          format: uuid
+          description: Сквозной идентификатор запроса.
+      required:
+        - externalEventId
+        - meetingId
+
+    ExternalEventLinkedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["external-calendars.external_event.linked"]
+            data:
+              $ref: "#/components/schemas/ExternalEventLinkedData"
+          required:
+            - type
+            - data
+
+    # ── Sync ──
+
+    SyncFolderScannedData:
+      type: object
+      description: Результат сканирования папки синхронизации.
+      properties:
+        folderId:
+          type: string
+          format: uuid
+          description: ID папки синхронизации.
+        imported:
+          type: integer
+          description: Количество найденных/импортированных .md файлов.
+        correlationId:
+          type: string
+          format: uuid
+          description: Сквозной идентификатор запроса.
+      required:
+        - folderId
+        - imported
+
+    SyncFolderScannedPayload:
+      allOf:
+        - $ref: "#/components/schemas/EventEnvelope"
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: ["sync.folder_scanned"]
+            data:
+              $ref: "#/components/schemas/SyncFolderScannedData"
           required:
             - type
             - data
