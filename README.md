@@ -65,6 +65,7 @@ docker compose -f platform/docker/docker-compose.yml --profile all up -d
 pmos/
 ├── AGENT.md                        Runbook for the autonomous build agent
 ├── DELIVERY.md                     Delivery Gate: how to run, what's done, tests, limitations
+├── ENTRY.md                        Entry point: navigation map + onboarding checklist for devs
 ├── README.md                       ← you are here (English)
 ├── README.ru.md                    Russian version of this README
 ├── package.json                    root scripts: typecheck/test/build/db:migrate
@@ -209,6 +210,7 @@ Full catalog — **~4,700 lines of docs + ~9,900 lines of contracts ≈ 14,600 l
 
 | File | Lines | Purpose |
 |------|------:|---------|
+| `ENTRY.md` | — | Entry point: navigation map + onboarding checklist (start here) |
 | `AGENT.md` | 235 | Main runbook for the autonomous build agent (phases, gates §5) |
 | `DELIVERY.md` | 59 | Delivery Gate: how to run, what's done, limitations |
 | `README.md` | — | ← this file |

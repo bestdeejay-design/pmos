@@ -129,6 +129,35 @@ pnpm --filter @pmos/<name> run db:migrate   # needs Postgres up (docker compose)
 # via @pmos/event-bus; app.ts does best-effort connect()+ensureStream() at startup.
 ```
 
+### 4.1 Closing a feature end-to-end (📋 → ✅)
+
+Every feature lives in `docs/FEATURES.md` (§2, one subsection per service) as either
+`✅ done` or `📋 planned`. Moving it to `✅` requires ALL of the following, in order.
+This is the contract-first pipeline (ADR-007 §8 R4) — the OpenAPI entry is the source of
+truth and nothing ships without it.
+
+| Step | Where | Gate |
+|------|-------|------|
+| 1. Contract | `contracts/openapi/<svc>.yaml` (add/adjust paths + schemas) | YAML parses; no `{param}` vs `:param` confusion (see note above) |
+| 2. Global event catalog | `contracts/asyncapi/events.yaml` → `x-implemented-wire-events` (add subject **only if** a CRUD/`events.ts` emit actually publishes it) | Subject matches the real `emit()` string — catalog must equal wire fact, not wishlist |
+| 3. Drizzle schema | `services/<svc>/src/db/schema.ts` | `drizzle-kit generate` (not hand-written SQL) |
+| 4. Migrations | `services/<svc>/migrations/` | `pnpm --filter @pmos/<svc> run db:migrate` applies clean on Postgres |
+| 5. Routes | `services/<svc>/src/routes/index.ts` (Fastify `:id` syntax) | every route exists in the OpenAPI contract; `hasRoute()` guard passes |
+| 6. Events | emit `pmos.<svc>.<resource>.(created\|updated\|deleted)` on CRUD mutations; subscribe in `src/events/subscribe.ts` for sagas | subject present in `x-implemented-wire-events`; version + camelCase payload (ADR-007) |
+| 7. Tests | `test/contract.test.ts` (route conformance), `test/health.test.ts`, integration sagas in `test/integration.*.test.ts` | contract test c/c + integration green |
+| 8. Docs counters | update `docs/FEATURES.md` (`📋 → ✅`), `docs/REVIEW.md` §5 matrix, `docs/TEST_CASES.md` if behavior changed, README badges if tallies move | FEATURES tally and README badge agree |
+| 9. Commit gate | §§4.1-step-9 = `§7.1` checklist | typecheck 18/18, build 16/16, contract 16/16, unit green |
+
+> **Events discipline:** `x-implemented-wire-events` is the *only* place that records what is
+> actually published. Do NOT add a planned subject there unless the code ships an `emit()` for
+> it; otherwise the catalog becomes wishful (the exact class of defect that `docs/REVIEW.md §3`
+> flagged for settings/events). New sagas go into `docs/SAGA.md` with the event→consumer
+> chain, idempotency ledger check, and a verification story.
+
+The per-service dev loop above (steps 1–3) closes this checklist; step 8 keeps the
+documentation mirrors (`FEATURES`/`REVIEW`/`README`) in sync so the next agent inherits a
+consistent state.
+
 Each service exposes: `GET /health` (`{ok,db,nats,uptime}`), `GET /metrics` (prom-client),
 pino JSON logs with `correlationId`, `x-correlation-id` echo on every response, and
 `GET /api/<name>/v1/health-check`. Routes are mounted at `/api/<name>/v1` (ADR-007 §2).

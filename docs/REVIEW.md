@@ -43,21 +43,27 @@
 - `TEST_CASES.md` покрывает **все 16 сервисов** (Gherkin-секции §1–§16 + cross-service §17).
 - Frontend (React SPA) и desktop (Tauri) — вне backend-DoD; агент фокусируется на бэкенде.
 - **Расхождение settings-событий:** код публикует `pmos.settings.settings.{created,updated,deleted}`,
-  но `contracts/asyncapi/events.yaml` описывает канал `pmos.settings.changed` и не включает settings
-  в `x-implemented-wire-events`. При синхронизации каталога привести к wire-факту.
-- **PATCH `/settings/:key`** реализован в коде, но отсутствует в `contracts/openapi/settings.yaml`
-  (в контракте у `/settings/{key}` только `get`/`delete`) — дополнить контракт.
-- **Битый `$ref` в `contracts/openapi/settings.yaml`:** `SettingUpsert` (используется в `requestBody`
-  POST `/settings`) не определён в `components.schemas` (есть только `Setting`). Контракт-тест
-  проверяет только маршруты, поэтому дефект не ловится — определить схему.
-- **settings POST не валидирует key:** роут принимает `{ additionalProperties: true }`, вставка с
-  `key = undefined` падает на PK → 500 `INTERNAL_ERROR` вместо контрактной 422.
-- **`/sync-folders/files`** реализован в коде sync (стр. 129), но отсутствует в
-  `contracts/openapi/sync.yaml` — дополнить контракт.
+  но `contracts/asyncapi/events.yaml` описывал канал `pmos.settings.changed` и не включал settings
+  в `x-implemented-wire-events` — **устранено** (commit `45d83f6`): канал приведён к wire-факту,
+  добавлена нота-предупреждение.
+- **PATCH `/settings/:key`** реализован в коде, но отсутствовал в `contracts/openapi/settings.yaml`
+  — **устранено** (commit `45d83f6`): контракт дополнен.
+- **Битый `$ref SettingUpsert`** в `contracts/openapi/settings.yaml` — **устранено**
+  (commit `45d83f6`): схема определена в `components.schemas`.
+- **settings POST не валидирует key** — проверено по коду: роут возвращает `422 VALIDATION_ERROR`
+  для пустого `key` (дефекта нет; описано в `SettingUpsert.description`).
+- **`/sync-folders/files`** реализован в коде sync, но отсутствовал в
+  `contracts/openapi/sync.yaml` — **устранено** (commit `45d83f6`): контракт дополнен (+`ScannedFile`).
 - **TEST_CASES §§7–16 выверены против кода** (2026-08-01): исправлены camelCase-поля
   (`convertTo`, `meetingId`, `messageId`, `profileIds`, `autoImport`, `taskId/startedAt/durationSec`,
   `endedAt`), ответы (`{ synced }`, `{ dismissed }`, `{ ok: true }`), fallback title
   (60 симв. / «Без названия»), §7.2 переписан (500 вместо 422).
+- **Аудит контракт↔код по всем 16 сервисам** (2026-08-02): сверены OpenAPI-роуты и wire-события
+  с фактическими `routes/index.ts`/`events`. Устранено в commit `45d83f6`:
+  `PATCH /files/:id` добавлен в контракт files; параметры notes/templates переименованы
+  `{noteId}`→`{id}`, `{templateId}`→`{id}` (код использует `:id`); agent-события приведены к
+  wire-факту (`message_created`/`trigger_evaluated` вместо `agent-messages.*`); устранён
+  YAML-парсинг-дефект каталога событий.
 - Frontend (React SPA) и desktop (Tauri) — вне backend-DoD; агент фокусируется на бэкенде.
 - Роуты (`src/routes/index.ts`) пока stub (только `/health-check`) — агент реализует их по
   OpenAPI-контрактам; схемы БД и типы уже готовы как образец.

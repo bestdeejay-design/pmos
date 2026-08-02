@@ -55,6 +55,7 @@ docker compose -f platform/docker/docker-compose.yml --profile all up -d
 pmos/
 ├── AGENT.md                        Runbook для автономного агента-сборщика
 ├── DELIVERY.md                     Delivery Gate: запуск, что реализовано, тесты, ограничения
+├── ENTRY.md                        Точка входа: карта навигации + чек-лист онбординга
 ├── README.md                       ← вы здесь
 ├── package.json                    root scripts: typecheck/test/build/db:migrate
 ├── pnpm-workspace.yaml             workspaces: services/*, platform/*
@@ -220,6 +221,7 @@ CI (`.github/workflows/ci.yml`) гонит typecheck + unit + contract на ка
 
 | Файл | Строк | Назначение |
 |------|------:|------------|
+| `ENTRY.md` | — | Точка входа: карта навигации + чек-лист онбординга (начни отсюда) |
 | `AGENT.md` | 235 | Главный runbook автономного агента-сборщика (фазы, гейты §5) |
 | `DELIVERY.md` | 59 | Delivery Gate: как запустить, что реализовано, ограничения |
 | `README.md` | 232 | ← этот файл |
