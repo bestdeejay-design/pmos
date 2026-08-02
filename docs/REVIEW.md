@@ -107,7 +107,7 @@
 | **agent** | ✅ | ✅ | — | ✅ | ✅ триггеры (deadline_soon, task_no_assignee)+**Сага §2: tasks.status_changed → trigger → suggestion**+inbox+today/week; 📋 дайджесты, DND, лимиты, WS | сгенерирован + семантика |
 | **email** | ✅ | ✅ | — | ✅ | ✅ IMAP-аккаунты (шифр), синхронизация, конвертация→note/task | сгенерирован + семантика |
 | **external-calendars** | ✅ | — | — | ✅ | ✅ CalDAV Yandex, ICS-подписки, sync, link+**Сага §4: external_events.created публикация**; 📋 OAuth Google | сгенерирован + семантика |
-| **integrations** | ✅ | — | — | ✅ | ✅ webhook delivery+retry/DLQ, api-keys+**Сага §5: webhook-доставка событий**; 📋 public API v1 | сгенерирован + семантика |
+| **integrations** | ✅ | — | — | ✅ | ✅ webhook delivery+retry/DLQ, api-keys+**Сага §5: webhook-доставка событий**+**Public API mirror /api/v1 (SHA-256 ключи)** | сгенерирован + семантика |
 | **time-tracking** | ✅ | ✅ | — | — | ✅ timesheet stats, pomodoro (3 режима) | сгенерирован + семантика |
 | **export-import** | — | — | — | — | ✅ ZIP-экспорт, импорт текста/JSON | сгенерирован (stub) + семантика |
 | **sync** | ✅ | — | — | — | ✅ CRUD папок, scan, auto-import/export .md | сгенерирован + семантика |

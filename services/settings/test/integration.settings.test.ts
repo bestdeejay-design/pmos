@@ -56,4 +56,35 @@ describe.skipIf(!HAS_DB)("settings (real Postgres): KV upsert + ollama-models", 
       else process.env.OLLAMA_URL = prev;
     }
   });
+
+  it("§7.2 validation error: POST without a key returns 422", async () => {
+    const r = await app.inject({
+      method: "POST",
+      url: `${BASE}/settings`,
+      payload: { value: { a: 1 } },
+    });
+    expect(r.statusCode).toBe(422);
+  });
+
+  it("§7.3 pagination sorts by updatedAt ASC and respects limit/offset", async () => {
+    const keys = ["pg_a", "pg_b", "pg_c", "pg_d", "pg_e"];
+    for (let i = 0; i < keys.length; i++) {
+      await app.inject({
+        method: "POST",
+        url: `${BASE}/settings`,
+        payload: { key: keys[i], value: { idx: i } },
+      });
+    }
+
+    const page = await app.inject({ method: "GET", url: `${BASE}/settings?offset=1&limit=2` });
+    expect(page.statusCode).toBe(200);
+    const body = page.json() as any;
+    expect(body.pagination.total).toBeGreaterThanOrEqual(keys.length);
+    expect(body.data.length).toBe(2);
+
+    const idxs = body.data.map((s: any) => s.value.idx);
+    expect(idxs).toEqual([...idxs].sort((a, b) => a - b));
+
+    for (const k of keys) await app.inject({ method: "DELETE", url: `${BASE}/settings/${k}` });
+  });
 });

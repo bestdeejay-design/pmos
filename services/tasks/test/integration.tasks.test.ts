@@ -72,4 +72,28 @@ describe.skipIf(!HAS_DB)("tasks (real Postgres): dependencies + recurrence", () 
     const bad = await app.inject({ method: "PATCH", url: `${BASE}/tasks/${id}`, payload: { status: "frozen" } });
     expect(bad.statusCode).toBe(400);
   });
+
+  it("CRUD round-trip: create → get → update → delete", async () => {
+    const created = await app.inject({ method: "POST", url: `${BASE}/tasks`, payload: { title: "CRUD task", status: "todo" } });
+    expect(created.statusCode).toBe(201);
+    const id = (created.json() as any).id;
+    expect(id).toBeTruthy();
+
+    const got = await app.inject({ method: "GET", url: `${BASE}/tasks/${id}` });
+    expect(got.statusCode).toBe(200);
+    expect((got.json() as any).title).toBe("CRUD task");
+
+    const updated = await app.inject({ method: "PATCH", url: `${BASE}/tasks/${id}`, payload: { priority: 5 } });
+    expect(updated.statusCode).toBe(200);
+    const p = await app.inject({ method: "GET", url: `${BASE}/tasks/${id}` });
+    expect((p.json() as any).priority).toBe(5);
+
+    const deleted = await app.inject({ method: "DELETE", url: `${BASE}/tasks/${id}` });
+    expect(deleted.statusCode).toBe(204);
+    const archived = await app.inject({ method: "GET", url: `${BASE}/tasks/${id}` });
+    expect((archived.json() as any).isArchived).toBe(true);
+    const list = await app.inject({ method: "GET", url: `${BASE}/tasks` });
+    const data = (list.json() as any).data as any[];
+    expect(data.some((t: any) => t.id === id)).toBe(false);
+  });
 });

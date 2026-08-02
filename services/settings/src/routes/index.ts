@@ -63,6 +63,9 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
     schema: { body: Type.Object({}, { additionalProperties: true }), response: { 200: Type.Any(), 201: Type.Any() } },
   }, async (req, reply) => {
     const body = req.body as any;
+    if (typeof body.key !== "string" || body.key.length === 0) {
+      return fail(422, "VALIDATION_ERROR", "key is required");
+    }
     const now = new Date().toISOString();
     const [prev] = await db.select().from(schema.settings).where(eq(schema.settings.key, body.key)).limit(1);
     const [row] = await db.insert(schema.settings).values({ ...body, updatedAt: now })

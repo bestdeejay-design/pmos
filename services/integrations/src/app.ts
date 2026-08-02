@@ -7,6 +7,7 @@ import { errorHandler } from "./lib/errors.js";
 import { EventBus } from "@pmos/event-bus";
 import { integrationsRoutes } from "./routes/index.js";
 import { registerSubscribers } from "./events/subscribe.js";
+import { publicApiRoutes } from "./lib/public-api.js";
 
 export async function buildApp() {
   EventBus.init({ serviceName: "integrations", url: process.env.NATS_URL });
@@ -18,6 +19,7 @@ export async function buildApp() {
   await app.register(health);
   await app.register(metrics);
   await app.register(integrationsRoutes, { prefix: "/api/integrations/v1" });
+  await app.register(publicApiRoutes, { prefix: "/api/v1" });
 
   app.setErrorHandler(errorHandler);
 

@@ -6,6 +6,7 @@ import metrics from "./plugins/metrics.js";
 import { errorHandler } from "./lib/errors.js";
 import { EventBus } from "@pmos/event-bus";
 import { syncRoutes } from "./routes/index.js";
+import { registerSubscribers } from "./events/subscribe.js";
 
 export async function buildApp() {
   EventBus.init({ serviceName: "sync", url: process.env.NATS_URL });
@@ -19,5 +20,13 @@ export async function buildApp() {
   await app.register(syncRoutes, { prefix: "/api/sync/v1" });
 
   app.setErrorHandler(errorHandler);
+
+  // Auto-export subscribers (notes.* -> .md). Best-effort: no NATS -> no events.
+  try {
+    await registerSubscribers(EventBus.get());
+  } catch (err) {
+    console.error("[sync] event subscribers unavailable:", err);
+  }
+
   return app;
 }

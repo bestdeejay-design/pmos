@@ -129,6 +129,10 @@ export class EventBus {
     return JSON.parse(sc.decode(res.data)) as TRes;
   }
 
+  isHealthy(): boolean {
+    return this.nc !== null && !this.nc.isClosed() && !this.nc.isDraining();
+  }
+
   async close(): Promise<void> {
     if (this.nc) await this.nc.drain();
     this.nc = null;

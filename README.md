@@ -112,7 +112,7 @@ pmos/
 │
 ├── docs/                            architecture & project documentation
 │   ├── ARCHITECTURE.md             overall architecture
-│   ├── FEATURES.md                 functional requirements (✅ 85 done / 📋 18 planned)
+│   ├── FEATURES.md                 functional requirements (✅ 87 done / 📋 16 planned)
 │   ├── SAGA.md                     cross-service scenarios (§1–§5)
 │   ├── REVIEW.md                   status matrix per service
 │   ├── TEST_CASES.md               test cases
@@ -163,7 +163,8 @@ The full and current list of **actually published** subjects is in
 `contracts/asyncapi/events.yaml` → `x-implemented-wire-events`. Cross-service chains
 (sagas) from `docs/SAGA.md` are working: AI note-title generation (§1), agent triggers
 on task status change (§2), file text extraction & indexing (§3), external calendar
-import (§4), webhook delivery (§5).
+import (§4), webhook delivery (§5). Public API mirror (`/api/v1/notes|tasks|projects|calendar` по API-ключам)
+и авто-экспорт заметок в `.md` (sync auto-export по событиям `notes.*`) тоже работают.
 
 ## Checks
 
@@ -185,7 +186,7 @@ Full catalog — **~4,700 lines of docs + ~9,900 lines of contracts ≈ 14,600 l
 | File | Lines | Purpose |
 |------|------:|---------|
 | `docs/ARCHITECTURE.md` | 183 | Overall architecture: services, bus, data flows |
-| `docs/FEATURES.md` | 477 | Functional requirements per service (✅ 85 done / 📋 18 planned) |
+| `docs/FEATURES.md` | 477 | Functional requirements per service (✅ 87 done / 📋 16 planned) |
 | `docs/SAGA.md` | 426 | 5 cross-service scenarios (§1–§5): events, idempotency, verification |
 | `docs/REVIEW.md` | 106 | Status matrix: CRUD / filters / soft-delete / events / business logic |
 | `docs/TEST_CASES.md` | 1,420 | Gherkin test cases for **all 16 services** + sagas + infra |

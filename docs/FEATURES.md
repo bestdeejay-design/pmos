@@ -306,7 +306,7 @@
 | Webhook delivery | ✅ | POST на URL, логирование deliveries |
 | Retry with backoff | ✅ | ackWait/maxDeliver + retry по статусам |
 | Dead letter | ✅ | После N неудач — остановка |
-| Public API mirror | 📋 | /api/v1/notes|tasks|projects|calendar |
+| Public API mirror | ✅ | /api/v1/notes|tasks|projects|calendar, одобрение по SHA-256 ключам из api_keys |
 
 ### 14. time-tracking — Тайм-трекинг
 
@@ -365,7 +365,7 @@
 | CRUD папок | ✅ каркас | path, auto_import, auto_export |
 | Сканирование | ✅ | last_scan_at, периодическая проверка |
 | Auto-import | ✅ | .md файлы → заметки (при сканировании, если autoImport) |
-| Auto-export | 📋 | Заметки → .md файлы на диск |
+| Auto-export | ✅ | Заметки → .md на диск (по событиям notes.*, файл `<note_id>.md` с frontmatter, идемпотентно) |
 
 ### 17. api-gateway — Единый вход
 

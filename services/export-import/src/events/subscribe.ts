@@ -51,7 +51,7 @@ function entityIdOf(data: unknown): string {
   return "";
 }
 
-async function handleEvent(env: EventEnvelope<Record<string, unknown>>): Promise<void> {
+export async function handleEvent(env: EventEnvelope<Record<string, unknown>>): Promise<void> {
   const seen = await db.select({ id: processedEvents.id }).from(processedEvents)
     .where(eq(processedEvents.eventId, env.id)).limit(1);
   if (seen.length > 0) return;

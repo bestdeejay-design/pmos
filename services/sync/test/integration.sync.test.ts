@@ -127,4 +127,27 @@ describe.skipIf(!HAS_DB)("sync (real Postgres): folder scan + auto-import", () =
     const res = await app.inject({ method: "DELETE", url: `${BASE}/sync-folders/${randomUUID()}` });
     expect(res.statusCode).toBe(404);
   });
+
+  it("§16.3 a file larger than 512 KB is scanned with empty content", async () => {
+    const bigPath = join(tmpDir, "huge.md");
+    const bigContent = "x".repeat(600 * 1024);
+    await writeFile(bigPath, bigContent);
+
+    const res = await app.inject({
+      method: "POST",
+      url: `${BASE}/sync-folders`,
+      payload: { path: tmpDir, autoImport: true },
+    });
+    expect(res.statusCode).toBe(201);
+    const row = res.json();
+    await sleep(500);
+
+    const files = await db.select().from(scannedFiles).where(eq(scannedFiles.folderId, row.id));
+    const huge = files.find((f) => f.relativePath === "huge.md");
+    expect(huge).toBeTruthy();
+    expect(huge?.contentMd).toBe("");
+
+    await app.inject({ method: "DELETE", url: `${BASE}/sync-folders/${row.id}` });
+    await rm(bigPath, { force: true });
+  });
 });

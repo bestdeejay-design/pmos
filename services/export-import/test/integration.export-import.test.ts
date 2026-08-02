@@ -1,7 +1,10 @@
 import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { buildApp } from "../src/app.js";
 import { db } from "../src/db/connection.js";
-import { exportStore, importItems, exportJobs } from "../src/db/schema.js";
+import { exportStore, importItems, exportJobs, processedEvents } from "../src/db/schema.js";
+import { handleEvent } from "../src/events/subscribe.js";
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
 const BASE = "/api/export-import/v1";
@@ -98,5 +101,34 @@ describe.skipIf(!HAS_DB)("export-import (real Postgres): export zip/json + impor
       payload: { format: "json", content: "{not json" },
     });
     expect(r.statusCode).toBe(422);
+  });
+
+  it("§15.4 read model upserts export_store from events and dedupes via processed_events", async () => {
+    const entityId = randomUUID();
+    const eventId = randomUUID();
+    const makeEnv = (data: Record<string, unknown>) => ({
+      id: eventId,
+      type: "pmos.notes.notes.created",
+      source: "notes",
+      timestamp: new Date().toISOString(),
+      version: 1,
+      correlationId: randomUUID(),
+      data,
+    });
+
+    await handleEvent(makeEnv({ id: entityId, title: "First" }) as Parameters<typeof handleEvent>[0]);
+    const [row] = await db.select().from(exportStore)
+      .where(eq(exportStore.entityId, entityId)).limit(1);
+    expect(row).toBeTruthy();
+    expect(row.entityType).toBe("notes");
+    expect((row.payload as { title?: string })?.title).toBe("First");
+
+    await handleEvent(makeEnv({ id: entityId, title: "First" }) as Parameters<typeof handleEvent>[0]);
+    const dups = await db.select().from(exportStore).where(eq(exportStore.entityId, entityId));
+    expect(dups).toHaveLength(1);
+
+    const processed = await db.select({ id: processedEvents.id }).from(processedEvents)
+      .where(eq(processedEvents.eventId, eventId));
+    expect(processed).toHaveLength(1);
   });
 });
