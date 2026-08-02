@@ -98,14 +98,14 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /notes/{noteId}:
+  /notes/{id}:
     get:
       operationId: getNote
       summary: Получить заметку по ID
       tags: [Notes, CRUD]
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
-        - name: noteId
+        - name: id
           in: path
           required: true
           description: UUID заметки
@@ -134,7 +134,7 @@ paths:
       tags: [Notes, CRUD]
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
-        - name: noteId
+        - name: id
           in: path
           required: true
           description: UUID заметки
@@ -171,7 +171,7 @@ paths:
       tags: [Notes, CRUD]
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
-        - name: noteId
+        - name: id
           in: path
           required: true
           description: UUID заметки
@@ -257,14 +257,14 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /templates/{templateId}:
+  /templates/{id}:
     get:
       operationId: getTemplate
       summary: Получить шаблон по ID
       tags: [Templates, CRUD]
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
-        - name: templateId
+        - name: id
           in: path
           required: true
           description: UUID шаблона
@@ -293,7 +293,7 @@ paths:
       tags: [Templates, CRUD]
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
-        - name: templateId
+        - name: id
           in: path
           required: true
           description: UUID шаблона
@@ -330,7 +330,7 @@ paths:
       tags: [Templates, CRUD]
       parameters:
         - $ref: '#/components/parameters/CorrelationId'
-        - name: templateId
+        - name: id
           in: path
           required: true
           description: UUID шаблона

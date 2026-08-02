@@ -26,7 +26,7 @@ paths:
               $ref: '#/components/schemas/SettingUpsert'
       responses:
         '200':
-          description: Настройка сохранена
+          description: Настройка обновлена (ключ уже существовал)
           headers:
             x-correlation-id:
               schema:
@@ -35,7 +35,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Setting'
-        '400':
+        '201':
+          description: Настройка создана (новый ключ)
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Setting'
+        '422':
           $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalError'
@@ -82,6 +92,45 @@ paths:
       responses:
         '200':
           description: Значение настройки
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Setting'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      operationId: updateSetting
+      summary: Частично обновить настройку по ключу
+      tags: [Settings, KV]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: key
+          in: path
+          required: true
+          description: Ключ настройки
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Поля для обновления (обновляет value и updated_at; key менять нельзя)
+              properties:
+                value:
+                  type: object
+                  description: 'Новое значение (JSONB)'
+      responses:
+        '200':
+          description: Настройка обновлена
           headers:
             x-correlation-id:
               schema:
@@ -277,6 +326,27 @@ components:
         key:
           type: string
           description: 'Ключ настройки'
+        value:
+          type: object
+          description: 'Значение (JSONB, произвольный объект)'
+      example:
+        |-
+          key: gen_model
+          value:
+          name: qwen2.5-coder
+          baseUrl: http://localhost:11434
+
+    SettingUpsert:
+      type: object
+      description: Тело upsert-запроса настройки (POST /settings). key обязателен и должен быть непустой строкой (код возвращает 422 VALIDATION_ERROR иначе).
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+          minLength: 1
+          description: 'Ключ настройки (должно быть непустой строкой)'
         value:
           type: object
           description: 'Значение (JSONB, произвольный объект)'

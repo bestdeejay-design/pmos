@@ -137,6 +137,67 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+    patch:
+      operationId: updateFile
+      summary: Частично обновить метаданные файла
+      tags: [Files, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID файла
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Поля FileMeta для частичного обновления (filename, mimeType, size, ownerType, ownerId, profileIds, storagePath)
+              properties:
+                filename:
+                  type: string
+                  description: 'Имя файла'
+                mimeType:
+                  type: string
+                  description: 'MIME-тип'
+                size:
+                  type: integer
+                  description: 'Размер в байтах'
+                ownerType:
+                  type: string
+                  nullable: true
+                  description: 'Тип владельца: note | task | project | null'
+                ownerId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: 'UUID владельца'
+                profileIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  description: 'Профили, к которым привязан файл'
+      responses:
+        '200':
+          description: Обновлённые метаданные
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileMeta'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
     delete:
       operationId: deleteFile
       summary: Удалить файл

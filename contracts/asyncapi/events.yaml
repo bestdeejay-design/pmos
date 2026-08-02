@@ -62,10 +62,11 @@ x-implemented-wire-events:
     Автоматически публикуются CRUD-мутациями (scripts/gen-routes.mjs, emit()).
     Остальные события каталога ниже — 📋 запланированы (FEATURES/SAGA), каркасом не шлются.
     canonical subject example: pmos.notes.notes.created
+    ⚠️ Wire-факт устанавливает ТОЛЬКО этот список (x-implemented-wire-events). Каналы ниже
+    описывают плановую семантику в старом формате pmos.<resource>.<action> и не всегда совпадают
+    с фактическим субъектом. Фактический субъект для settings — pmos.settings.settings.{created,updated,deleted};
+    канал pmos.settings.changed НЕ публикуется (см. REVIEW.md §3).
   subjects:
-    - pmos.agent.agent-messages.created
-    - pmos.agent.agent-messages.updated
-    - pmos.agent.agent-messages.deleted
     - pmos.agent.message_created
     - pmos.agent.trigger_evaluated
     - pmos.ai-gateway.dictation.completed
@@ -79,9 +80,9 @@ x-implemented-wire-events:
     - pmos.external-calendars.calendars.created
     - pmos.external-calendars.calendars.updated
     - pmos.external-calendars.calendars.deleted
-    - pmos.files.files.created
+    - pmos.files.uploaded
     - pmos.files.files.updated
-    - pmos.files.files.deleted
+    - pmos.files.deleted
     - pmos.integrations.webhooks.created
     - pmos.integrations.webhooks.updated
     - pmos.integrations.webhooks.deleted
@@ -115,11 +116,11 @@ x-implemented-wire-events:
     - pmos.external-calendars.external_event.linked
     - pmos.sync.folder_scanned
     - pmos.notes.title_generated
-    - pmos.files.uploaded
     - pmos.files.text_extracted
     - pmos.tasks.tasks.status_changed
     - pmos.export-import.import.imported
     - pmos.integrations.api-keys.created
+    - pmos.settings.settings.created
     - pmos.settings.settings.updated
     - pmos.settings.settings.deleted
 
@@ -1866,7 +1867,7 @@ components:
           description: Размер файла в байтах.
         owner_type:
           type: string
-          description: Тип владельца (polymorphic: "project", "note", "task", "meeting").
+          description: 'Тип владельца (polymorphic): project | note | task | meeting'
           nullable: true
         owner_id:
           type: string

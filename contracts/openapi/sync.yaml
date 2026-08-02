@@ -163,6 +163,42 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /sync-folders/files:
+    get:
+      operationId: listScannedFiles
+      summary: Список просканированных файлов папки
+      tags: [SyncFolder, Files]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: folderId
+          in: query
+          required: true
+          description: UUID sync-folders, чьи просканированные файлы получить
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список просканированных файлов
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ScannedFile'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
 components:
   parameters:
     CorrelationId:
@@ -350,6 +386,32 @@ components:
         profileScope:
           type: string
           description: 'Профили'
+    ScannedFile:
+      type: object
+      description: Просканированный .md-файл внутри sync-folder (хранится в scanned_files)
+      required:
+        - id
+        - folderId
+        - relativePath
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 'UUID записи'
+        folderId:
+          type: string
+          format: uuid
+          description: 'UUID sync-folders'
+        relativePath:
+          type: string
+          description: 'Путь относительно корня папки'
+        contentMd:
+          type: string
+          description: 'Содержимое markdown (null при импорте без контента)'
+        importedAt:
+          type: string
+          format: date-time
+          description: 'Когда файл был просканирован/импортирован'
 
   responses:
     ValidationError:
