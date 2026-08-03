@@ -9,6 +9,10 @@
  *
  * Run:  node scripts/scaffold-services.mjs
  * Idempotent: overwrites existing skeletons (safe — these are templates).
+ *
+ * NOTE: services/ops (DLQ panel) is stateless — no DB, no migrations — and is
+ * created by hand (see AGENT.md §DLQ). It is intentionally NOT in SERVICES so a
+ * re-run of this script cannot overwrite it with a DB-backed template.
  */
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";

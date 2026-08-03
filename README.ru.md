@@ -6,9 +6,9 @@
 хранилище заметок, задач, календаря, проектов, файлов, профилей и AI-ассистента,
 связанных через асинхронную шину событий.
 
-> **Статус:** все 16 сервисов реализованы и проверены (CRUD + семантика + события через
-> NATS JetStream). 5 cross-service саг из `docs/SAGA.md` работают и покрыты интеграционными
-> тестами против реального Postgres + NATS. Проверки: typecheck 18/18, contract 16/16,
+> **Статус:** все 17 сервисов реализованы и проверены (16 CRUD + ops/DLQ-панель).
+> 5 cross-service саг из `docs/SAGA.md` работают и покрыты интеграционными
+> тестами против реального Postgres + NATS. Проверки: typecheck 19/19, contract 17/17,
 > unit + integration 90/90 green.
 
 ## Стек
@@ -42,7 +42,7 @@ PORT=3001 SERVICE_NAME=notes pnpm --filter @pmos/notes start
 curl http://localhost:3001/api/notes/v1/health-check
 ```
 
-Полный стек (16 сервисов + gateway) поднимается профилем `all`:
+Полный стек (17 сервисов + gateway) поднимается профилем `all`:
 
 ```bash
 docker compose -f platform/docker/docker-compose.yml --profile all up -d
@@ -64,10 +64,10 @@ pmos/
 │   ├── shared-types/               @pmos/shared — EventEnvelope, доменные типы, DTO
 │   ├── event-bus/                  @pmos/event-bus — NATS JetStream publisher/consumer (durable, DLQ)
 │   └── docker/
-│       ├── docker-compose.yml      профили: core (Postgres+NATS) / all (16 сервисов + gateway)
+│       ├── docker-compose.yml      профили: core (Postgres+NATS) / all (17 сервисов + gateway)
 │       └── nginx.conf              api-gateway (reverse-proxy на все сервисы)
 │
-├── services/                       16 микросервисов, единый шаблон (см. ниже)
+├── services/                       17 микросервисов (16 CRUD + ops/DLQ-панель)
 │   ├── notes/              3001  notes_
 │   ├── tasks/              3002  tasks_
 │   ├── calendar/           3003  calendar_
@@ -83,10 +83,11 @@ pmos/
 │   ├── external-calendars/ 3013  external_calendars_
 │   ├── integrations/       3014  integrations_
 │   ├── export-import/      3015  export_import_
-│   └── sync/               3016  sync_
+│   ├── sync/               3016  sync_
+│   └── ops/                3017  — (stateless, DLQ-панель, без БД)
 │
 ├── contracts/                      машинная правда (что реально в коде)
-│   ├── openapi/                    16 × <svc>.yaml — OpenAPI-спеки, conformance 16/16
+│   ├── openapi/                    17 × <svc>.yaml — OpenAPI-спеки, conformance 17/17
 │   ├── asyncapi/
 │   │   └── events.yaml              каталог событий (2 391 строка)
 │   │                               x-implemented-wire-events = что реально публикуется
@@ -103,7 +104,7 @@ pmos/
 ├── docs/                            архитектурная и проектная документация
 │   ├── ARCHITECTURE.md              общая архитектура
 │   ├── FEATURES.md                  функциональные требования (✅ 87 / 📋 16)
-│   ├── SAGA.md                      cross-service сценарии (§1–§5)
+│   ├── SAGA.md                      cross-service сценарии (§1–§5 + §DLQ)
 │   ├── REVIEW.md                    статус-матрица по сервисам
 │   ├── TEST_CASES.md                тест-кейсы
 │   ├── BACKLOG.md                   бэклог
@@ -118,7 +119,7 @@ pmos/
 
 ### Шаблон сервиса (`services/<name>/`)
 
-Все 16 сервисов идентичны по структуре:
+Все 16 CRUD-сервисов идентичны по структуре (`ops` — stateless исключение, без `db/` и `migrations/`):
 
 ```
 services/<name>/
@@ -163,6 +164,7 @@ services/<name>/
 | email | 3012 | email_ | 4 |
 | external-calendars | 3013 | external_calendars_ | 4 |
 | sync | 3016 | sync_ | 4 |
+| ops (DLQ-панель) | 3017 | — (stateless) | 4 |
 
 ## События (Event-Driven)
 
@@ -181,9 +183,9 @@ stream `TSSRUP` (subject `pmos.>`). Пример: `pmos.notes.notes.created`.
 ## Проверки
 
 ```bash
-pnpm -r run typecheck        # strict TS, 18 пакетов
+pnpm -r run typecheck        # strict TS, 19 пакетов
 pnpm --filter "./services/*" run test          # unit (vitest), без БД
-pnpm --filter "./services/*" run test:contract  # OpenAPI-conformance, 16/16
+pnpm --filter "./services/*" run test:contract  # OpenAPI-conformance, 17/17
 pnpm --filter "./services/*" run build         # tsc → dist
 ```
 
@@ -230,7 +232,7 @@ CI (`.github/workflows/ci.yml`) гонит typecheck + unit + contract на ка
 
 | Файл | Строк | Назначение |
 |------|------:|------------|
-| `contracts/openapi/*.yaml` (16 шт.) | 7 519 | OpenAPI-спеки сервисов — conformance 16/16 |
+| `contracts/openapi/*.yaml` (17 шт.) | 7 519 | OpenAPI-спеки сервисов — conformance 17/17 |
 | `contracts/asyncapi/events.yaml` | 2 391 | Каталог событий шины + `x-implemented-wire-events` (реально шлётся) |
 
 ## Лицензия

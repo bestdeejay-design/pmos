@@ -35,6 +35,7 @@ docker compose -f platform/docker/docker-compose.yml --profile all up -d   # в�
 | time-tracking | ✅ | timesheet + stats + pomodoro (3 режима) |
 | export-import | ✅ | ZIP-экспорт + импорт текста/JSON |
 | sync | ✅ | sync-folders + scan |
+| ops | ✅ | **DLQ-панель (stateless, без БД):** `GET /api/ops/v1/dlq` — просмотр dead-letter сообщений `@pmos/event-bus`; `POST /dlq/:seq/replay` — replay в исходный subject
 
 **5 cross-service саг (docs/SAGA.md §1–§5) реализованы и проверены против реального NATS + Postgres:**
 1. Note creation → AI title generation (notes ↔ ai-gateway)
@@ -45,11 +46,11 @@ docker compose -f platform/docker/docker-compose.yml --profile all up -d   # в�
 
 ## Тесты
 
-- Unit (vitest): `npx pnpm -r run test` — все зелёные (16 сервисов)
-- Contract (OpenAPI-conformance): `npx pnpm -r run test:contract` — **16/16 green**
-- Typecheck: `npx pnpm -r run typecheck` — **18/18 Done**
+- Unit (vitest): `npx pnpm -r run test` — все зелёные (17 сервисов)
+- Contract (OpenAPI-conformance): `npx pnpm -r run test:contract` — **17/17 green**
+- Typecheck: `npx pnpm -r run typecheck` — **19/19 Done**
 - Integration (Postgres + NATS): `DATABASE_URL=… DATABASE_SCHEMA=<svc>_ NATS_URL=nats://localhost:4222 npx vitest run test/integration` (в `services/<svc>/`) — **90/90 green**, включая 5 saga-наборов
-- Build: `npx pnpm -r run build` — 16/16
+- Build: `npx pnpm -r run build` — 17/17
 
 ## Известные ограничения
 

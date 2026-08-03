@@ -14,9 +14,9 @@
 PMOS («Personal Management Operating System») — личная операционка: единое хранилище заметок,
 задач, календаря, проектов, файлов, профилей и AI-ассистента, связанных асинхронной шиной событий.
 
-**Статус:** все 16 сервисов реализованы и проверены (CRUD + бизнес-логика + события поверх
-NATS JetStream). 5 сквозных саг из `docs/SAGA.md` работают и покрыты интеграционными тестами
-против реального Postgres + NATS. Проверки: typecheck 18/18, contract 16/16, unit + integration 90/90.
+**Статус:** все 17 сервисов реализованы и проверены (16 CRUD + ops/DLQ-панель). 5 сквозных саг из
+`docs/SAGA.md` работают и покрыты интеграционными тестами против реального Postgres + NATS.
+Проверки: typecheck 19/19, contract 17/17, unit + integration 90/90.
 
 Технологии: **Node 22 + pnpm 10** (workspaces) · **TypeScript 5.5 strict** · **Fastify 5 + TypeBox** ·
 **PostgreSQL 16** (schema-per-service, ADR-004) · **NATS 2.10 JetStream** · **Drizzle ORM** · **Vitest**.
@@ -27,9 +27,9 @@ NATS JetStream). 5 сквозных саг из `docs/SAGA.md` работают 
 
 | Каталог/файл | Это правда | Что здесь |
 |--------------|-----------|-----------|
-| `contracts/openapi/*.yaml` | **машинная истина по HTTP** | OpenAPI-спеки, conformance-тесты 16/16 |
+| `contracts/openapi/*.yaml` | **машинная истина по HTTP** | OpenAPI-спеки, conformance-тесты 17/17 |
 | `contracts/asyncapi/events.yaml` | **машинная истина по событиям** | каталог событий; `x-implemented-wire-events` = фактически публикуемые |
-| `services/<name>/` | реализация | 16 микросервисов по единому шаблону (см. `README.md`, раздел Service template) |
+| `services/<name>/` | реализация | 16 микросервисов CRUD по единому шаблону + **ops (stateless DLQ-панель)** (см. `README.md`, раздел Service template) |
 | `platform/shared-types` | `@pmos/shared` | EventEnvelope, DTO, типизированные ошибки |
 | `platform/event-bus` | `@pmos/event-bus` | NATS JetStream publisher/subscriber, DLQ, идемпотентность |
 | `scripts/` | генераторы | scaffold, gen-openapi, gen-schemas, gen-routes, gen-semantics, gen-contract-tests |
@@ -73,7 +73,7 @@ curl http://localhost:3001/api/notes/v1/health-check
 
 ## 4. Как устроен сервис (единый шаблон)
 
-Каждый из 16 сервисов:
+Каждый из 16 CRUD-сервисов (`ops` — stateless-исключение, см. `services/ops/`):
 
 ```
 services/<name>/
@@ -113,8 +113,8 @@ services/<name>/
 
 ## 6. Определение готовности (Definition of Done)
 
-Сервис/фича «сделано», когда зелёное всё из `AGENT.md §5` (Delivery Gate): typecheck 18/18,
-build 16/16, contract 16/16, unit+integration 90/90, саги §1–§5, компоуз up без падений,
+Сервис/фича «сделано», когда зелёное всё из `AGENT.md §5` (Delivery Gate): typecheck 19/19,
+build 17/17, contract 17/17, unit+integration 90/90, саги §1–§5, компоуз up без падений,
 Custom Repo Hygiene, REVIEW §5 актуальна. Commit-gate (быстрый) — `AGENT.md §7.1`.
 
 ---
@@ -139,7 +139,7 @@ Custom Repo Hygiene, REVIEW §5 актуальна. Commit-gate (быстрый)
 | Каталог функций (✅87 / 📋16) | [FEATURES.md](docs/FEATURES.md) |
 | Саги/сценарии между сервисами | [SAGA.md](docs/SAGA.md) |
 | Статусы по сервисам (RESOLVED) | [REVIEW.md](docs/REVIEW.md) |
-| Тест-кейсы (Gherkin, 16 сервисов) | [TEST_CASES.md](docs/TEST_CASES.md) |
+| Тест-кейсы (Gherkin, 16 CRUD-сервисов + саги) | [TEST_CASES.md](docs/TEST_CASES.md) |
 | План работ / бэклог | [BACKLOG.md](docs/BACKLOG.md) |
 | Локальный запуск, переменные, отладка | [DEV_GUIDE.md](docs/DEV_GUIDE.md) |
 | Архитектурные решения (ADR-001..007) | [ADR](docs/ADR/) |

@@ -70,6 +70,7 @@ services:
       - integrations
       - export-import
       - sync
+      - ops
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/api/health"]
       interval: 10s
@@ -333,6 +334,19 @@ services:
       OTEL_ENABLED: "false"
     depends_on:
       postgres: { condition: service_healthy }
+      nats: { condition: service_healthy }
+
+  ops:
+    build: { context: ../../services/ops }
+    profiles: ["all"]
+    ports: ["3017:3000"]
+    environment:
+      SERVICE_NAME: ops
+      PORT: "3000"
+      NATS_URL: nats://nats:4222
+      LOG_LEVEL: info
+      OTEL_ENABLED: "false"
+    depends_on:
       nats: { condition: service_healthy }
 
   # ───────────────────────── Monitoring (optional) ─────────────────────────

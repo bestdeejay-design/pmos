@@ -11,7 +11,7 @@
  * Every published message is an EventEnvelope with version + correlationId (ADR-007 §3).
  */
 
-import { connect, consumerOpts, createInbox, type NatsConnection, type JetStreamClient, type JetStreamManager, StringCodec, type PubAck } from "nats";
+import { connect, consumerOpts, createInbox, type NatsConnection, type JetStreamClient, type JetStreamManager, StringCodec, type PubAck, DeliverPolicy, AckPolicy } from "nats";
 import type { EventEnvelope } from "@pmos/shared";
 
 const sc = StringCodec();
@@ -21,6 +21,12 @@ export interface EventBusConfig {
   serviceName: string;
   /** default schema version for events published by this service */
   eventVersion?: number;
+}
+
+export interface DlqEntry {
+  seq: number;
+  subject: string;
+  data: EventEnvelope | null;
 }
 
 export class EventBus {
@@ -85,42 +91,118 @@ export class EventBus {
     return this.js!.publish(type, sc.encode(JSON.stringify(envelope)));
   }
 
-  /** Subscribe to a subject. handler receives the parsed EventEnvelope.
-   *  Uses NATS JetStream callback-style with explicit ack + redelivery. */
+/** co Subscribe to a subject. handler receives the parsed EventEnvelope.
+ *  Uses NATS JetStream callback-style with explicit ack + redelivery.
+ *
+ *  Dead-letter: when a handler keeps failing past `maxDeliver`, a copy of the
+ *  message is published to `${subject}.dlq` (preserving the raw envelope bytes)
+ *  and the original is terminated. That lets an admin panel (`ops` service) list
+ *  and replay DLQ messages per contracts/asyncapi/events.yaml / SAGA.md §DLQ. */
   async subscribe<T = Record<string, unknown>>(
     subject: string,
     handler: (env: EventEnvelope<T>) => Promise<void>,
-    opts?: { durable?: string; queue?: string },
+    opts?: { durable?: string; queue?: string; maxDeliver?: number; ackWaitMs?: number },
   ): Promise<void> {
     if (!this.js) await this.connect();
     const js = this.js!;
+    const maxDeliver = opts?.maxDeliver ?? 3;
     // Push consumer via the builder API — nats.js requires a deliver inbox and
     // an explicit ack policy; a bare options object silently breaks.
     const co = consumerOpts();
-    // Ephemeral push consumer — only live events, no full-stream replay.
     co.deliverNew();
     if (opts?.durable) co.durable(opts.durable);
     if (opts?.queue) co.deliverGroup(opts.queue);
     co.ackExplicit();
-    co.maxDeliver(3);
-    co.ackWait(30_000);
+    co.maxDeliver(maxDeliver);
+    co.ackWait(opts?.ackWaitMs ?? 30_000);
     co.deliverTo(createInbox());
     co.manualAck();
     co.callback((err, msg) => {
       if (err) { console.error(`[event-bus] subscribe error on ${subject}:`, err); return; }
       if (!msg) return;
+      const onFailure = (e: unknown): void => {
+        const delivery = (msg.info?.redeliveryCount ?? 0) + 1;
+        if (delivery >= maxDeliver) {
+          js.publish(`${subject}.dlq`, msg.data).then(
+            () => { msg.term("dlq: max_deliver exceeded"); },
+            (pe) => { console.error(`[event-bus] DLQ publish failed for ${subject}:`, pe); msg.nak(); },
+          );
+        } else {
+          msg.nak();
+        }
+        console.error(`[event-bus] handler failed for ${subject}:`, e);
+      };
       try {
         const env = JSON.parse(sc.decode(msg.data)) as EventEnvelope<T>;
         void handler(env).then(
           () => msg.ack(),
-          (e) => { msg.nak(); console.error(`[event-bus] handler failed for ${subject}:`, e); },
+          onFailure,
         );
       } catch (e) {
-        msg.nak();
-        console.error(`[event-bus] handler failed for ${subject}:`, e);
+        onFailure(e);
       }
     });
     await js.subscribe(subject, co);
+  }
+
+  /** List up to `limit` messages currently stored on the DLQ subjects (`*.dlq`).
+   *  Uses an ephemeral pull-filter consumer so nothing is acknowledged or deleted.
+   *  Scans only the recent tail of the stream (windowed by `tailWindow`), because
+   *  fetch() reads forward from the consumer start — the DLQ messages we care about
+   *  are the freshest ones. */
+  async listDlq(limit = 100, tailWindow = 5_000): Promise<DlqEntry[]> {
+    if (!this.jsm || !this.js) await this.connect();
+    const jsm = this.jsm!;
+    const stream = "TSSRUP";
+    const info = await jsm.streams.info(stream);
+    const lastSeq = info.state.last_seq;
+    const name = `dlq-lister-${crypto.randomUUID().slice(0, 8)}`;
+    await jsm.consumers.add(stream, {
+      name,
+      filter_subject: "pmos.>",
+      deliver_policy: DeliverPolicy.StartSequence,
+      opt_start_seq: Math.max(1, lastSeq - tailWindow + 1),
+      ack_policy: AckPolicy.None,
+      inactive_threshold: 5_000_000_000, // nanoseconds — room before the lister unsubscribes
+    });
+    const consumer = await this.js!.consumers.get(stream, name);
+    const entries: DlqEntry[] = [];
+    try {
+      // Keep fetching batches until we've seen the whole tail window (a short
+      // batch means the stream end was reached).
+      for (;;) {
+        const msgs = await consumer.fetch({ max_messages: 200, expires: 3000 });
+        let got = 0;
+        for await (const m of msgs) {
+          got++;
+          if (!m.subject.endsWith(".dlq")) continue;
+          let data: EventEnvelope | null = null;
+          try { data = JSON.parse(sc.decode(m.data)) as EventEnvelope; } catch { data = null; }
+          entries.push({ seq: m.seq, subject: m.subject, data });
+          if (entries.length >= limit) break;
+        }
+        if (entries.length >= limit || got < 200) break;
+      }
+    } finally {
+      await consumer.delete().catch(() => undefined);
+    }
+    return entries;
+  }
+
+  /** Re-publish a DLQ'd message (by stream sequence) back to its original subject,
+   *  then delete it from the DLQ. Returns the original subject it was replayed to. */
+  async replayDlq(seq: number, stream = "TSSRUP"): Promise<string> {
+    if (!this.jsm || !this.js) await this.connect();
+    const jsm = this.jsm!;
+    const stored = await jsm.streams.getMessage(stream, { seq });
+    const dlqSubject = stored.subject;
+    if (!dlqSubject.endsWith(".dlq")) {
+      throw new Error(`subject ${dlqSubject} is not a .dlq message`);
+    }
+    const original = dlqSubject.replace(/\.dlq$/, "");
+    await this.js!.publish(original, stored.data);
+    await jsm.streams.deleteMessage(stream, seq);
+    return original;
   }
 
   async requestReply<TReq, TRes>(subject: string, data: TReq, timeoutMs = 5000): Promise<TRes> {

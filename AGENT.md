@@ -146,7 +146,7 @@ truth and nothing ships without it.
 | 6. Events | emit `pmos.<svc>.<resource>.(created\|updated\|deleted)` on CRUD mutations; subscribe in `src/events/subscribe.ts` for sagas | subject present in `x-implemented-wire-events`; version + camelCase payload (ADR-007) |
 | 7. Tests | `test/contract.test.ts` (route conformance), `test/health.test.ts`, integration sagas in `test/integration.*.test.ts` | contract test c/c + integration green |
 | 8. Docs counters | update `docs/FEATURES.md` (`📋 → ✅`), `docs/REVIEW.md` §5 matrix, `docs/TEST_CASES.md` if behavior changed, README badges if tallies move | FEATURES tally and README badge agree |
-| 9. Commit gate | §§4.1-step-9 = `§7.1` checklist | typecheck 18/18, build 16/16, contract 16/16, unit green |
+| 9. Commit gate | §§4.1-step-9 = `§7.1` checklist | typecheck 19/19, build 17/17, contract 17/17, unit green |
 
 > **Events discipline:** `x-implemented-wire-events` is the *only* place that records what is
 > actually published. Do NOT add a planned subject there unless the code ships an `emit()` for
@@ -182,6 +182,7 @@ pino JSON logs with `correlationId`, `x-correlation-id` echo on every response, 
 | integrations | 3014 | integrations_ | phase3 |
 | export-import | 3015 | export_import_ | phase3 |
 | sync | 3016 | sync_ | phase4 |
+| ops | 3017 | — (stateless, DLQ-панель) | phase5 |
 
 **Required env (see `services/<name>/.env.example`):** `SERVICE_NAME`, `PORT`, `DATABASE_URL`,
 `DATABASE_SCHEMA`, `NATS_URL`, `LOG_LEVEL`, `OTEL_ENABLED`.
@@ -200,7 +201,7 @@ The project is **delivered** only when ALL hold:
       conformance test asserts the running service matches the spec (status, schema, errors).
 - [ ] **Integration tests** pass for every saga in `SAGA.md` (note+AI title, task+agent,
       file+embedding, calendar sync, webhook retry/DLQ).
-- [ ] `docker compose --profile all up -d` boots all 16 services + Postgres + NATS;
+- [ ] `docker compose --profile all up -d` boots all 17 services (16 CRUD + ops DLQ) + Postgres + NATS;
       `GET /api/health` on gateway returns ok; no service crashes in first 60s.
 - [ ] `E2E` Playwright: ≥3 critical scenarios green (create note → search; recurring task →
       new task; webhook delivery).
@@ -253,9 +254,9 @@ If you hit a contradiction between docs:
 ### 7.1 Commit gate (run before EVERY push)
 
 ```bash
-pnpm -r run typecheck          # must be 18/18 Done — catches :id/Date/typeregression
-pnpm --filter './services/*' run build   # 16/16 Done
-pnpm --filter './services/*' run test:contract   # 16/16 passed — hasRoute() guard active
+pnpm -r run typecheck          # must be 19/19 Done — catches :id/Date/typeregression
+pnpm --filter './services/*' run build   # 17/17 Done
+pnpm --filter './services/*' run test:contract   # 17/17 passed — hasRoute() guard active
 pnpm --filter './services/*' run test            # unit (health) passed
 ```
 

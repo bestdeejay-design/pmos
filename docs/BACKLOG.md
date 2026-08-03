@@ -47,7 +47,6 @@ Backend-API полностью готов и покрыт контрактами
 | Задача | Где | Описание |
 |---|---|---|
 | Pact-брокер (consumer-driven) | contracts | Заменить OpenAPI-conformance на Pact (ADR-002 §3 TODO, ADR-005) |
-| DLQ-админ-панель | event-bus | Просмотр и replay сообщений dead letter queue (SAGA.md §TODO) |
 | Perf: caching, query opt | все | Медленные запросы, N+1 (после появления реальной нагрузки) |
 | Healthchecks в docker-compose | platform/docker | Graceful startup/shutdown для профиля `all` |
 | mTLS между сервисами | platform | Опционально для production (ARCHITECTURE.md §Безопасность) |

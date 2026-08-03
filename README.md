@@ -14,9 +14,9 @@ connected through an asynchronous event bus.
 [![Tests](https://img.shields.io/badge/tests-90/90-green)](./services)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **Status:** all 16 services are implemented and verified (CRUD + business logic + events
-> over NATS JetStream). 5 cross-service sagas from `docs/SAGA.md` work and are covered by
-> integration tests against real Postgres + NATS. Checks: typecheck 18/18, contract 16/16,
+> **Status:** all 17 services are implemented and verified (16 CRUD + ops/DLQ panel).
+> 5 cross-service sagas from `docs/SAGA.md` work and are covered by
+> integration tests against real Postgres + NATS. Checks: typecheck 19/19, contract 17/17,
 > unit + integration 90/90 green.
 
 > **Try it:** the docs are also published as a static website — <https://bestdeejay-design.github.io/pmos/>
@@ -52,7 +52,7 @@ PORT=3001 SERVICE_NAME=notes pnpm --filter @pmos/notes start
 curl http://localhost:3001/api/notes/v1/health-check
 ```
 
-The full stack (16 services + gateway) starts with the `all` profile:
+The full stack (17 services + gateway) starts with the `all` profile:
 
 ```bash
 docker compose -f platform/docker/docker-compose.yml --profile all up -d
@@ -75,10 +75,10 @@ pmos/
 │   ├── shared-types/               @pmos/shared — EventEnvelope, domain types, DTOs
 │   ├── event-bus/                  @pmos/event-bus — NATS JetStream publisher/consumer (durable, DLQ)
 │   └── docker/
-│       ├── docker-compose.yml      profiles: core (Postgres+NATS) / all (16 services + gateway)
+│       ├── docker-compose.yml      profiles: core (Postgres+NATS) / all (17 services + gateway)
 │       └── nginx.conf              api-gateway (reverse proxy to all services)
 │
-├── services/                       16 microservices, uniform template (see below)
+├── services/                       17 microservices (16 CRUD + ops/DLQ panel)
 │   ├── notes/              3001  notes_
 │   ├── tasks/              3002  tasks_
 │   ├── calendar/           3003  calendar_
@@ -94,10 +94,11 @@ pmos/
 │   ├── external-calendars/ 3013  external_calendars_
 │   ├── integrations/       3014  integrations_
 │   ├── export-import/      3015  export_import_
-│   └── sync/               3016  sync_
+│   ├── sync/               3016  sync_
+│   └── ops/                3017  — (stateless, DLQ panel, no DB)
 │
 ├── contracts/                      machine truth (what actually ships)
-│   ├── openapi/                    16 × <svc>.yaml — OpenAPI specs, conformance 16/16
+│   ├── openapi/                    17 × <svc>.yaml — OpenAPI specs, conformance 17/17
 │   ├── asyncapi/
 │   │   └── events.yaml             event catalog (2,391 lines)
 │   │                               x-implemented-wire-events = what is actually published
@@ -114,7 +115,7 @@ pmos/
 ├── docs/                            architecture & project documentation
 │   ├── ARCHITECTURE.md             overall architecture
 │   ├── FEATURES.md                 functional requirements (✅ 87 done / 📋 16 planned)
-│   ├── SAGA.md                     cross-service scenarios (§1–§5)
+│   ├── SAGA.md                     cross-service scenarios (§1–§5 + §DLQ)
 │   ├── REVIEW.md                   status matrix per service
 │   ├── TEST_CASES.md               test cases
 │   ├── BACKLOG.md                  backlog
@@ -129,7 +130,7 @@ pmos/
 
 ### Service template (`services/<name>/`)
 
-All 16 services share the same structure:
+All 16 CRUD services share the same structure (`ops` is a stateless exception — no `db/`, no `migrations/`):
 
 ```
 services/<name>/
@@ -170,9 +171,9 @@ import (§4), webhook delivery (§5). Public API mirror (`/api/v1/notes|tasks|pr
 ## Checks
 
 ```bash
-pnpm -r run typecheck        # strict TS, 18 packages
+pnpm -r run typecheck        # strict TS, 19 packages
 pnpm --filter "./services/*" run test          # unit (vitest), no DB
-pnpm --filter "./services/*" run test:contract  # OpenAPI-conformance, 16/16
+pnpm --filter "./services/*" run test:contract # OpenAPI-conformance, 17/17
 pnpm --filter "./services/*" run build         # tsc → dist
 ```
 
@@ -219,7 +220,7 @@ Full catalog — **~4,700 lines of docs + ~9,900 lines of contracts ≈ 14,600 l
 
 | File | Lines | Purpose |
 |------|------:|---------|
-| `contracts/openapi/*.yaml` (16 files) | 7,519 | OpenAPI specs per service — conformance 16/16 |
+| `contracts/openapi/*.yaml` (17 files) | 7,519 | OpenAPI specs per service — conformance 17/17 |
 | `contracts/asyncapi/events.yaml` | 2,391 | Event bus catalog + `x-implemented-wire-events` (what actually ships) |
 
 ## Contributing

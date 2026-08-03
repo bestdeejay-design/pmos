@@ -117,6 +117,7 @@
 | **time-tracking** | ✅ | ✅ | — | — | ✅ timesheet stats, pomodoro (3 режима) | сгенерирован + семантика |
 | **export-import** | — | — | — | — | ✅ ZIP-экспорт, импорт текста/JSON | сгенерирован (stub) + семантика |
 | **sync** | ✅ | — | — | — | ✅ CRUD папок, scan, auto-import/export .md | сгенерирован + семантика |
+| **ops** (stateless DLQ-панель) | — (нет CRUD) | — | — | — | ✅ `GET /api/ops/v1/dlq` — просмотр DLQ `@pmos/event-bus`, `POST /dlq/:seq/replay` — replay + удаление из стрима | сгенерирован (stub) + семантика |
 
 **Что уже доказано (не надо переделывать):** каркас (DB+NATS+роуты) жив; 3 ручных эталона
 (notes/tasks/calendar) проходят integration против реального Postgres; 13 сервисов

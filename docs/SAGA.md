@@ -384,7 +384,11 @@ external-calendars          calendar
 - Визуальный мониторинг через NATS CLI: `nats consumer list`.
 - Автоматической репликации из DLQ нет.
 - После исправления причины (починили сервис, поправили webhook URL) — ручной replay.
-- **TODO**: админ-панель для просмотра и replay DLQ-сообщений.
+- **Реализовано** (ops-сервис, порт 3017, stateless): `GET /api/ops/v1/dlq` — список DLQ-сообщений
+  (seq, subject, декодированный конверт EventEnvelope); `POST /api/ops/v1/dlq/{seq}/replay` —
+  перепубликация в оригинальный subject байт-в-байт + удаление из стрима.
+  Механизм DLQ в `@pmos/event-bus`: при исчерпании `maxDeliver` копия публикуется в
+  `<subject>.dlq`, оригинал терминируется (`term`). Контракт: `contracts/openapi/ops.yaml`.
 
 ---
 

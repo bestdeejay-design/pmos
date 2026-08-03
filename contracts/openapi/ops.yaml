@@ -1,0 +1,279 @@
+openapi: 3.1.0
+
+info:
+  title: Ops Service (DLQ panel)
+  version: 1.0.0
+  description: >
+    Административный сервис: просмотр и ручной replay сообщений из dead-letter queue
+    (DLQ). DLQ формируется платформой @pmos/event-bus при исчерпании попыток доставки
+    (maxDeliver=3): копия упавшего события публикуется в `<subject>.dlq`, оригинал
+    терминируется (SAGA.md §DLQ, ADR-002).
+
+servers:
+  - url: /api/ops/v1
+    description: API Gateway route for ops service
+
+paths:
+  /dlq:
+    get:
+      operationId: listDlqMessages
+      summary: Список сообщений в DLQ
+      description: >
+        Возвращает до `limit` сообщений, скопированных в DLQ (subject `*.dlq`) на стриме
+        TSSRUP. `seq` — порядковый номер в стриме, используется для replay.
+      tags: [Dlq, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: limit
+          in: query
+          required: false
+          description: Максимум записей (1..100)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 20
+      responses:
+        '200':
+          description: Список DLQ-сообщений
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DlqMessage'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /dlq/{id}/replay:
+    post:
+      operationId: replayDlqMessage
+      summary: Перепубликовать DLQ-сообщение в оригинальный subject
+      description: >
+        Читает сообщение по `seq` из стрима, публикует его в исходный subject
+        (без суффикса `.dlq`) и удаляет из DLQ. Оригинал (конверт EventEnvelope)
+        сохраняется байт-в-байт, поэтому сообщение пройдёт повторную доставку.
+      tags: [Dlq, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: Порядковый номер (seq) сообщения в стриме TSSRUP
+          schema:
+            type: integer
+            minimum: 1
+          example: 42
+      responses:
+        '200':
+          description: Сообщение перепубликовано
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [subject]
+                properties:
+                  subject:
+                    type: string
+                    description: Оригинальный subject, в который переопубликовано сообщение
+                  seq:
+                    type: integer
+                    description: Удалённый из DLQ порядковый номер
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    CorrelationId:
+      name: x-correlation-id
+      in: header
+      required: true
+      description: Уникальный идентификатор для трассировки запроса
+      schema:
+        type: string
+        format: uuid
+      example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+  schemas:
+    # ─────────────────────── Error schemas ───────────────────────
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Код ошибки
+        message:
+          type: string
+          description: Человекочитаемое описание ошибки
+        details:
+          oneOf:
+            - type: object
+            - type: 'null'
+          description: Дополнительная информация об ошибке
+
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR]
+          example:
+            code: VALIDATION_ERROR
+            message: Некорректные данные запроса
+            details:
+              field: id
+              constraint: integer
+
+    NotFoundError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [NOT_FOUND]
+          example:
+            code: NOT_FOUND
+            message: Сообщение не найдено в DLQ
+            details:
+              seq: 42
+
+    InternalError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [INTERNAL_ERROR]
+          example:
+            code: INTERNAL_ERROR
+            message: Внутренняя ошибка сервера
+
+    # ─────────────────────── DLQ schemas ───────────────────────
+    DlqMessage:
+      type: object
+      description: Сообщение из dead-letter queue (копия упавшего события)
+      required:
+        - seq
+        - subject
+      properties:
+        seq:
+          type: integer
+          description: Порядковый номер сообщения в стриме TSSRUP
+        subject:
+          type: string
+          description: DLQ-subject (оригинальный subject + суффикс `.dlq`)
+          example: pmos.notes.notes.created.dlq
+        data:
+          oneOf:
+            - $ref: '#/components/schemas/EventEnvelope'
+            - type: 'null'
+          description: Декодированный конверт EventEnvelope (null, если тело не JSON)
+      example:
+        seq: 42
+        subject: pmos.notes.notes.created.dlq
+        data:
+          id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+          type: pmos.notes.notes.created
+          source: notes
+          timestamp: '2026-08-03T10:00:00Z'
+          version: 1
+          correlationId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+          data:
+            id: n1
+            title: Заметка
+
+    EventEnvelope:
+      type: object
+      description: Стандартный конверт событий платформы (ADR-007 §3)
+      required:
+        - id
+        - type
+        - source
+        - timestamp
+        - version
+        - correlationId
+        - data
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор события
+        type:
+          type: string
+          description: Тип события (subject без префикса pmos)
+        source:
+          type: string
+          description: Сервис-источник
+        timestamp:
+          type: string
+          format: date-time
+          description: Время публикации
+        version:
+          type: integer
+          description: Версия схемы события
+        correlationId:
+          type: string
+          format: uuid
+          description: Идентификатор корреляции запроса
+        data:
+          type: object
+          additionalProperties: true
+          description: Полезная нагрузка события
+
+  responses:
+    ValidationError:
+      description: Ошибка валидации запроса
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    NotFoundError:
+      description: Запрашиваемый ресурс не найден
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NotFoundError'
+
+    InternalError:
+      description: Внутренняя ошибка сервера
+      headers:
+        x-correlation-id:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/InternalError'
