@@ -66,6 +66,10 @@ x-implemented-wire-events:
     описывают плановую семантику в старом формате pmos.<resource>.<action> и не всегда совпадают
     с фактическим субъектом. Фактический субъект для settings — pmos.settings.settings.{created,updated,deleted};
     канал pmos.settings.changed НЕ публикуется (см. REVIEW.md §3).
+    Dead-letter: любой subject из списка ниже при исчерпании maxDeliver (по умолчанию 3)
+    дополнительно публикуется как {subject}.dlq платформенным @pmos/event-bus (subscribe()).
+    Эти *.dlq subject'ы — тоже реальный wire-артефакт (не входят в канонический список, но
+    управляются stateless-сервисом ops: GET /dlq, POST /dlq/:id/replay, см. SAGA.md §DLQ).
   subjects:
     - pmos.agent.message_created
     - pmos.agent.trigger_evaluated
