@@ -89,7 +89,7 @@ pmos/
 ├── contracts/                      машинная правда (что реально в коде)
 │   ├── openapi/                    17 × <svc>.yaml — OpenAPI-спеки, conformance 17/17
 │   ├── asyncapi/
-│   │   └── events.yaml              каталог событий (2 391 строка)
+│   │   └── events.yaml              каталог событий (2 396 строк)
 │   │                               x-implemented-wire-events = что реально публикуется
 │   └── test/                        вспомогательные фикстуры контрактов
 │
@@ -193,7 +193,7 @@ CI (`.github/workflows/ci.yml`) гонит typecheck + unit + contract на ка
 
 ## Документация
 
-Полный каталог — общий объём **~4 700 строк доков + ~9 900 строк контрактов ≈ 14 600 строк**:
+Полный каталог — общий объём **~4 200 строк доков + ~10 600 строк контрактов ≈ 14 800 строк**:
 
 ### Проектная документация (docs/)
 
@@ -232,8 +232,8 @@ CI (`.github/workflows/ci.yml`) гонит typecheck + unit + contract на ка
 
 | Файл | Строк | Назначение |
 |------|------:|------------|
-| `contracts/openapi/*.yaml` (17 шт.) | 7 519 | OpenAPI-спеки сервисов — conformance 17/17 |
-| `contracts/asyncapi/events.yaml` | 2 391 | Каталог событий шины + `x-implemented-wire-events` (реально шлётся) |
+| `contracts/openapi/*.yaml` (17 шт.) | 7 991 | OpenAPI-спеки сервисов — conformance 17/17 |
+| `contracts/asyncapi/events.yaml` | 2 396 | Каталог событий шины + `x-implemented-wire-events` (реально шлётся) |
 
 ## Лицензия
 

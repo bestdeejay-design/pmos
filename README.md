@@ -100,7 +100,7 @@ pmos/
 ├── contracts/                      machine truth (what actually ships)
 │   ├── openapi/                    17 × <svc>.yaml — OpenAPI specs, conformance 17/17
 │   ├── asyncapi/
-│   │   └── events.yaml             event catalog (2,391 lines)
+│   │   └── events.yaml             event catalog (2,396 lines)
 │   │                               x-implemented-wire-events = what is actually published
 │   └── test/                        contract test fixtures
 │
@@ -181,7 +181,7 @@ CI (`.github/workflows/ci.yml`) runs typecheck + unit + contract on every push.
 
 ## Documentation
 
-Full catalog — **~4,700 lines of docs + ~9,900 lines of contracts ≈ 14,600 lines**:
+Full catalog — **~4,200 lines of docs + ~10,600 lines of contracts ≈ 14,800 lines**:
 
 ### Project docs (docs/)
 
@@ -220,8 +220,8 @@ Full catalog — **~4,700 lines of docs + ~9,900 lines of contracts ≈ 14,600 l
 
 | File | Lines | Purpose |
 |------|------:|---------|
-| `contracts/openapi/*.yaml` (17 files) | 7,519 | OpenAPI specs per service — conformance 17/17 |
-| `contracts/asyncapi/events.yaml` | 2,391 | Event bus catalog + `x-implemented-wire-events` (what actually ships) |
+| `contracts/openapi/*.yaml` (17 files) | 7,991 | OpenAPI specs per service — conformance 17/17 |
+| `contracts/asyncapi/events.yaml` | 2,396 | Event bus catalog + `x-implemented-wire-events` (what actually ships) |
 
 ## Contributing
 
