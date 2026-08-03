@@ -2,6 +2,7 @@ import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import { buildApp } from "../src/app.js";
 import { db } from "../src/db/connection.js";
 import { apiKeys, webhooks, webhookDeliveries } from "../src/db/schema.js";
+import { inArray, like } from "drizzle-orm";
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
 const BASE = "/api/integrations/v1";
@@ -10,18 +11,34 @@ describe.skipIf(!HAS_DB)("integrations (real Postgres): api-keys + webhooks + de
   let app: any;
   let webhookId: string;
 
+  // Only delete this suite's own api-keys (Zapier/Temp) and webhooks
+  // (https://example.com). It runs in parallel with integration.public-api
+  // (pub-* keys, local mock) and integration.saga-webhook (127.0.0.1) — wiping
+  // whole tables here would delete their rows mid-run (flaky). Deleting only
+  // rows inserted by this file keeps every suite's setup isolated.
+  async function deleteOwn() {
+    const ownKeys = await db.select({ id: apiKeys.id }).from(apiKeys)
+      .where(inArray(apiKeys.name, ["Zapier", "Temp"]));
+    const keyIds = ownKeys.map((r) => r.id);
+    if (keyIds.length > 0) await db.delete(apiKeys).where(inArray(apiKeys.id, keyIds));
+
+    const ownHooks = await db.select({ id: webhooks.id }).from(webhooks)
+      .where(like(webhooks.url, "https://example.com%"));
+    const hookIds = ownHooks.map((r) => r.id);
+    if (hookIds.length > 0) {
+      await db.delete(webhookDeliveries).where(inArray(webhookDeliveries.webhookId, hookIds));
+      await db.delete(webhooks).where(inArray(webhooks.id, hookIds));
+    }
+  }
+
   beforeAll(async () => {
     app = await buildApp();
     await app.ready();
-    await db.delete(webhookDeliveries);
-    await db.delete(apiKeys);
-    await db.delete(webhooks);
+    await deleteOwn();
   });
 
   afterAll(async () => {
-    await db.delete(webhookDeliveries);
-    await db.delete(apiKeys);
-    await db.delete(webhooks);
+    await deleteOwn();
     if (app) await app.close();
   });
 

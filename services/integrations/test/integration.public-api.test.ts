@@ -3,6 +3,7 @@ import http from "node:http";
 import { buildApp } from "../src/app.js";
 import { db } from "../src/db/connection.js";
 import { apiKeys } from "../src/db/schema.js";
+import { inArray, like } from "drizzle-orm";
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
 const ADMIN = "/api/integrations/v1/api-keys";
@@ -22,6 +23,16 @@ describe.skipIf(!HAS_DB)("public API mirror (real Postgres + mock upstream)", ()
   let deletedKey = "";
   const neverKey = "pk_" + "0".repeat(64);
 
+  // Only delete this suite's own api-keys (pub-*). It runs in parallel with
+  // integration.integrations.test.ts (Zapier/Temp) — wiping the whole table
+  // would delete the other suite's created keys mid-run (flaky 401/502).
+  async function deleteOwnKeys() {
+    const own = await db.select({ id: apiKeys.id }).from(apiKeys)
+      .where(like(apiKeys.name, "pub-%"));
+    const ids = own.map((r) => r.id);
+    if (ids.length > 0) await db.delete(apiKeys).where(inArray(apiKeys.id, ids));
+  }
+
   beforeAll(async () => {
     // Local mock upstream that records the request path/query and returns a JSON body.
     mock = http.createServer((req, res) => {
@@ -36,7 +47,8 @@ describe.skipIf(!HAS_DB)("public API mirror (real Postgres + mock upstream)", ()
 
     app = await buildApp();
     await app.ready();
-    await db.delete(apiKeys);
+
+    await deleteOwnKeys();
 
     const keyA = await app.inject({ method: "POST", url: ADMIN, payload: { name: "pub-active" } });
     validKey = keyA.json().key;
@@ -47,7 +59,7 @@ describe.skipIf(!HAS_DB)("public API mirror (real Postgres + mock upstream)", ()
   });
 
   afterAll(async () => {
-    await db.delete(apiKeys);
+    await deleteOwnKeys();
     if (app) await app.close();
     if (mock) await new Promise((r) => mock.close(r));
     delete process.env.PUBLIC_UPSTREAM_NOTES;

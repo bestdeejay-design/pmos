@@ -1,6 +1,6 @@
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID, createHmac } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, inArray, like } from "drizzle-orm";
 import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import { buildApp } from "../src/app.js";
 import { db } from "../src/db/connection.js";
@@ -20,11 +20,24 @@ describe.skipIf(!HAS_DB)("saga §5: webhook HTTP delivery + retry (real HTTP ser
   let port: number;
   const received: Array<{ headers: Record<string, string | string[] | undefined>; body: string }> = [];
 
+  // Only delete this suite's own webhooks (local 127.0.0.1 URLs). The suite
+  // runs in parallel with integration.integrations.test.ts, which uses
+  // https://example.com URLs — wiping the whole table would delete the other
+  // suite's data mid-run and cause flaky "pollDelivery timed out" failures.
+  async function deleteOwnHooks() {
+    const own = await db.select({ id: webhooks.id }).from(webhooks)
+      .where(like(webhooks.url, "http://127.0.0.1:%"));
+    const ids = own.map((r) => r.id);
+    if (ids.length > 0) {
+      await db.delete(webhookDeliveries).where(inArray(webhookDeliveries.webhookId, ids));
+      await db.delete(webhooks).where(inArray(webhooks.id, ids));
+    }
+  }
+
   beforeAll(async () => {
     app = await buildApp();
     await app.ready();
-    await db.delete(webhookDeliveries);
-    await db.delete(webhooks);
+    await deleteOwnHooks();
 
     server = createServer((req, res) => {
       const chunks: Buffer[] = [];
@@ -40,8 +53,7 @@ describe.skipIf(!HAS_DB)("saga §5: webhook HTTP delivery + retry (real HTTP ser
 
   afterAll(async () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
-    await db.delete(webhookDeliveries);
-    await db.delete(webhooks);
+    await deleteOwnHooks();
     if (app) await app.close();
   });
 
