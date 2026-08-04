@@ -24,11 +24,13 @@ connected through an asynchronous event bus.
 ## Stack
 
 - **Node.js 22**, **pnpm 10+** (workspaces), **TypeScript** (strict).
+- **React 18** + **Vite** + **Tailwind CSS v4** — SPA frontend (`services/frontend/`).
 - **Fastify 5** + **TypeBox** — HTTP, routes mounted at `/api/<svc>/v1`.
 - **PostgreSQL 16** — schema-per-service isolation (ADR-004).
 - **NATS 2.10 JetStream** — event bus (`@pmos/event-bus`), at-least-once.
 - **Drizzle ORM** — schemas + migrations (`drizzle-kit`).
 - **Vitest** — unit + contract (OpenAPI-conformance) tests.
+- **Playwright** — E2E tests (5 critical scenarios).
 - **Docker / OrbStack** — infrastructure and service builds.
 
 ## Quick start
@@ -57,6 +59,16 @@ The full stack (17 services + gateway) starts with the `all` profile:
 ```bash
 docker compose -f platform/docker/docker-compose.yml --profile all up -d
 # gateway: http://localhost:8080/api/health
+```
+
+### Frontend (React SPA)
+
+```bash
+# 6. Start frontend dev server
+cd services/frontend
+pnpm install
+pnpm dev
+# → http://localhost:5173 (proxies /api → localhost:8080)
 ```
 
 ## Repository structure
@@ -95,7 +107,8 @@ pmos/
 │   ├── integrations/       3014  integrations_
 │   ├── export-import/      3015  export_import_
 │   ├── sync/               3016  sync_
-│   └── ops/                3017  — (stateless, DLQ panel, no DB)
+│   ├── ops/                3017  — (stateless, DLQ panel, no DB)
+│   └── frontend/           5173  React SPA (Vite + Tailwind)
 │
 ├── contracts/                      machine truth (what actually ships)
 │   ├── openapi/                    17 × <svc>.yaml — OpenAPI specs, conformance 17/17
@@ -175,6 +188,11 @@ pnpm -r run typecheck        # strict TS, 19 packages
 pnpm --filter "./services/*" run test          # unit (vitest), no DB
 pnpm --filter "./services/*" run test:contract # OpenAPI-conformance, 17/17
 pnpm --filter "./services/*" run build         # tsc → dist
+
+# Frontend
+cd services/frontend
+pnpm test              # unit tests (vitest), 123 tests
+pnpm test:e2e          # E2E tests (Playwright), 10 tests
 ```
 
 CI (`.github/workflows/ci.yml`) runs typecheck + unit + contract on every push.

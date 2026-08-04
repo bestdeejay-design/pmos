@@ -14,11 +14,13 @@
 ## Стек
 
 - **Node.js 22**, **pnpm 10+** (workspaces), **TypeScript** (strict).
+- **React 18** + **Vite** + **Tailwind CSS v4** — SPA фронтенд (`services/frontend/`).
 - **Fastify 5** + **TypeBox** — HTTP, роуты монтируются на `/api/<svc>/v1`.
 - **PostgreSQL 16** — schema-per-service изоляция (ADR-004).
 - **NATS 2.10 JetStream** — шина событий (`@pmos/event-bus`), at-least-once.
 - **Drizzle ORM** — схемы + миграции (`drizzle-kit`).
 - **Vitest** — unit + contract (OpenAPI-conformance) тесты.
+- **Playwright** — E2E-тесты (5 критических сценариев).
 - **Docker / OrbStack** — инфра и сборка сервисов.
 
 ## Быстрый старт
@@ -47,6 +49,16 @@ curl http://localhost:3001/api/notes/v1/health-check
 ```bash
 docker compose -f platform/docker/docker-compose.yml --profile all up -d
 # gateway: http://localhost:8080/api/health
+```
+
+### Фронтенд (React SPA)
+
+```bash
+# 6. Запуск фронтенда
+cd services/frontend
+pnpm install
+pnpm dev
+# → http://localhost:5173 (проксирует /api → localhost:8080)
 ```
 
 ## Структура репозитория
@@ -84,7 +96,8 @@ pmos/
 │   ├── integrations/       3014  integrations_
 │   ├── export-import/      3015  export_import_
 │   ├── sync/               3016  sync_
-│   └── ops/                3017  — (stateless, DLQ-панель, без БД)
+│   ├── ops/                3017  — (stateless, DLQ-панель, без БД)
+│   └── frontend/           5173  React SPA (Vite + Tailwind)
 │
 ├── contracts/                      машинная правда (что реально в коде)
 │   ├── openapi/                    17 × <svc>.yaml — OpenAPI-спеки, conformance 17/17
@@ -187,6 +200,11 @@ pnpm -r run typecheck        # strict TS, 19 пакетов
 pnpm --filter "./services/*" run test          # unit (vitest), без БД
 pnpm --filter "./services/*" run test:contract  # OpenAPI-conformance, 17/17
 pnpm --filter "./services/*" run build         # tsc → dist
+
+# Фронтенд
+cd services/frontend
+pnpm test              # unit-тесты (vitest), 123 теста
+pnpm test:e2e          # E2E-тесты (Playwright), 10 тестов
 ```
 
 CI (`.github/workflows/ci.yml`) гонит typecheck + unit + contract на каждый push.
