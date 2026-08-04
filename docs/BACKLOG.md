@@ -12,8 +12,8 @@ Backend-API полностью готов и покрыт контрактами
 
 | Задача | Сервисы | Описание | Приоритет |
 |---|---|---|---|
-| React SPA | frontend | Восстановить/переписать SPA на новом API. В legacy-монолите SPA уже была — перенести страницы, разбить `api.ts` по сервисам | P1 |
-| E2E (Playwright) | e2e | 5 critical scenarios: создать заметку, задача с рекурренсом, встреча+reminder, файл→поиск, webhook. Директория `tests/` зарезервирована (сейчас пуста — заменена integration 90/90) | P1 |
+| React SPA | frontend | Восстановить/переписать SPA на новом API. В legacy-монолите SPA уже была — перенести страницы, разбить `api.ts` по сервисам | ✅ P1 |
+| E2E (Playwright) | e2e | 5 critical scenarios: создать заметку, задача с рекурренсом, встреча+reminder, файл→поиск, webhook. Директория `tests/` зарезервирована (сейчас пуста — заменена integration 90/90) | ✅ P1 |
 | Desktop (Tauri) | desktop | Обновить `desktop/` на новый стек: только Docker lifecycle + WebView (ADR без Rust-логики) | P3 |
 | WS-пуши клиенту | agent, calendar | Push сообщений агента / напоминаний в браузер через WebSocket (механизм описан в ARCHITECTURE.md, не реализован) | P2 |
 
