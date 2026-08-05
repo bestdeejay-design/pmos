@@ -25,5 +25,19 @@ export const profilesApi = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
+  activate: (id: string) =>
+    apiClient<Profile>(`${BASE}/profiles/${id}/activate`, {
+      method: 'PATCH',
+    }),
+  hide: (id: string) =>
+    apiClient<Profile>(`${BASE}/profiles/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ hidden: true }),
+    }),
+  unhide: (id: string) =>
+    apiClient<Profile>(`${BASE}/profiles/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ hidden: false }),
+    }),
   delete: (id: string) => apiDelete(`${BASE}/profiles/${id}`),
 }

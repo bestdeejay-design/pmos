@@ -101,6 +101,7 @@ export default function Profiles() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState | null>(null)
+  const [showHidden, setShowHidden] = useState(false)
 
   const load = () => {
     setLoading(true)
@@ -122,6 +123,35 @@ export default function Profiles() {
     }
   }
 
+  const handleActivate = async (id: string) => {
+    try {
+      await profilesApi.activate(id)
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to activate')
+    }
+  }
+
+  const handleHide = async (id: string) => {
+    try {
+      await profilesApi.hide(id)
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to hide')
+    }
+  }
+
+  const handleUnhide = async (id: string) => {
+    try {
+      await profilesApi.unhide(id)
+      load()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to unhide')
+    }
+  }
+
+  const visibleProfiles = showHidden ? profiles : profiles.filter(p => !p.hidden)
+
   if (loading) return <div className="animate-pulse text-neutral-400">Loading…</div>
   if (error) return <div className="text-red-500">Error: {error}</div>
 
@@ -129,19 +159,32 @@ export default function Profiles() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Profiles</h1>
-        <button
-          onClick={() => setModal({ mode: 'create' })}
-          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800"
-        >
-          + New Profile
-        </button>
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-neutral-700">
+            <input
+              type="checkbox"
+              checked={showHidden}
+              onChange={e => setShowHidden(e.target.checked)}
+              className="rounded border-neutral-300 text-neutral-900 focus:ring-neutral-500"
+            />
+            Show hidden
+          </label>
+          <button
+            onClick={() => setModal({ mode: 'create' })}
+            className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800"
+          >
+            + New Profile
+          </button>
+        </div>
       </div>
 
-      {profiles.length === 0 ? (
-        <p className="text-neutral-500">No profiles yet.</p>
+      {visibleProfiles.length === 0 ? (
+        <p className="text-neutral-500">
+          {showHidden ? 'No profiles yet.' : 'No visible profiles. Check "Show hidden" to see hidden profiles.'}
+        </p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {profiles.map(profile => (
+          {visibleProfiles.map(profile => (
             <div
               key={profile.id}
               className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-white p-4 transition-shadow hover:shadow-sm"
@@ -152,11 +195,49 @@ export default function Profiles() {
                   style={{ backgroundColor: profile.color }}
                 />
                 <div>
-                  <h2 className="font-semibold">{profile.name}</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-semibold">{profile.name}</h2>
+                    {profile.isActive && (
+                      <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                        Active
+                      </span>
+                    )}
+                    {profile.hidden && (
+                      <span className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
+                        Hidden
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-neutral-400">{profile.color}</p>
                 </div>
               </div>
               <div className="flex shrink-0 gap-2">
+                {!profile.isActive && (
+                  <button
+                    onClick={() => handleActivate(profile.id)}
+                    className="rounded-md border border-green-300 px-2 py-1 text-xs text-green-700 hover:bg-green-50"
+                    title="Set as active"
+                  >
+                    Activate
+                  </button>
+                )}
+                {profile.hidden ? (
+                  <button
+                    onClick={() => handleUnhide(profile.id)}
+                    className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+                    title="Unhide profile"
+                  >
+                    Unhide
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleHide(profile.id)}
+                    className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+                    title="Hide profile"
+                  >
+                    Hide
+                  </button>
+                )}
                 <button
                   onClick={() => setModal({ mode: 'edit', profile })}
                   className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"

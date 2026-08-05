@@ -11,6 +11,9 @@ vi.mock('../../api/profiles', () => ({
     get: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    activate: vi.fn(),
+    hide: vi.fn(),
+    unhide: vi.fn(),
     delete: vi.fn(),
   },
 }))
@@ -21,6 +24,8 @@ const mockProfile: Profile = {
   id: '1',
   name: 'Work',
   color: '#6366f1',
+  isActive: false,
+  hidden: false,
 }
 
 describe('Profiles page', () => {
@@ -75,7 +80,55 @@ describe('Profiles page', () => {
     mockedProfilesApi.list.mockResolvedValue([])
     render(<Profiles />)
     await waitFor(() => {
+      expect(screen.getByText(/no visible profiles/i)).toBeInTheDocument()
+    })
+  })
+
+  it('shows "No profiles yet" when show-hidden is on', async () => {
+    mockedProfilesApi.list.mockResolvedValue([])
+    render(<Profiles />)
+    const checkbox = await screen.findByRole('checkbox')
+    fireEvent.click(checkbox)
+    await waitFor(() => {
       expect(screen.getByText(/no profiles yet/i)).toBeInTheDocument()
+    })
+  })
+
+  it('hides hidden profiles by default and reveals them with toggle', async () => {
+    mockedProfilesApi.list.mockResolvedValue([
+      mockProfile,
+      { ...mockProfile, id: '2', name: 'Home', hidden: true },
+    ])
+    render(<Profiles />)
+    await waitFor(() => {
+      expect(screen.getByText('Work')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Home')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('checkbox'))
+    await waitFor(() => {
+      expect(screen.getByText('Home')).toBeInTheDocument()
+    })
+  })
+
+  it('marks the active profile with an Active badge', async () => {
+    mockedProfilesApi.list.mockResolvedValue([
+      mockProfile,
+      { ...mockProfile, id: '2', name: 'Home', isActive: true },
+    ])
+    render(<Profiles />)
+    await waitFor(() => {
+      expect(screen.getByText('Active')).toBeInTheDocument()
+    })
+  })
+
+  it('activate calls activate API and reloads', async () => {
+    mockedProfilesApi.activate.mockResolvedValue({ ...mockProfile, isActive: true })
+    mockedProfilesApi.list.mockResolvedValue([mockProfile])
+    render(<Profiles />)
+    const button = await screen.findByText('Activate')
+    fireEvent.click(button)
+    await waitFor(() => {
+      expect(mockedProfilesApi.activate).toHaveBeenCalledWith('1')
     })
   })
 

@@ -220,6 +220,8 @@ export interface Profile {
   color: string
   icon?: string | null
   settings?: Record<string, unknown> | null
+  isActive: boolean
+  hidden: boolean
 }
 
 export interface CreateProfile {
@@ -227,6 +229,8 @@ export interface CreateProfile {
   color: string
   icon?: string | null
   settings?: Record<string, unknown> | null
+  isActive?: boolean
+  hidden?: boolean
 }
 
 export interface UpdateProfile {
@@ -234,6 +238,7 @@ export interface UpdateProfile {
   color?: string
   icon?: string | null
   settings?: Record<string, unknown> | null
+  hidden?: boolean
 }
 
 // ---------------------------------------------------------------------------

@@ -21,7 +21,7 @@ function fail(status: number, code: string, message: string): never {
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 // columns present on the backing table (used to guard optional order-by)
-const tableCols = new Set<string>(["id", "name", "color", "description", "isDefault", "avatarUrl", "createdAt", "updatedAt"]);
+const tableCols = new Set<string>(["id", "name", "color", "description", "isDefault", "isActive", "hidden", "avatarUrl", "createdAt", "updatedAt"]);
 const colExists = (c: string): boolean => tableCols.has(c);
 
 async function totalOf(t: any, where?: any): Promise<number> {
@@ -94,7 +94,8 @@ export const profilesRoutes: FastifyPluginAsync = async (app) => {
     if (body.color !== undefined && typeof body.color === "string" && !COLOR_RE.test(body.color)) {
       return fail(422, "VALIDATION_ERROR", "color invalid format");
     }
-    const patch: any = { ...body };
+    // isActive cannot be set via PATCH — use /activate endpoint to enforce singleton invariant
+    const { isActive, ...patch } = body;
     if (colExists("updatedAt")) patch.updatedAt = new Date().toISOString();
     const [row] = await db.update(schema.profiles).set(patch)
       .where(eq(schema.profiles.id, (req.params as any).profileId)).returning();
@@ -118,5 +119,20 @@ export const profilesRoutes: FastifyPluginAsync = async (app) => {
     if (!row) return fail(404, "NOT_FOUND", "profiles not found");
     emit("pmos.profiles.profiles.deleted", row);
     return reply.code(204).send();
+  });
+
+  // PATCH /profiles/:profileId/activate — activate a profile (deactivates all others)
+  typed.patch("/profiles/:profileId/activate", {
+    schema: { params: Type.Object({ profileId: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } },
+  }, async (req, reply) => {
+    const id = (req.params as any).profileId;
+    // First, deactivate all profiles
+    await db.update(schema.profiles).set({ isActive: false, updatedAt: new Date().toISOString() });
+    // Then activate the requested profile
+    const [row] = await db.update(schema.profiles).set({ isActive: true, updatedAt: new Date().toISOString() })
+      .where(eq(schema.profiles.id, id)).returning();
+    if (!row) return fail(404, "NOT_FOUND", "profiles not found");
+    emit("pmos.profiles.profiles.updated", row);
+    return reply.send(row);
   });
 };

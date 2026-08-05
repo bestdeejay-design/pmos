@@ -1,4 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { notesApi } from '../api/notes'
 import type { Note } from '../api/types'
 
@@ -18,6 +19,7 @@ function NoteModal({
   const [title, setTitle] = useState(initial?.title ?? '')
   const [bodyMd, setBodyMd] = useState(initial?.bodyMd ?? '')
   const [tagsText, setTagsText] = useState(initial?.tags.join(', ') ?? '')
+  const [preview, setPreview] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -64,10 +66,23 @@ function NoteModal({
               className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
             />
           </div>
-          <div>
+          <div className="flex items-center justify-between">
             <label className="mb-1 block text-sm font-medium text-neutral-700">
               Body (Markdown)
             </label>
+            <button
+              type="button"
+              onClick={() => setPreview(p => !p)}
+              className="text-sm text-neutral-500 underline hover:text-neutral-700"
+            >
+              {preview ? 'Edit' : 'Preview'}
+            </button>
+          </div>
+          {preview ? (
+            <div className="min-h-[120px] rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm prose prose-sm max-w-none">
+              <ReactMarkdown>{bodyMd}</ReactMarkdown>
+            </div>
+          ) : (
             <textarea
               value={bodyMd}
               onChange={e => setBodyMd(e.target.value)}
@@ -75,7 +90,7 @@ function NoteModal({
               rows={5}
               className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
             />
-          </div>
+          )}
           <div>
             <label className="mb-1 block text-sm font-medium text-neutral-700">
               Tags (comma-separated)
@@ -172,9 +187,9 @@ export default function Notes() {
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <h2 className="font-semibold">{note.title}</h2>
-                  <p className="mt-1 line-clamp-2 text-sm text-neutral-500">
-                    {note.bodyMd}
-                  </p>
+                  <div className="mt-1 max-h-24 overflow-hidden text-sm text-neutral-500 prose prose-sm max-w-none">
+                    <ReactMarkdown>{note.bodyMd}</ReactMarkdown>
+                  </div>
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <button

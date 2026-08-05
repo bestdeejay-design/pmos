@@ -101,4 +101,31 @@ describe('Notes page', () => {
     expect(screen.getByText('New Note')).toBeInTheDocument()
     expect(screen.getByText('Save')).toBeInTheDocument()
   })
+
+  it('renders markdown body as formatted HTML', async () => {
+    mockedNotesApi.list.mockResolvedValue([
+      { ...mockNote, bodyMd: '# Heading\n\nSome **bold** text' },
+    ])
+    render(<Notes />)
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1, name: 'Heading' })).toBeInTheDocument()
+    })
+    expect(screen.getByText('bold')).toBeInTheDocument()
+  })
+
+  it('modal toggles between Edit and Preview', async () => {
+    render(<Notes />)
+    await waitFor(() => {
+      expect(screen.getByText('+ New Note')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('+ New Note'))
+    expect(screen.getByText('Body (Markdown)')).toBeInTheDocument()
+
+    const toggle = screen.getByText('Preview')
+    fireEvent.click(toggle)
+    expect(screen.getAllByText('Edit').length).toBeGreaterThan(0)
+    const editButtons = screen.getAllByRole('button', { name: 'Edit' })
+    fireEvent.click(editButtons[editButtons.length - 1])
+    expect(screen.getByText('Preview')).toBeInTheDocument()
+  })
 })

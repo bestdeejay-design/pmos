@@ -7,6 +7,8 @@ export const profiles = pgTable("profiles", {
   color: text("color").notNull().default("#888888"),
   description: text("description"),
   isDefault: boolean("is_default").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(false),
+  hidden: boolean("hidden").notNull().default(false),
   avatarUrl: text("avatar_url"),
   createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
