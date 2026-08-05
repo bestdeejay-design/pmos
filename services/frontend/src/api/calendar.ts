@@ -1,6 +1,12 @@
 import { apiClient } from './client'
 import { apiDelete, qs } from './types'
-import type { CreateMeeting, ListResponse, Meeting, UpdateMeeting } from './types'
+import type {
+  CreateMeeting,
+  ListResponse,
+  Meeting,
+  Reminder,
+  UpdateMeeting,
+} from './types'
 
 const BASE = '/calendar/v1'
 
@@ -31,4 +37,12 @@ export const calendarApi = {
       body: JSON.stringify(data),
     }),
   delete: (id: string) => apiDelete(`${BASE}/meetings/${id}`),
+  listReminders: async (meetingId: string) =>
+    (await apiClient<{ data: Reminder[] }>(`${BASE}/meetings/${meetingId}/reminders`))
+      .data,
+  createReminder: (meetingId: string, data: { remindAt: string; channel?: string }) =>
+    apiClient<Reminder>(`${BASE}/meetings/${meetingId}/reminders`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 }

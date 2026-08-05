@@ -150,6 +150,15 @@ export interface UpdateMeeting {
   profileIds?: string[]
 }
 
+export interface Reminder {
+  id: string
+  meetingId: string
+  remindAt: string
+  channel: 'push' | 'email'
+  sent: boolean
+  createdAt: string
+}
+
 // ---------------------------------------------------------------------------
 // Projects
 // ---------------------------------------------------------------------------

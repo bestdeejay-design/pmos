@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { calendarApi } from '../../api/calendar'
-import type { Meeting } from '../../api/types'
+import type { Meeting, Reminder } from '../../api/types'
 
 function toLocalInput(iso: string): string {
   return new Date(iso).toISOString().slice(0, 16)
@@ -24,8 +24,26 @@ export function MeetingModal({
   )
   const [allDay, setAllDay] = useState(initial?.allDay ?? false)
   const [description, setDescription] = useState(initial?.description ?? '')
+  const [remindMin, setRemindMin] = useState(0)
+  const [existing, setExisting] = useState<Reminder[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!initial) return
+    calendarApi
+      .listReminders(initial.id)
+      .then(rows => {
+        if (!cancelled) setExisting(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setExisting([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [initial])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -39,10 +57,14 @@ export function MeetingModal({
       description: description || undefined,
     }
     try {
-      if (initial) {
-        await calendarApi.update(initial.id, payload)
-      } else {
-        await calendarApi.create(payload)
+      const meeting = initial
+        ? await calendarApi.update(initial.id, payload)
+        : await calendarApi.create(payload)
+      if (remindMin > 0) {
+        const remindAt = new Date(
+          new Date(meeting.startTime).getTime() - remindMin * 60_000,
+        ).toISOString()
+        await calendarApi.createReminder(meeting.id, { remindAt, channel: 'push' })
       }
       onSaved()
     } catch (err) {
@@ -118,6 +140,25 @@ export function MeetingModal({
               rows={3}
               className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
             />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-neutral-700">
+              Remind me before (minutes)
+            </label>
+            <input
+              type="number"
+              min={0}
+              step={5}
+              value={remindMin}
+              onChange={e => setRemindMin(Number(e.target.value) || 0)}
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+            />
+            {existing.length > 0 && (
+              <p className="mt-1 text-xs text-neutral-400">
+                Existing reminder:{' '}
+                {new Date(existing[0].remindAt).toLocaleString()}
+              </p>
+            )}
           </div>
         </div>
         {error && <p className="mt-3 text-sm text-red-500">{error}</p>}

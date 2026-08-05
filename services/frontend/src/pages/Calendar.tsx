@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { calendarApi } from '../api/calendar'
-import type { Meeting } from '../api/types'
+import type { Meeting, Reminder } from '../api/types'
 import WeekGrid from './calendar/WeekGrid'
 import { MeetingModal } from './calendar/MeetingModal'
 import { startOfWeek } from './calendar/week'
@@ -31,6 +31,7 @@ function formatWeekRange(weekStart: Date): string {
 
 export default function Calendar() {
   const [meetings, setMeetings] = useState<Meeting[]>([])
+  const [reminders, setReminders] = useState<Record<string, Reminder>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState | null>(null)
@@ -41,7 +42,22 @@ export default function Calendar() {
     setLoading(true)
     calendarApi
       .list()
-      .then(setMeetings)
+      .then(rows => {
+        setMeetings(rows)
+        return Promise.all(
+          rows.map(async m => {
+            try {
+              const rs = await calendarApi.listReminders(m.id)
+              return rs.length > 0 ? ([m.id, rs[0]] as const) : null
+            } catch {
+              return null
+            }
+          }),
+        )
+      })
+      .then(pairs => {
+        setReminders(Object.fromEntries(pairs.filter(Boolean) as [string, Reminder][]))
+      })
       .catch(e => setError(e instanceof Error ? e.message : 'Failed to load'))
       .finally(() => setLoading(false))
   }
@@ -160,7 +176,12 @@ export default function Calendar() {
               className="flex items-start justify-between gap-4 rounded-lg border border-neutral-200 bg-white p-4 transition-shadow hover:shadow-sm"
             >
               <div className="min-w-0">
-                <h2 className="font-semibold">{meeting.title}</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-semibold">{meeting.title}</h2>
+                  {reminders[meeting.id] && (
+                    <span title="Reminder set">🔔</span>
+                  )}
+                </div>
                 <p className="mt-1 text-sm text-neutral-500">
                   {formatRange(meeting)}
                 </p>

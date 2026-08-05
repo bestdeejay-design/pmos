@@ -14,6 +14,8 @@ vi.mock('../../api/calendar', () => ({
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    listReminders: vi.fn(),
+    createReminder: vi.fn(),
   },
 }))
 
@@ -72,6 +74,7 @@ describe('Calendar page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockedCalendarApi.list.mockResolvedValue([mockMeeting])
+    mockedCalendarApi.listReminders.mockResolvedValue([])
   })
 
   it('shows loading state', () => {
@@ -178,6 +181,71 @@ describe('Calendar page', () => {
     fireEvent.click(screen.getByRole('button', { name: /list view/i }))
     await waitFor(() => {
       expect(screen.queryByTestId(`meeting-${meeting.id}`)).not.toBeInTheDocument()
+    })
+  })
+
+  it('create modal offers a reminder-minutes field', async () => {
+    render(<Calendar />)
+    await waitFor(() => {
+      expect(screen.getByText('+ New Meeting')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('+ New Meeting'))
+    expect(screen.getByText(/remind me before/i)).toBeInTheDocument()
+  })
+
+  it('creates a reminder on save when minutes are set', async () => {
+    mockedCalendarApi.create.mockResolvedValue({
+      ...mockMeeting,
+      startTime: '2025-06-01T10:00:00Z',
+    })
+    render(<Calendar />)
+    await waitFor(() => {
+      expect(screen.getByText('+ New Meeting')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('+ New Meeting'))
+    const minutes = screen.getByRole('spinbutton')
+    fireEvent.change(minutes, { target: { value: '15' } })
+    const form = minutes.closest('form') as HTMLFormElement
+    expect(form).toBeTruthy()
+    const [titleInput, startInput, endInput] = Array.from(
+      form.querySelectorAll<HTMLInputElement>('input'),
+    ).filter(i => i.type !== 'number')
+    fireEvent.change(titleInput, { target: { value: 'Standup' } })
+    fireEvent.change(startInput, {
+      target: { value: '2025-06-01T10:00' },
+    })
+    fireEvent.change(endInput, {
+      target: { value: '2025-06-01T11:00' },
+    })
+    fireEvent.submit(form, { bubbles: true, cancelable: true })
+    await waitFor(() => {
+      expect(mockedCalendarApi.create).toHaveBeenCalledTimes(1)
+    })
+    await waitFor(() => {
+      expect(mockedCalendarApi.createReminder).toHaveBeenCalledTimes(1)
+    })
+    const [id, body] = mockedCalendarApi.createReminder.mock.calls[0]!
+    expect(id).toBe(mockMeeting.id)
+    expect(body.channel).toBe('push')
+    expect(new Date(body.remindAt).getTime()).toBe(
+      new Date('2025-06-01T10:00:00Z').getTime() - 15 * 60_000,
+    )
+  })
+
+  it('shows a bell badge when a meeting has a reminder', async () => {
+    mockedCalendarApi.listReminders.mockResolvedValue([
+      {
+        id: 'r1',
+        meetingId: mockMeeting.id,
+        remindAt: '2025-06-01T09:30:00Z',
+        channel: 'push',
+        sent: false,
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+    ])
+    render(<Calendar />)
+    await waitFor(() => {
+      expect(screen.getAllByText('🔔').length).toBeGreaterThan(0)
     })
   })
 })
