@@ -159,5 +159,45 @@ export const calendarRoutes: FastifyPluginAsync = async (app) => {
     });
   };
 
+  // ───────────── reminders (P2.5): fire_at per meeting ─────────────
+
+  const ReminderCreate = Type.Object({
+    remindAt: Type.String({ format: "date-time" }),
+    channel: Type.Optional(Type.Union([Type.Literal("push"), Type.Literal("email")])),
+  }, { additionalProperties: false });
+
+  const remindersRoutes: FastifyPluginAsync = async (remApp) => {
+    const it = remApp.withTypeProvider<TypeBoxTypeProvider>();
+
+    it.post("/reminders", {
+      schema: { params: Type.Object({ id: UUID }), body: ReminderCreate, response: { 201: Type.Any(), 404: Type.Any() } },
+    }, async (req, reply) => {
+      const meetingId = (req.params as any).id;
+      const [meeting] = await db.select().from(schema.meetings)
+        .where(eq(schema.meetings.id, meetingId)).limit(1);
+      if (!meeting) return fail(404, "NOT_FOUND", "meeting not found");
+      const [row] = await db.insert(schema.reminders).values({
+        meetingId,
+        remindAt: (req.body as any).remindAt,
+        channel: (req.body as any).channel ?? "push",
+      }).returning();
+      return reply.code(201).send(row);
+    });
+
+    it.get("/reminders", {
+      schema: { params: Type.Object({ id: UUID }), response: { 200: Type.Any(), 404: Type.Any() } },
+    }, async (req, reply) => {
+      const meetingId = (req.params as any).id;
+      const [meeting] = await db.select().from(schema.meetings)
+        .where(eq(schema.meetings.id, meetingId)).limit(1);
+      if (!meeting) return fail(404, "NOT_FOUND", "meeting not found");
+      const rows = await db.select().from(schema.reminders)
+        .where(eq(schema.reminders.meetingId, meetingId))
+        .orderBy(sql`${schema.reminders.remindAt} asc`);
+      return reply.send({ data: rows });
+    });
+  };
+
   app.register(icsRoutes, { prefix: "/meetings/:id" });
+  app.register(remindersRoutes, { prefix: "/meetings/:id" });
 };

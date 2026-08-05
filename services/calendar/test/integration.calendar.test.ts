@@ -69,4 +69,23 @@ describe.skipIf(!HAS_DB)("calendar (reference impl) — real Postgres", () => {
     const gt = await app.inject({ method: "GET", url: `${base}/meetings/${id}` });
     expect(gt.statusCode, "get after delete").toBe(404);
   });
+
+  it("creates a reminder for a meeting and lists it (P2.5)", async () => {
+    const cr = await app.inject({ method: "POST", url: `${base}/meetings`, payload: { title: "Standup Rem", startTime: "2026-08-03T09:00:00Z", endTime: "2026-08-03T09:15:00Z" } });
+    const id = (cr.json() as any).id;
+    const rr = await app.inject({ method: "POST", url: `${base}/meetings/${id}/reminders`, payload: { remindAt: "2026-08-03T08:30:00Z", channel: "push" } });
+    expect(rr.statusCode, "create reminder").toBe(201);
+    const lr = await app.inject({ method: "GET", url: `${base}/meetings/${id}/reminders` });
+    expect(lr.statusCode, "list reminders").toBe(200);
+    const rows = (lr.json() as any).data;
+    expect(rows.length).toBe(1);
+    expect(rows[0].remindAt).toBe("2026-08-03T08:30:00Z");
+    expect(rows[0].channel).toBe("push");
+    expect(rows[0].sent).toBe(false);
+  });
+
+  it("returns 404 when creating a reminder for a missing meeting (P2.5)", async () => {
+    const rr = await app.inject({ method: "POST", url: `${base}/meetings/00000000-0000-0000-0000-000000000000/reminders`, payload: { remindAt: "2026-08-03T08:00:00Z" } });
+    expect(rr.statusCode, "missing meeting reminder").toBe(404);
+  });
 });

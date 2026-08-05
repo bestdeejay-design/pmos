@@ -24,5 +24,14 @@ export async function buildApp() {
   // Wire event subscribers (best-effort, don't fail health-check if NATS is down)
   registerSubscribers(EventBus.get()).catch(() => {});
 
+  // Reminder scheduler: fire due reminders every 30s, best-effort. Never throws.
+  const pollMs = Number(process.env.REMINDER_POLL_MS ?? 30_000);
+  const reminderTimer = setInterval(() => {
+    import("./scheduler/reminders.js").then((m) =>
+      m.fireDueReminders().catch((e) => console.error("[reminder] fire failed:", e)),
+    );
+  }, Math.max(pollMs, 1_000));
+  app.addHook("onClose", async () => clearInterval(reminderTimer));
+
   return app;
 }
