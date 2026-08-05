@@ -8,6 +8,7 @@ import Projects from './pages/Projects'
 import Files from './pages/Files'
 import Profiles from './pages/Profiles'
 import Settings from './pages/Settings'
+import Search from './pages/Search'
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="files" element={<Files />} />
         <Route path="profiles" element={<Profiles />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="search" element={<Search />} />
       </Route>
     </Routes>
   )
