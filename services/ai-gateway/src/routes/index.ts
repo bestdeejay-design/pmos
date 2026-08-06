@@ -1,10 +1,12 @@
 import type { FastifyPluginAsync } from "fastify";
 import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@fastify/type-provider-typebox";
+import multipart, { type Multipart } from "@fastify/multipart";
 import { db } from "../db/connection.js";
 import { aiRequestLog } from "../db/schema.js";
 import { EventBus } from "@pmos/event-bus";
-import { ollamaGenerate, parseDictation, selectedModel, heuristicTitle } from "../lib/llm.js";
+import { generate, parseDictation, selectedModel, heuristicTitle } from "../lib/llm.js";
+import { transcribeAudio } from "../lib/stt.js";
 
 // ───────────────────────── helpers ─────────────────────────
 
@@ -62,7 +64,65 @@ function heuristicDictation(text: string): { title: string; bodyMd: string; tag:
   return { title: heuristicTitle(text), bodyMd: text, tag: null };
 }
 
+interface DictationResult {
+  title: string;
+  bodyMd: string;
+  tag: string | undefined;
+  degraded: boolean;
+}
+
+/**
+ * Shared dictation pipeline: LLM (cloud → Ollama) → parse → heuristic fallback →
+ * observability log → publish pmos.ai-gateway.dictation.completed. Used by both
+ * /dictate (text) and /transcribe (audio → text). NEVER throws.
+ */
+async function runDictation(text: string, model: string | undefined, correlationId?: string): Promise<DictationResult> {
+  const usedModel = selectedModel(model);
+  const prompt = buildDictationPrompt(text);
+
+  let degraded = false;
+  let title: string | null = null;
+  let bodyMd: string | null = null;
+  let tag: string | null = null;
+  try {
+    const raw = await generate(prompt, model);
+    if (raw !== null) {
+      const parsed = parseDictation(raw);
+      title = parsed.title;
+      bodyMd = parsed.bodyMd;
+      tag = parsed.tag;
+      degraded = !title || !bodyMd; // parse failure → fallback
+    } else {
+      degraded = true; // every provider failed → fallback
+    }
+  } catch {
+    degraded = true; // unexpected failure → fallback
+  }
+
+  if (!title || !bodyMd) {
+    const heuristic = heuristicDictation(text);
+    title = heuristic.title;
+    bodyMd = heuristic.bodyMd;
+    tag = heuristic.tag;
+    degraded = true;
+  }
+
+  await logRequest("dictate", usedModel, prompt.length);
+  publish("pmos.ai-gateway.dictation.completed", { text, title, bodyMd, tag }, correlationId);
+  return { title, bodyMd, tag: tag ?? undefined, degraded };
+}
+
+/** Multipart text-field value (single occurrence). */
+function fieldString(f: Multipart | Multipart[] | undefined): string | undefined {
+  const single = Array.isArray(f) ? f[0] : f;
+  if (!single || single.type !== "field") return undefined;
+  return typeof single.value === "string" ? single.value : undefined;
+}
+
+const MAX_AUDIO_SIZE = 25 * 1024 * 1024; // 25 MB
+
 export const ai_gatewayRoutes: FastifyPluginAsync = async (app) => {
+  await app.register(multipart, { limits: { fileSize: MAX_AUDIO_SIZE } });
   const typed = app.withTypeProvider<TypeBoxTypeProvider>();
 
   typed.get("/health-check", async () => ({ ok: true, service: "ai-gateway" }));
@@ -89,9 +149,8 @@ export const ai_gatewayRoutes: FastifyPluginAsync = async (app) => {
     let degraded = false;
     let restored = text;
     try {
-      const raw = await ollamaGenerate(prompt, usedModel);
-      const cleaned = raw.trim();
-      if (cleaned.length > 0) restored = cleaned;
+      const raw = await generate(prompt, model);
+      if (raw !== null && raw.trim().length > 0) restored = raw.trim();
       else degraded = true;
     } catch {
       degraded = true; // external LLM failure → graceful fallback (input unchanged)
@@ -118,35 +177,42 @@ export const ai_gatewayRoutes: FastifyPluginAsync = async (app) => {
     },
   }, async (req, reply) => {
     const { text, model } = req.body;
-    const usedModel = selectedModel(model);
-    const prompt = buildDictationPrompt(text);
-
-    let degraded = false;
-    let title: string | null = null;
-    let bodyMd: string | null = null;
-    let tag: string | null = null;
-    try {
-      const raw = await ollamaGenerate(prompt, usedModel);
-      const parsed = parseDictation(raw);
-      title = parsed.title;
-      bodyMd = parsed.bodyMd;
-      tag = parsed.tag;
-      degraded = !title || !bodyMd; // parse failure → fallback
-    } catch {
-      degraded = true; // external LLM failure/timeout → fallback
-    }
-
-    if (!title || !bodyMd) {
-      const heuristic = heuristicDictation(text);
-      title = heuristic.title;
-      bodyMd = heuristic.bodyMd;
-      tag = heuristic.tag;
-      degraded = true;
-    }
-
-    await logRequest("dictate", usedModel, prompt.length);
     const correlationId = (req.headers["x-correlation-id"] as string | undefined);
-    publish("pmos.ai-gateway.dictation.completed", { text, title, bodyMd, tag }, correlationId);
-    return reply.send({ title, bodyMd, tag: tag ?? undefined, degraded });
+    const result = await runDictation(text, model, correlationId);
+    return reply.send(result);
+  });
+
+  // ───────────── AI: audio dictation (multipart upload → STT → /dictate pipeline) ─────────────
+  typed.post("/transcribe", {
+    schema: {
+      response: { 200: Type.Any(), 400: Type.Any(), 413: Type.Any(), 502: Type.Any() },
+    },
+  }, async (req, reply) => {
+    let data;
+    try {
+      data = await req.file();
+    } catch (e) {
+      const status = e instanceof Error && "statusCode" in e ? (e as { statusCode?: number }).statusCode : undefined;
+      if (status === 413) return fail(413, "FILE_TOO_LARGE", "audio file exceeds 25MB limit");
+      return fail(400, "VALIDATION_ERROR", "multipart request with an 'audio' file part is required");
+    }
+    if (!data) return fail(400, "VALIDATION_ERROR", "multipart request with an 'audio' file part is required");
+
+    const buffer = await data.toBuffer().catch(() => null);
+    if (buffer === null) return fail(413, "FILE_TOO_LARGE", "audio file exceeds 25MB limit");
+
+    const model = fieldString(data.fields.model) ?? undefined;
+    const correlationId = (req.headers["x-correlation-id"] as string | undefined);
+
+    let text: string;
+    try {
+      text = await transcribeAudio(buffer, model);
+    } catch (e) {
+      console.error("[ai-gateway] transcription failed, returning degraded response:", e);
+      return fail(502, "STT_UNAVAILABLE", "speech recognition failed, please retry");
+    }
+
+    const result = await runDictation(text, model, correlationId);
+    return reply.send(result);
   });
 };

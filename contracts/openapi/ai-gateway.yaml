@@ -69,6 +69,57 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  /transcribe:
+    post:
+      operationId: transcribe
+      summary: 'Диктовка с аудио: multipart-загрузка → распознавание речи → структурированная заметка'
+      tags: [AI, Dictation]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: 'Аудиофайл для распознавания речи'
+                model:
+                  type: string
+                  description: 'Модель (опционально, иначе fallback)'
+      responses:
+        '200':
+          description: Результат диктовки
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DictationResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '413':
+          description: Аудиофайл превышает лимит размера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '502':
+          description: Распознавание речи недоступно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
 components:
   parameters:
     CorrelationId:

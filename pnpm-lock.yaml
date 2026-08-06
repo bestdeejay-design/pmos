@@ -112,6 +112,9 @@ importers:
 
   services/ai-gateway:
     dependencies:
+      '@fastify/multipart':
+        specifier: ^10.1.0
+        version: 10.1.0
       '@fastify/type-provider-typebox':
         specifier: ^4.0.0
         version: 4.1.0(@sinclair/typebox@0.34.52)
