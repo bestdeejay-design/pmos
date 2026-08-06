@@ -543,6 +543,11 @@ components:
           type: string
           format: date-time
           description: 'Обновлено'
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/MeetingConflict'
+          description: 'Пересекающиеся по времени встречи (только в ответах create/update, не блокирует)'
       example:
         |-
           id: m1a2b3c4-d5e6-7890-abcd-ef1234567890
@@ -557,6 +562,30 @@ components:
           profileIds: [f1a2b3c4-d5e6-7890-abcd-ef1234567890]
           createdAt: '2026-07-30T08:00:00Z'
           updatedAt: '2026-07-30T08:00:00Z'
+    MeetingConflict:
+      type: object
+      description: Встреча, пересекающаяся по времени с создаваемой/обновляемой
+      required:
+        - id
+        - title
+        - startTime
+        - endTime
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 'UUID встречи'
+        title:
+          type: string
+          description: 'Название'
+        startTime:
+          type: string
+          format: date-time
+          description: 'Начало'
+        endTime:
+          type: string
+          format: date-time
+          description: 'Конец'
     MeetingCreate:
       type: object
       description: Данные для создания встречи

@@ -1,4 +1,4 @@
-import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
 import { buildApp } from "../src/app.js";
 import { db } from "../src/db/connection.js";
 import * as schema from "../src/db/schema.js";
@@ -79,7 +79,7 @@ describe.skipIf(!HAS_DB)("calendar (reference impl) — real Postgres", () => {
     expect(lr.statusCode, "list reminders").toBe(200);
     const rows = (lr.json() as any).data;
     expect(rows.length).toBe(1);
-    expect(rows[0].remindAt).toBe("2026-08-03T08:30:00Z");
+    expect(new Date(rows[0].remindAt).toISOString()).toBe("2026-08-03T08:30:00.000Z");
     expect(rows[0].channel).toBe("push");
     expect(rows[0].sent).toBe(false);
   });
@@ -87,5 +87,61 @@ describe.skipIf(!HAS_DB)("calendar (reference impl) — real Postgres", () => {
   it("returns 404 when creating a reminder for a missing meeting (P2.5)", async () => {
     const rr = await app.inject({ method: "POST", url: `${base}/meetings/00000000-0000-0000-0000-000000000000/reminders`, payload: { remindAt: "2026-08-03T08:00:00Z" } });
     expect(rr.statusCode, "missing meeting reminder").toBe(404);
+  });
+
+  describe("meeting conflict detection", () => {
+    beforeEach(async () => {
+      await db.delete(schema.meetings);
+    });
+
+    it("returns 201 with a warning about the overlapping meeting (TEST_CASES §4.4)", async () => {
+      const m1 = await app.inject({ method: "POST", url: `${base}/meetings`, payload: { title: "m1", startTime: "2026-08-10T10:00:00Z", endTime: "2026-08-10T11:00:00Z" } });
+      expect(m1.statusCode).toBe(201);
+      const m1id = (m1.json() as any).id;
+
+      const conflict = await app.inject({ method: "POST", url: `${base}/meetings`, payload: { title: "Conflict meeting", startTime: "2026-08-10T10:30:00Z", endTime: "2026-08-10T11:30:00Z" } });
+      expect(conflict.statusCode).toBe(201);
+      const body = conflict.json() as any;
+      expect(Array.isArray(body.warnings)).toBe(true);
+      expect(body.warnings.length).toBe(1);
+      expect(body.warnings[0].id).toBe(m1id);
+      expect(body.warnings[0].title).toBe("m1");
+      expect(new Date(body.warnings[0].startTime).toISOString()).toBe("2026-08-10T10:00:00.000Z");
+      expect(new Date(body.warnings[0].endTime).toISOString()).toBe("2026-08-10T11:00:00.000Z");
+    });
+
+    it("returns empty warnings for a non-overlapping meeting", async () => {
+      const r = await app.inject({ method: "POST", url: `${base}/meetings`, payload: { title: "Free slot", startTime: "2026-08-11T11:00:00Z", endTime: "2026-08-11T12:00:00Z" } });
+      expect(r.statusCode).toBe(201);
+      expect((r.json() as any).warnings).toEqual([]);
+    });
+
+    it("detects conflicts on PATCH when the time moves into an overlap", async () => {
+      const m2 = await app.inject({ method: "POST", url: `${base}/meetings`, payload: { title: "m2", startTime: "2026-08-12T09:00:00Z", endTime: "2026-08-12T10:00:00Z" } });
+      const m2id = (m2.json() as any).id;
+      await app.inject({ method: "POST", url: `${base}/meetings`, payload: { title: "m3", startTime: "2026-08-12T09:30:00Z", endTime: "2026-08-12T10:30:00Z" } });
+
+      const patch = await app.inject({ method: "PATCH", url: `${base}/meetings/${m2id}`, payload: { startTime: "2026-08-12T09:15:00Z", endTime: "2026-08-12T09:45:00Z" } });
+      expect(patch.statusCode).toBe(200);
+      const body = patch.json() as any;
+      expect(body.warnings.length).toBe(1);
+      expect(body.warnings[0].title).toBe("m3");
+    });
+
+    it("excludes the meeting itself from PATCH warnings (self not a conflict)", async () => {
+      const m4 = await app.inject({ method: "POST", url: `${base}/meetings`, payload: { title: "m4", startTime: "2026-08-13T09:00:00Z", endTime: "2026-08-13T10:00:00Z" } });
+      const m4id = (m4.json() as any).id;
+      const patch = await app.inject({ method: "PATCH", url: `${base}/meetings/${m4id}`, payload: { title: "m4 renamed" } });
+      expect(patch.statusCode).toBe(200);
+      expect((patch.json() as any).warnings).toEqual([]);
+    });
+
+    it("keeps list responses free of the warnings field", async () => {
+      const list = await app.inject({ method: "GET", url: `${base}/meetings` });
+      expect(list.statusCode).toBe(200);
+      for (const m of (list.json() as any).data) {
+        expect(m).not.toHaveProperty("warnings");
+      }
+    });
   });
 });

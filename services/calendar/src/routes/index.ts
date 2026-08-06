@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { Type } from "@fastify/type-provider-typebox";
-import { eq, count, and, gte, lte, sql } from "drizzle-orm";
+import { eq, count, and, gte, lte, lt, gt, ne, sql } from "drizzle-orm";
 import { db } from "../db/connection.js";
 import * as schema from "../db/schema.js";
 import { EventBus } from "@pmos/event-bus";
@@ -49,6 +49,30 @@ const MeetingUpdate = Type.Object({
 async function totalOf(t: any, where?: any): Promise<number> {
   const r = await db.select({ total: count() }).from(t).where(where).limit(1);
   return r[0]?.total ?? 0;
+}
+
+// Half-open interval overlap: [aStart, aEnd) × [bStart, bEnd) collide when
+// aStart < bEnd AND aEnd > bStart (adjacent end==start is NOT a conflict).
+// Returns existing meetings whose time range overlaps the given window,
+// excluding the meeting being updated itself (ownId).
+async function findConflicts(startTime: string, endTime: string, ownId?: string): Promise<Array<{ id: string; title: string; startTime: string; endTime: string }>> {
+  const conds: any[] = [
+    lt(schema.meetings.startTime, endTime),
+    gt(schema.meetings.endTime, startTime),
+  ];
+  if (ownId !== undefined) conds.push(ne(schema.meetings.id, ownId));
+  const rows = await db.select({
+    id: schema.meetings.id,
+    title: schema.meetings.title,
+    startTime: schema.meetings.startTime,
+    endTime: schema.meetings.endTime,
+  }).from(schema.meetings).where(and(...conds)).orderBy(sql`${schema.meetings.startTime} asc`);
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    startTime: new Date(r.startTime).toISOString(),
+    endTime: new Date(r.endTime).toISOString(),
+  }));
 }
 
 export const calendarRoutes: FastifyPluginAsync = async (app) => {
@@ -101,8 +125,10 @@ export const calendarRoutes: FastifyPluginAsync = async (app) => {
       fail(400, "INVALID_TIME_RANGE", "endTime must be greater than or equal to startTime");
     }
     const [row] = await db.insert(schema.meetings).values(b).returning();
+    if (!row) return fail(500, "INSERT_FAILED", "meeting was not created");
+    const warnings = await findConflicts(b.startTime, b.endTime, row.id);
     emit("pmos.calendar.meetings.created", row);
-    return reply.code(201).send(row);
+    return reply.code(201).send({ ...row, warnings });
   });
 
   typed.get("/meetings/:id", {
@@ -126,8 +152,11 @@ export const calendarRoutes: FastifyPluginAsync = async (app) => {
     if (!existing) return fail(404, "NOT_FOUND", "meeting not found");
     const patch: any = { ...b, updatedAt: new Date().toISOString() };
     const [row] = await db.update(schema.meetings).set(patch).where(eq(schema.meetings.id, id)).returning();
+    const newStart = b.startTime ?? existing.startTime;
+    const newEnd = b.endTime ?? existing.endTime;
+    const warnings = await findConflicts(newStart, newEnd, id);
     emit("pmos.calendar.meetings.updated", row);
-    return reply.send(row);
+    return reply.send({ ...row, warnings });
   });
 
   typed.delete("/meetings/:id", {
