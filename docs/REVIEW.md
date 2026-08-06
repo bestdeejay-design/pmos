@@ -105,7 +105,7 @@
 | **settings** | ✅ | — | — | ✅ | ✅ KV CRUD + `/ollama-models` | сгенерирован + семантика |
 | **notes** | ✅ | ✅ profileId/tag/isArchived/**q ILIKE** | ✅ | ✅ | ✅ CRUD+шаблоны+архив+**ручная сортировка(PUT /notes/order)**+**generate-title**+**Сага §1: notes.created → ai-gateway → title_generated → notes** | **ручной эталон** |
 | **tasks** | ✅ | ✅ projectId/status/profileId | ✅ | ✅ | ✅ streaks+приоритеты+фильтры+**валидация Kanban-статуса**+**блокировка зависимостей(409)**+**рекурренс-порождение**+**/tasks/:id/dependencies**; 📋 dashboard-сводка внешних сущностей | **ручной эталон** |
-| **calendar** | ✅ | ✅ profileId/from/to | ✅ | ✅ | ✅ CRUD+диапазон+ICS экспорт (RFC5545)+**Сага §4: external_events.created → встреча (recurrence, link)**; 📋 напоминания WS, конфликты | **ручной эталон** |
+| **calendar** | ✅ | ✅ profileId/from/to | ✅ | ✅ | ✅ CRUD+диапазон+ICS экспорт (RFC5545)+**Сага §4: external_events.created → встреча (recurrence, link)**+**детект конфликтов (warnings при create/update)**; 📋 напоминания WS | **ручной эталон** |
 | **projects** | ✅ | ✅ profileId | — | ✅ | ✅ dashboard (items), gantt, drag-reschedule | сгенерирован + семантика |
 | **files** | ✅ | ✅ profileId/owner | — | ✅ | ✅ извлечение текста (txt/md/PDF/docx)+**Сага §3: uploaded → text_extracted → search-rag** | сгенерирован + семантика |
 | **search-rag** | — (нет CRUD) | — | — | ✅ подписки | ✅ `/search` + ILIKE + Ollama embedding + pgvector + **Сага §3: подписка на text_extracted/notes.created** | сгенерирован (stub) + семантика |

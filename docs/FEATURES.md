@@ -126,6 +126,7 @@
 | Drag-and-drop в календаре | ✅ | Перенос и изменение длительности (frontend week-grid) |
 | Напоминания | ✅ | fire_at + WebSocket push (P2) |
 | Фильтр по профилю | ✅ | profileId (querystring), диапазон from/to |
+| Конфликты встреч | ✅ | POST/PATCH /meetings → warnings[] с пересекающимися встречами (не блокирует) |
 | Привязка к проекту | ✅ каркас | linked_project_id |
 | Шаблоны встреч | ✅ | CRUD /templates (зеркало notes), события pmos.calendar.templates.* |
 
