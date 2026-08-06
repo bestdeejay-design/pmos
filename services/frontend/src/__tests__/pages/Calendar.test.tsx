@@ -248,6 +248,70 @@ describe('Calendar page', () => {
       expect(screen.getAllByText('🔔').length).toBeGreaterThan(0)
     })
   })
+
+  it('shows conflict warnings after saving an overlapping meeting', async () => {
+    mockedCalendarApi.create.mockResolvedValue({
+      ...mockMeeting,
+      warnings: [
+        {
+          id: 'm1',
+          title: 'Sprint Planning',
+          startTime: '2025-06-01T10:00:00Z',
+          endTime: '2025-06-01T11:00:00Z',
+        },
+      ],
+    })
+    render(<Calendar />)
+    await waitFor(() => {
+      expect(screen.getByText('+ New Meeting')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('+ New Meeting'))
+    const spinButton = screen.getByRole('spinbutton')
+    const form = spinButton.closest('form') as HTMLFormElement
+    const [titleInput, startInput, endInput] = Array.from(
+      form.querySelectorAll<HTMLInputElement>('input'),
+    ).filter(i => i.type !== 'number')
+    fireEvent.change(titleInput, { target: { value: 'Standup' } })
+    fireEvent.change(startInput, {
+      target: { value: '2025-06-01T10:00' },
+    })
+    fireEvent.change(endInput, {
+      target: { value: '2025-06-01T11:00' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(mockedCalendarApi.create).toHaveBeenCalledTimes(1)
+    })
+    await waitFor(() => {
+      expect(screen.getByText(/overlaps:/i)).toBeInTheDocument()
+    })
+    expect(screen.getAllByText('Sprint Planning').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('shows no conflict banner when save returns no warnings', async () => {
+    mockedCalendarApi.create.mockResolvedValue({ ...mockMeeting })
+    render(<Calendar />)
+    await waitFor(() => {
+      expect(screen.getByText('+ New Meeting')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('+ New Meeting'))
+    const spinButton = screen.getByRole('spinbutton')
+    const form = spinButton.closest('form') as HTMLFormElement
+    const [titleInput, startInput, endInput] = Array.from(
+      form.querySelectorAll<HTMLInputElement>('input'),
+    ).filter(i => i.type !== 'number')
+    fireEvent.change(titleInput, { target: { value: 'Standup' } })
+    fireEvent.change(startInput, { target: { value: '2025-06-01T10:00' } })
+    fireEvent.change(endInput, { target: { value: '2025-06-01T11:00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => {
+      expect(mockedCalendarApi.create).toHaveBeenCalledTimes(1)
+    })
+    await waitFor(() => {
+      expect(screen.queryByText(/overlaps:/i)).not.toBeInTheDocument()
+    })
+    expect(screen.queryByText('New Meeting')).not.toBeInTheDocument()
+  })
 })
 
 describe('computeDragResult', () => {

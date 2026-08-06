@@ -218,6 +218,9 @@ export default function Calendar() {
             setModal(null)
             load()
           }}
+          onRefresh={() => {
+            load()
+          }}
         />
       )}
     </div>

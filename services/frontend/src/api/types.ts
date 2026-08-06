@@ -110,6 +110,13 @@ export interface UpdateTask {
 // Calendar (entity — Meeting)
 // ---------------------------------------------------------------------------
 
+export interface MeetingConflict {
+  id: string
+  title: string
+  startTime: string
+  endTime: string
+}
+
 export interface Meeting {
   id: string
   title: string
@@ -122,6 +129,8 @@ export interface Meeting {
   linkedProjectId?: string | null
   profileIds: string[]
   linkedExternalEventId?: string | null
+  /** Пересекающиеся по времени встречи — только в ответах create/update (не блокирует). */
+  warnings?: MeetingConflict[]
   createdAt: string
   updatedAt: string
 }
