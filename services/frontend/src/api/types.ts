@@ -266,6 +266,44 @@ export interface SettingUpsert {
 }
 
 // ---------------------------------------------------------------------------
+// Time Tracking
+// ---------------------------------------------------------------------------
+
+export interface Timesheet {
+  id: string
+  taskId: string | null
+  description: string | null
+  startedAt: string
+  endedAt: string | null
+  durationSec: number | null
+  profileIds: string[]
+  createdAt: string
+}
+
+export interface CreateTimesheet {
+  taskId?: string
+  description?: string
+  startedAt: string
+  endedAt?: string
+  durationSec?: number
+  profileIds?: string[]
+}
+
+export interface UpdateTimesheet {
+  endedAt?: string
+  durationSec?: number
+}
+
+export interface TimesheetStats {
+  total: number
+  todayTotal: number
+  weekTotal: number
+  perDay: { date: string; total: number }[]
+  byTask: { taskId: string; taskTitle: string | null; total: number }[]
+  byProject: { projectId: string; projectName: string | null; total: number }[]
+}
+
+// ---------------------------------------------------------------------------
 // Утилиты для api-модулей
 // ---------------------------------------------------------------------------
 

@@ -9,6 +9,7 @@ import Files from './pages/Files'
 import Profiles from './pages/Profiles'
 import Settings from './pages/Settings'
 import Search from './pages/Search'
+import TimeStats from './pages/TimeStats'
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="profiles" element={<Profiles />} />
         <Route path="settings" element={<Settings />} />
         <Route path="search" element={<Search />} />
+        <Route path="time" element={<TimeStats />} />
       </Route>
     </Routes>
   )

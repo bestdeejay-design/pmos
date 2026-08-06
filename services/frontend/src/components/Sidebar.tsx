@@ -8,6 +8,7 @@ const links = [
   { to: '/projects', label: '📁 Projects' },
   { to: '/files', label: '📎 Files' },
   { to: '/search', label: '🔍 Search' },
+  { to: '/time', label: '⏱️ Время' },
   { to: '/profiles', label: '👤 Profiles' },
   { to: '/settings', label: '⚙️ Settings' },
 ]

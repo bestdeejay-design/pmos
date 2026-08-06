@@ -8,6 +8,7 @@ import { projectsApi } from '../../api/projects'
 import { filesApi } from '../../api/files'
 import { profilesApi } from '../../api/profiles'
 import { settingsApi } from '../../api/settings'
+import { timesheetApi, timesheetStats } from '../../api/time-tracking'
 
 // ---------------------------------------------------------------------------
 // Mock apiClient — vi.mock is hoisted, so define the class inside the factory
@@ -155,6 +156,15 @@ const standardModules: ModuleConfig[] = [
     resourcePath: '/profiles',
     createData: { name: 'Profile', color: '#ff0000' },
     updateData: { name: 'Updated Profile' },
+  },
+  {
+    name: 'timesheetApi',
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    api: timesheetApi as any,
+    basePath: '/time-tracking/v1',
+    resourcePath: '/timesheet',
+    createData: { startedAt: '2025-01-01T10:00:00Z' },
+    updateData: { endedAt: '2025-01-01T11:00:00Z' },
   },
 ]
 
@@ -381,5 +391,42 @@ describe('settingsApi', () => {
       '/settings/v1/settings/ollama-models',
     )
     expect(result).toEqual({ models: ['llama3'], degraded: false })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// timesheetStats — нестандартный метод getStats
+// ---------------------------------------------------------------------------
+
+const emptyStats = {
+  total: 0,
+  todayTotal: 0,
+  weekTotal: 0,
+  perDay: [],
+  byTask: [],
+  byProject: [],
+}
+
+describe('timesheetStats', () => {
+  beforeEach(() => {
+    clientMock.mockReset()
+  })
+
+  it('getStats() calls GET /time-tracking/v1/timesheet/stats', async () => {
+    clientMock.mockResolvedValueOnce(emptyStats)
+    const result = await timesheetStats.getStats()
+    expect(clientMock).toHaveBeenCalledWith('/time-tracking/v1/timesheet/stats')
+    expect(result).toEqual(emptyStats)
+  })
+
+  it('getStats() passes from/to as query params', async () => {
+    clientMock.mockResolvedValueOnce(emptyStats)
+    await timesheetStats.getStats({
+      from: '2026-08-01T00:00:00Z',
+      to: '2026-08-31T23:59:59Z',
+    })
+    expect(clientMock).toHaveBeenCalledWith(
+      '/time-tracking/v1/timesheet/stats?from=2026-08-01T00%3A00%3A00Z&to=2026-08-31T23%3A59%3A59Z',
+    )
   })
 })
