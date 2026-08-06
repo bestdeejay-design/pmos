@@ -134,4 +134,46 @@ describe.skipIf(!HAS_NATS || !HAS_DB)("agent — real NATS event pipeline", () =
     expect(rows.some((r) => r.title.includes("Сдать отчёт"))).toBe(true);
     expect(rows.some((r) => r.source === "task_no_assignee")).toBe(true);
   });
+
+  it("publishing projects.projects.created with a goal creates a project_plan message", async () => {
+    await db.delete(schema.agentMessages);
+    await EventBus.get().publish("pmos.projects.projects.created", {
+      id: "proj-1",
+      name: "Запуск",
+      goal: "Запустить продукт к декабрю",
+    }, { correlationId: "itest-plan" });
+
+    let rows: { title: string; type: string; source: string | null }[] = [];
+    for (let i = 0; i < 20; i++) {
+      await new Promise((res) => setTimeout(res, 250));
+      rows = await db.select({ title: schema.agentMessages.title, type: schema.agentMessages.type, source: schema.agentMessages.source })
+        .from(schema.agentMessages);
+      if (rows.some((r) => r.source === "project_plan")) break;
+    }
+    expect(rows.some((r) => r.source === "project_plan")).toBe(true);
+    const plan = rows.find((r) => r.source === "project_plan");
+    expect(plan?.type).toBe("trigger");
+    expect(plan?.title).toBe("План проекта «Запуск»");
+  });
+
+  it("publishing calendar.meetings.updated with a past endTime creates a meeting_ended message", async () => {
+    await db.delete(schema.agentMessages);
+    await EventBus.get().publish("pmos.calendar.meetings.updated", {
+      meetingId: "meet-1",
+      title: "Планёрка",
+      endTime: new Date(Date.now() - 3_600_000).toISOString(),
+    }, { correlationId: "itest-meet" });
+
+    let rows: { title: string; type: string; source: string | null }[] = [];
+    for (let i = 0; i < 20; i++) {
+      await new Promise((res) => setTimeout(res, 250));
+      rows = await db.select({ title: schema.agentMessages.title, type: schema.agentMessages.type, source: schema.agentMessages.source })
+        .from(schema.agentMessages);
+      if (rows.some((r) => r.source === "meeting_ended")) break;
+    }
+    expect(rows.some((r) => r.source === "meeting_ended")).toBe(true);
+    const msg = rows.find((r) => r.source === "meeting_ended");
+    expect(msg?.type).toBe("suggestion");
+    expect(msg?.title).toContain("Создать заметку по встрече «Планёрка»");
+  });
 });
