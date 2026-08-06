@@ -293,6 +293,7 @@ channels:
       search-rag: индексирует задачу.
       agent: проверяет триггеры (deadline_soon, task_no_assignee).
       projects: актуализирует dashboard проекта.
+      time-tracking: наполняет кэш task→project (task_projects) для агрегатов статистики.
     tags:
       - name: task
     subscribe:
@@ -309,6 +310,7 @@ channels:
     description: |
       Задача обновлена.
       Публикуется tasks-service после UPDATE таблицы tasks.
+      time-tracking: обновляет task_title / project_id в кэше task_projects.
     tags:
       - name: task
     subscribe:
@@ -325,6 +327,7 @@ channels:
     description: |
       Задача удалена.
       Публикуется tasks-service после DELETE из таблицы tasks.
+      time-tracking: удаляет задачу из кэша task_projects.
     tags:
       - name: task
     subscribe:
@@ -449,6 +452,7 @@ channels:
       Проект создан.
       Публикуется projects-service после INSERT в таблицу projects.
       agent: запускает триггер project_plan (генерация плана на основе goal).
+      time-tracking: заполняет project_name в кэше task_projects.
     tags:
       - name: project
     subscribe:
@@ -465,6 +469,7 @@ channels:
     description: |
       Проект обновлён.
       Публикуется projects-service после UPDATE таблицы projects.
+      time-tracking: обновляет project_name в кэше task_projects.
     tags:
       - name: project
     subscribe:
@@ -481,6 +486,7 @@ channels:
     description: |
       Проект удалён.
       Публикуется projects-service после DELETE из таблицы projects.
+      time-tracking: обнуляет project_name / project_id в кэше task_projects.
     tags:
       - name: project
     subscribe:

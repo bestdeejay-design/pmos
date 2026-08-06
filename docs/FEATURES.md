@@ -316,20 +316,21 @@
 | | |
 |---|---|
 | **Назначение** | Учёт времени: timesheet (лог) и pomodoro (сессии) |
-| **API** | CRUD `/api/timesheet`, `GET /api/timesheet/stats`, CRUD `/api/pomodoro` |
-| **Сущности** | `timesheet`, `pomodoro_sessions` |
+| **API** | CRUD `/api/timesheet`, `GET /api/timesheet/stats` (total/perDay/byTask/byProject), CRUD `/api/pomodoro` |
+| **Сущности** | `timesheet`, `pomodoro_sessions`, `task_projects` (кэш task→project) |
 | **События** | (лог, без внешних событий) |
-| **Подписки** | `tasks.*` (для привязки задачи) |
-| **Зависимости** | tasks (task_id) |
-| **Фронтенд** | Timesheet (лог + таймер + статистика), PomodoroWidget (3 режима) |
+| **Подписки** | `tasks.*`, `projects.*` (кэш task_projects для статистики) |
+| **Зависимости** | tasks (task_id), projects (project_id через кэш) |
+| **Фронтенд** | Timesheet (лог + таймер), TimeStats (страница `/time`: статистика по дням/задачам/проектам), PomodoroWidget (3 режима) |
 | **Статус** | |
 
 | Функция | Статус | Описание |
 |---------|--------|----------|
 | Timesheet CRUD | ✅ каркас | Запись времени по задачам |
-| Статистика | ✅ каркас | today_total, week_total, by_task, by_project |
+| Статистика | ✅ | total, today_total, week_total, per_day, by_task (title), by_project (name через кэш task_projects) |
 | Pomodoro-сессии | ✅ каркас | 3 режима: Pomodoro / Flowtime / Countdown |
 | Привязка к задаче | ✅ каркас | task_id |
+| Кэш task→project | ✅ | Подписка на `tasks.*` / `projects.*`, обогащение статистики названиями |
 
 ### 15. export-import — Экспорт и Импорт
 

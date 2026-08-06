@@ -17,7 +17,7 @@ connected through an asynchronous event bus.
 > **Status:** all 17 services are implemented and verified (16 CRUD + ops/DLQ panel).
 > 5 cross-service sagas from `docs/SAGA.md` work and are covered by
 > integration tests against real Postgres + NATS. Checks: typecheck 19/19, contract 17/17,
-> unit + integration green (600+ tests), frontend 151/151.
+> unit + integration green (600+ tests), frontend 166/166.
 
 > **Try it:** the docs are also published as a static website — <https://bestdeejay-design.github.io/pmos/>
 
@@ -194,7 +194,7 @@ pnpm --filter "./services/*" run build         # tsc → dist
 
 # Frontend
 cd services/frontend
-pnpm test              # unit tests (vitest), 151 tests
+pnpm test              # unit tests (vitest), 166 tests
 pnpm test:e2e          # E2E tests (Playwright), 10 tests
 ```
 
