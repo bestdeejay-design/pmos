@@ -134,7 +134,7 @@ export async function assertRoutesMatch(
   await app.ready();
   // Fastify 5 has no getRoutes(); printRoutes() emits a tree. Parse it into a
   // flat { method, path } list so we can compare against the OpenAPI spec.
-  const printed = (app.printRoutes({ includeMeta: false }) ?? "").toString();
+  const printed = (app.printRoutes({ includeMeta: false, commonPrefix: false }) ?? "").toString();
   const routes = flatRoutes(printed);
   const prefix = `/api/${serviceName}/v1`;
   const paths = openapi?.paths ?? {};
