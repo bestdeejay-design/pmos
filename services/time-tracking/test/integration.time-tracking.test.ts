@@ -1,11 +1,12 @@
 import { describe, it, beforeAll, afterAll, expect } from "vitest";
 import { buildApp } from "../src/app.js";
 import { db } from "../src/db/connection.js";
-import { timesheet, pomodoroSessions } from "../src/db/schema.js";
+import { timesheet, pomodoroSessions, taskProjects } from "../src/db/schema.js";
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
 const BASE = "/api/time-tracking/v1";
 const randomUUID = crypto.randomUUID();
+const SEED_PROJECT_ID = "11111111-1111-1111-1111-111111111111";
 
 describe.skipIf(!HAS_DB)("time-tracking (real Postgres): filters, stats, pomodoro", () => {
   let app: any;
@@ -16,11 +17,20 @@ describe.skipIf(!HAS_DB)("time-tracking (real Postgres): filters, stats, pomodor
     await app.ready();
     await db.delete(timesheet);
     await db.delete(pomodoroSessions);
+    await db.delete(taskProjects);
+    // Seed the task→project cache (normally filled by NATS subscribers).
+    await db.insert(taskProjects).values({
+      taskId: taskX,
+      taskTitle: "Test task",
+      projectId: SEED_PROJECT_ID,
+      projectName: "Test project",
+    });
   });
 
   afterAll(async () => {
     await db.delete(timesheet);
     await db.delete(pomodoroSessions);
+    await db.delete(taskProjects);
     if (app) await app.close();
   });
 
@@ -61,18 +71,43 @@ describe.skipIf(!HAS_DB)("time-tracking (real Postgres): filters, stats, pomodor
     expect(rangeRows.every((t) => new Date(t.startedAt).getTime() >= new Date(todayA).getTime())).toBe(true);
   });
 
-  it("stats returns todayTotal, weekTotal, byTask and empty byProject", async () => {
+  it("stats returns total, todayTotal, weekTotal, perDay, byTask titles and byProject from cache", async () => {
     const r = await app.inject({ method: "GET", url: `${BASE}/timesheet/stats` });
     expect(r.statusCode).toBe(200);
     const body = r.json() as any;
     // Today's entries sum to 3000 (the 30-day-old entry is outside today AND this week).
+    expect(body.total).toBe(8000); // all time: 1000 (today, taskX) + 2000 (today, no task) + 5000 (old, taskX)
     expect(body.todayTotal).toBe(3000);
     expect(body.weekTotal).toBe(3000);
+
+    // perDay: one row per calendar day (ascending), only within the requested range (here: all time).
+    expect(Array.isArray(body.perDay)).toBe(true);
+    const todayDate = new Date(Date.now() - 60_000).toISOString().slice(0, 10);
+    const oldDate = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
+    const daySum = Object.fromEntries(body.perDay.map((d: any) => [d.date, d.total]));
+    expect(daySum[todayDate]).toBe(3000);
+    expect(daySum[oldDate]).toBe(5000);
+
     expect(Array.isArray(body.byTask)).toBe(true);
     expect(body.byTask.length).toBe(1); // only taskX has durations (null taskId is excluded)
     expect(body.byTask[0].taskId).toBe(taskX);
+    expect(body.byTask[0].taskTitle).toBe("Test task"); // from seeded task_projects cache
     expect(body.byTask[0].total).toBe(6000); // 1000 + 5000
-    expect(body.byProject).toEqual({});
+
+    expect(Array.isArray(body.byProject)).toBe(true);
+    expect(body.byProject).toEqual([
+      { projectId: SEED_PROJECT_ID, projectName: "Test project", total: 6000 },
+    ]);
+  });
+
+  it("stats total respects the from/to range", async () => {
+    // Wide window around the two today entries (1000 + 2000), far from the 30-day-old entry.
+    const from = new Date(Date.now() - 120_000).toISOString();
+    const to = new Date(Date.now() + 120_000).toISOString();
+    const r = await app.inject({ method: "GET", url: `${BASE}/timesheet/stats?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` });
+    expect(r.statusCode).toBe(200);
+    const body = r.json() as any;
+    expect(body.total).toBe(3000); // only the two today entries are in range
   });
 
   it("pomodoro: start, list, complete with computed completedMin", async () => {

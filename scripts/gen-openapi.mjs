@@ -1957,18 +1957,64 @@ SPECS["time-tracking"] = {
               schema:
                 type: object
                 properties:
+                  total:
+                    type: integer
                   todayTotal:
                     type: integer
                   weekTotal:
                     type: integer
+                  perDay:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          format: date
+                        total:
+                          type: integer
+                      required: [date, total]
                   byTask:
                     type: array
                     items:
                       type: object
+                      properties:
+                        taskId:
+                          type: string
+                          format: uuid
+                        taskTitle:
+                          type: [string, "null"]
+                        total:
+                          type: integer
+                      required: [taskId, taskTitle, total]
                   byProject:
                     type: array
                     items:
                       type: object
+                      properties:
+                        projectId:
+                          type: string
+                          format: uuid
+                        projectName:
+                          type: [string, "null"]
+                        total:
+                          type: integer
+                      required: [projectId, projectName, total]
+                example:
+                  total: 8000
+                  todayTotal: 3000
+                  weekTotal: 3000
+                  perDay:
+                    - date: '2026-07-30'
+                      total: 8000
+                  byTask:
+                    - taskId: t1a2b3c4-d5e6-7890-abcd-ef1234567890
+                      taskTitle: Документация
+                      total: 8000
+                  byProject:
+                    - projectId: f1a2b3c4-d5e6-7890-abcd-ef1234567890
+                      projectName: PMOS
+                      total: 8000
         '500':
           $ref: '#/components/responses/InternalError'
 

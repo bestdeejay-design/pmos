@@ -121,9 +121,9 @@ export const time_trackingRoutes: FastifyPluginAsync = async (app) => {
   });
 
   // ───────────── timesheet stats ─────────────
-  // Aggregates today/week totals (durationSec sums) and grouped per-task totals.
-  // byProject requires a task→project join that the timesheet table cannot serve
-  // (no projectId column) — returned as {} until the join is available.
+  // Aggregates today/week totals (durationSec sums) plus a period-wide total,
+  // per-day sums and grouped per-task / per-project totals. task→project lookup
+  // uses the task_projects cache populated by NATS subscribers (events/subscribe.ts).
   typed.get("/timesheet/stats", {
     schema: {
       querystring: Type.Object({
@@ -131,10 +131,23 @@ export const time_trackingRoutes: FastifyPluginAsync = async (app) => {
         to: Type.Optional(Type.String()),
       }),
       response: { 200: Type.Object({
+        total: Type.Integer(),
         todayTotal: Type.Integer(),
         weekTotal: Type.Integer(),
-        byTask: Type.Array(Type.Any()),
-        byProject: Type.Any(),
+        perDay: Type.Array(Type.Object({
+          date: Type.String(),
+          total: Type.Integer(),
+        })),
+        byTask: Type.Array(Type.Object({
+          taskId: Type.String(),
+          taskTitle: Type.Union([Type.String(), Type.Null()]),
+          total: Type.Integer(),
+        })),
+        byProject: Type.Array(Type.Object({
+          projectId: Type.String(),
+          projectName: Type.Union([Type.String(), Type.Null()]),
+          total: Type.Integer(),
+        })),
       }) },
     },
   }, async (req, reply) => {
@@ -152,14 +165,44 @@ export const time_trackingRoutes: FastifyPluginAsync = async (app) => {
       .where(and(gte(schema.timesheet.startedAt, startOfWeekIso()), lte(schema.timesheet.startedAt, startOfNextWeekIso()), ...baseConds))
       .limit(1))[0]?.total ?? 0;
 
+    const total = (await db.select({ total: sumSql }).from(schema.timesheet)
+      .where(and(...baseConds))
+      .limit(1))[0]?.total ?? 0;
+
+    const perDay = await db.select({
+      date: sql<string>`to_char(date_trunc('day', ${schema.timesheet.startedAt}), 'YYYY-MM-DD')`,
+      total: sql<number>`coalesce(sum(${schema.timesheet.durationSec}), 0)::int`,
+    }).from(schema.timesheet)
+      .where(and(...baseConds))
+      .groupBy(sql`date_trunc('day', ${schema.timesheet.startedAt})`)
+      .orderBy(asc(sql`date_trunc('day', ${schema.timesheet.startedAt})`));
+
     const byTaskRows = await db.select({
       taskId: schema.timesheet.taskId,
+      taskTitle: schema.taskProjects.taskTitle,
       total: sumSql,
     }).from(schema.timesheet)
+      .leftJoin(schema.taskProjects, eq(schema.taskProjects.taskId, schema.timesheet.taskId))
       .where(and(isNotNull(schema.timesheet.taskId), ...baseConds))
-      .groupBy(schema.timesheet.taskId);
+      .groupBy(schema.timesheet.taskId, schema.taskProjects.taskTitle);
 
-    return reply.send({ todayTotal, weekTotal, byTask: byTaskRows, byProject: {} });
+    const byProjectRows = await db.select({
+      projectId: schema.taskProjects.projectId,
+      projectName: schema.taskProjects.projectName,
+      total: sumSql,
+    }).from(schema.timesheet)
+      .innerJoin(schema.taskProjects, eq(schema.taskProjects.taskId, schema.timesheet.taskId))
+      .where(and(isNotNull(schema.taskProjects.projectId), ...baseConds))
+      .groupBy(schema.taskProjects.projectId, schema.taskProjects.projectName);
+
+    return reply.send({
+      total,
+      todayTotal,
+      weekTotal,
+      perDay,
+      byTask: byTaskRows.map((r) => ({ taskId: r.taskId as string, taskTitle: r.taskTitle, total: r.total })),
+      byProject: byProjectRows.map((r) => ({ projectId: r.projectId as string, projectName: r.projectName, total: r.total })),
+    });
   });
 
   // ───────────── pomodoro sessions ─────────────
