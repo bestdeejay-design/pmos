@@ -9,12 +9,12 @@
 > **Статус:** все 17 сервисов реализованы и проверены (16 CRUD + ops/DLQ-панель).
 > 5 cross-service саг из `docs/SAGA.md` работают и покрыты интеграционными
 > тестами против реального Postgres + NATS. Проверки: typecheck 19/19, contract 17/17,
-> unit + integration 90/90 green.
+> unit + integration green (600+ тестов), frontend 166/166.
 
 ## Стек
 
 - **Node.js 22**, **pnpm 10+** (workspaces), **TypeScript** (strict).
-- **React 18** + **Vite** + **Tailwind CSS v4** — SPA фронтенд (`services/frontend/`).
+- **React 19** + **Vite** + **Tailwind CSS v4** — SPA фронтенд (`services/frontend/`).
 - **Fastify 5** + **TypeBox** — HTTP, роуты монтируются на `/api/<svc>/v1`.
 - **PostgreSQL 16** — schema-per-service изоляция (ADR-004).
 - **NATS 2.10 JetStream** — шина событий (`@pmos/event-bus`), at-least-once.
@@ -189,9 +189,12 @@ stream `TSSRUP` (subject `pmos.>`). Пример: `pmos.notes.notes.created`.
 `contracts/asyncapi/events.yaml` → `x-implemented-wire-events`. Кросс-сервисные цепочки
 (саги) из `docs/SAGA.md` работают: генерация AI-заголовков заметок (§1), триггеры агента
 по смене статуса задачи (§2), извлечение текста файлов и индексация (§3), импорт внешних
-встреч в календарь (§4), доставка webhook'ов (§5). Public API mirror
- (`/api/v1/notes|tasks|projects|calendar` по API-ключам) и авто-экспорт заметок в `.md`
- (sync auto-export по событиям `notes.*`) тоже работают.
+встреч в календарь (§4), доставка webhook'ов (§5). Сообщения агента и напоминания календаря
+пушатся в браузер в реальном времени через WebSocket (agent `/ws`), AI-функции покрывают
+облачных LLM-провайдеров (OpenAI / Anthropic / Google) с фолбэком на локальный Ollama,
+аудиодиктовку (`/transcribe`) и триггеры агента (встреча/проект/DND). Public API mirror
+(`/api/v1/notes|tasks|projects|calendar` по API-ключам) и авто-экспорт заметок в `.md`
+(sync auto-export по событиям `notes.*`) тоже работают.
 
 ## Проверки
 
@@ -203,7 +206,7 @@ pnpm --filter "./services/*" run build         # tsc → dist
 
 # Фронтенд
 cd services/frontend
-pnpm test              # unit-тесты (vitest), 123 теста
+pnpm test              # unit-тесты (vitest), 166 тестов
 pnpm test:e2e          # E2E-тесты (Playwright), 10 тестов
 ```
 
@@ -218,11 +221,11 @@ CI (`.github/workflows/ci.yml`) гонит typecheck + unit + contract на ка
 | Файл | Строк | Назначение |
 |------|------:|------------|
 | `docs/ARCHITECTURE.md` | 183 | Общая архитектура: сервисы, шина, потоки данных |
-| `docs/FEATURES.md` | 477 | Функциональные требования по каждому сервису (✅ 87 реализовано / 📋 16 план) |
+| `docs/FEATURES.md` | 486 | Функциональные требования по каждому сервису (✅ 103 реализовано / 📋 5 план) |
 | `docs/SAGA.md` | 426 | 5 cross-service сценариев (§1–§5): события, idempotency, проверка |
 | `docs/REVIEW.md` | 106 | Статус-матрица: CRUD / фильтры / soft-delete / события / бизнес-логика |
 | `docs/TEST_CASES.md` | 1,420 | Gherkin-тест-кейсы для **всех 16 сервисов** + саги + инфраструктура |
-| `docs/BACKLOG.md` | 77 | Бэклог: идеи, отложенные фичи, UI-слой |
+| `docs/BACKLOG.md` | 84 | Бэклог: идеи, отложенные фичи, UI-слой |
 | `docs/DEV_GUIDE.md` | 525 | Локальная разработка: env, запуск, отладка, генераторы |
 
 ### ADR — архитектурные решения (docs/ADR/)
@@ -244,7 +247,7 @@ CI (`.github/workflows/ci.yml`) гонит typecheck + unit + contract на ка
 | `ENTRY.md` | — | Точка входа: карта навигации + чек-лист онбординга (начни отсюда) |
 | `AGENT.md` | 235 | Главный runbook автономного агента-сборщика (фазы, гейты §5) |
 | `DELIVERY.md` | 59 | Delivery Gate: как запустить, что реализовано, ограничения |
-| `README.md` | 232 | ← этот файл |
+| `README.md` | — | ← этот файл |
 
 ### Контракты (машинная правда)
 
