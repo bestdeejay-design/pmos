@@ -205,6 +205,165 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  # ─────────────────────── Templates ───────────────────────
+  /templates:
+    post:
+      operationId: createMeetingTemplate
+      summary: Создать новый шаблон встречи
+      tags: [Templates, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateCreate'
+      responses:
+        '201':
+          description: Шаблон создан
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      operationId: listMeetingTemplates
+      summary: Получить список шаблонов встреч
+      tags: [Templates, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+        - name: profileId
+          in: query
+          required: false
+          description: Фильтр по UUID профиля
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список шаблонов с пагинацией
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Template'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /templates/{id}:
+    get:
+      operationId: getMeetingTemplate
+      summary: Получить шаблон встречи по ID
+      tags: [Templates, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID шаблона
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Данные шаблона
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      operationId: updateMeetingTemplate
+      summary: Обновить шаблон встречи (частичное обновление)
+      tags: [Templates, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID шаблона
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateUpdate'
+      responses:
+        '200':
+          description: Шаблон обновлён
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      operationId: deleteMeetingTemplate
+      summary: Удалить шаблон встречи
+      tags: [Templates, CRUD]
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: id
+          in: path
+          required: true
+          description: UUID шаблона
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Шаблон удалён (без тела ответа)
+          headers:
+            x-correlation-id:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
 components:
   parameters:
     CorrelationId:
@@ -477,6 +636,74 @@ components:
             type: string
             format: uuid
           description: 'UUID профилей'
+
+    Template:
+      type: object
+      description: Шаблон встречи
+      required:
+        - id
+        - name
+        - bodyMd
+        - profileId
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Уникальный идентификатор шаблона
+        name:
+          type: string
+          description: Название шаблона
+        bodyMd:
+          type: string
+          description: Тело шаблона в Markdown
+        profileId:
+          type: string
+          format: uuid
+          description: UUID профиля, к которому привязан шаблон
+      example:
+        id: d1e2f3a4-b5c6-7890-abcd-ef1234567890
+        name: 1:1
+        bodyMd: |
+          # 1:1
+
+          ## Status
+
+          ## Blockers
+        profileId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+    TemplateCreate:
+      type: object
+      description: Данные для создания нового шаблона
+      required:
+        - name
+        - bodyMd
+        - profileId
+      properties:
+        name:
+          type: string
+          description: Название шаблона
+        bodyMd:
+          type: string
+          description: Тело шаблона в Markdown
+        profileId:
+          type: string
+          format: uuid
+          description: UUID профиля, к которому привязан шаблон
+
+    TemplateUpdate:
+      type: object
+      description: Данные для частичного обновления шаблона (все поля опциональны)
+      properties:
+        name:
+          type: string
+          description: Название шаблона
+        bodyMd:
+          type: string
+          description: Тело шаблона в Markdown
+        profileId:
+          type: string
+          format: uuid
+          description: UUID профиля, к которому привязан шаблон
 
   responses:
     ValidationError:

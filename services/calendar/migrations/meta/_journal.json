@@ -15,6 +15,13 @@
       "when": 1786000000000,
       "tag": "0001_processed_events",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786900000000,
+      "tag": "0002_templates",
+      "breakpoints": true
     }
   ]
 }

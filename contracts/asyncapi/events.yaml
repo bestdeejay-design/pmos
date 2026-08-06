@@ -78,6 +78,9 @@ x-implemented-wire-events:
     - pmos.calendar.meetings.created
     - pmos.calendar.meetings.updated
     - pmos.calendar.meetings.deleted
+    - pmos.calendar.templates.created
+    - pmos.calendar.templates.updated
+    - pmos.calendar.templates.deleted
     - pmos.email.imap.created
     - pmos.email.imap.updated
     - pmos.email.imap.deleted
@@ -108,6 +111,9 @@ x-implemented-wire-events:
     - pmos.tasks.tasks.created
     - pmos.tasks.tasks.updated
     - pmos.tasks.tasks.deleted
+    - pmos.tasks.templates.created
+    - pmos.tasks.templates.updated
+    - pmos.tasks.templates.deleted
     - pmos.time-tracking.timesheet.created
     - pmos.time-tracking.timesheet.updated
     - pmos.time-tracking.timesheet.deleted

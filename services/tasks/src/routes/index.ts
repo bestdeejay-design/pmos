@@ -256,4 +256,72 @@ export const tasksRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(204).send();
   });
 
+  // ───────────── templates CRUD (mirror of notes templates) ─────────────
+  typed.get("/templates", {
+    schema: {
+      querystring: Type.Object({
+        offset: Type.Optional(Type.Integer({ minimum: 0 })),
+        limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
+        profileId: Type.Optional(Type.String({ format: "uuid" })),
+      }),
+      response: {
+        200: Type.Object({
+          data: Type.Array(Type.Any()),
+          pagination: Type.Object({ offset: Type.Integer(), limit: Type.Integer(), total: Type.Integer() }),
+        }),
+      },
+    },
+  }, async (req, reply) => {
+    const q = req.query as any;
+    const offset = Number(q.offset ?? 0);
+    const limit = Number(q.limit ?? 20);
+    const where = q.profileId ? eq(schema.templates.profileId, q.profileId) : undefined;
+    const rows = await db.select().from(schema.templates).where(where).orderBy(asc(schema.templates.name)).limit(limit).offset(offset);
+    const total = await totalOf(schema.templates, where);
+    return reply.send({ data: rows, pagination: { offset, limit, total } });
+  });
+
+  typed.post("/templates", {
+    schema: { body: Type.Object({
+      name: Type.String(),
+      bodyMd: Type.Optional(Type.String()),
+      profileId: Type.String({ format: "uuid" }),
+    }, { additionalProperties: true }), response: { 201: Type.Any() } }
+  }, async (req, reply) => {
+    const [row] = await db.insert(schema.templates).values(req.body as any).returning();
+    emit("pmos.tasks.templates.created", row);
+    return reply.code(201).send(row);
+  });
+
+  typed.get("/templates/:id", {
+    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Any(), 404: Type.Any() } }
+  }, async (req, reply) => {
+    const [row] = await db.select().from(schema.templates).where(eq(schema.templates.id, (req.params as any).id)).limit(1);
+    if (!row) return fail(404, "NOT_FOUND", "templates not found");
+    return reply.send(row);
+  });
+
+  typed.patch("/templates/:id", {
+    schema: { params: Type.Object({ id: Type.String() }), body: Type.Object({
+      name: Type.Optional(Type.String()),
+      bodyMd: Type.Optional(Type.String()),
+      profileId: Type.Optional(Type.String({ format: "uuid" })),
+    }, { additionalProperties: true }), response: { 200: Type.Any() } }
+  }, async (req, reply) => {
+    const [row] = await db.update(schema.templates).set({ ...(req.body as any), updatedAt: new Date().toISOString() })
+      .where(eq(schema.templates.id, (req.params as any).id)).returning();
+    if (!row) return fail(404, "NOT_FOUND", "templates not found");
+    emit("pmos.tasks.templates.updated", row);
+    return reply.send(row);
+  });
+
+  typed.delete("/templates/:id", {
+    schema: { params: Type.Object({ id: Type.String() }) }
+  }, async (req, reply) => {
+    const [row] = await db.delete(schema.templates).where(eq(schema.templates.id, (req.params as any).id)).returning();
+    if (!row) return fail(404, "NOT_FOUND", "templates not found");
+    emit("pmos.tasks.templates.deleted", row);
+    return reply.code(204).send();
+  });
+
 };

@@ -35,6 +35,15 @@ export const taskDependencies = pgTable("task_dependencies", {
   pk: primaryKey({ columns: [t.taskId, t.dependsOnId] }),
 }));
 
+export const templates = pgTable("templates", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  bodyMd: text("body_md").notNull().default(""),
+  profileId: uuid("profile_id"),
+  createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
+});
+
 export const tasksRelations = relations(tasks, ({ many }) => ({
   dependencies: many(taskDependencies),
 }));
@@ -42,3 +51,4 @@ export const tasksRelations = relations(tasks, ({ many }) => ({
 export type TaskRow = typeof tasks.$inferSelect;
 export type TaskInsert = typeof tasks.$inferInsert;
 export type TaskDependencyRow = typeof taskDependencies.$inferSelect;
+export type TemplateRow = typeof templates.$inferSelect;

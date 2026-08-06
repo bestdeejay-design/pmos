@@ -198,6 +198,80 @@ export const calendarRoutes: FastifyPluginAsync = async (app) => {
     });
   };
 
+  // ───────────── templates CRUD (mirror of notes templates) ─────────────
+
+  const TemplateCreate = Type.Object({
+    name: Type.String({ minLength: 1 }),
+    bodyMd: Type.Optional(Type.String()),
+    profileId: UUID,
+  }, { additionalProperties: false });
+
+  const TemplateUpdate = Type.Object({
+    name: Type.Optional(Type.String({ minLength: 1 })),
+    bodyMd: Type.Optional(Type.String()),
+    profileId: Type.Optional(UUID),
+  }, { additionalProperties: false });
+
+  typed.get("/templates", {
+    schema: {
+      querystring: Type.Object({
+        offset: Type.Optional(Type.Integer({ minimum: 0 })),
+        limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
+        profileId: Type.Optional(UUID),
+      }),
+      response: {
+        200: Type.Object({
+          data: Type.Array(Type.Any()),
+          pagination: Type.Object({ offset: Type.Integer(), limit: Type.Integer(), total: Type.Integer() }),
+        }),
+      },
+    },
+  }, async (req, reply) => {
+    const q = req.query as any;
+    const offset = Number(q.offset ?? 0);
+    const limit = Number(q.limit ?? 20);
+    const where = q.profileId ? eq(schema.templates.profileId, q.profileId) : undefined;
+    const rows = await db.select().from(schema.templates).where(where).orderBy(sql`${schema.templates.name} asc`).limit(limit).offset(offset);
+    const total = await totalOf(schema.templates, where);
+    return reply.send({ data: rows, pagination: { offset, limit, total } });
+  });
+
+  typed.post("/templates", {
+    schema: { body: TemplateCreate, response: { 201: Type.Any(), 400: Type.Any() } },
+  }, async (req, reply) => {
+    const [row] = await db.insert(schema.templates).values(req.body as any).returning();
+    emit("pmos.calendar.templates.created", row);
+    return reply.code(201).send(row);
+  });
+
+  typed.get("/templates/:id", {
+    schema: { params: Type.Object({ id: UUID }), response: { 200: Type.Any(), 404: Type.Any() } },
+  }, async (req, reply) => {
+    const [row] = await db.select().from(schema.templates)
+      .where(eq(schema.templates.id, (req.params as any).id)).limit(1);
+    if (!row) return fail(404, "NOT_FOUND", "templates not found");
+    return reply.send(row);
+  });
+
+  typed.patch("/templates/:id", {
+    schema: { params: Type.Object({ id: UUID }), body: TemplateUpdate, response: { 200: Type.Any(), 404: Type.Any() } },
+  }, async (req, reply) => {
+    const [row] = await db.update(schema.templates).set({ ...(req.body as any), updatedAt: new Date().toISOString() })
+      .where(eq(schema.templates.id, (req.params as any).id)).returning();
+    if (!row) return fail(404, "NOT_FOUND", "templates not found");
+    emit("pmos.calendar.templates.updated", row);
+    return reply.send(row);
+  });
+
+  typed.delete("/templates/:id", {
+    schema: { params: Type.Object({ id: UUID }), response: { 204: Type.Null(), 404: Type.Any() } },
+  }, async (req, reply) => {
+    const [row] = await db.delete(schema.templates).where(eq(schema.templates.id, (req.params as any).id)).returning();
+    if (!row) return fail(404, "NOT_FOUND", "templates not found");
+    emit("pmos.calendar.templates.deleted", row);
+    return reply.code(204).send();
+  });
+
   app.register(icsRoutes, { prefix: "/meetings/:id" });
   app.register(remindersRoutes, { prefix: "/meetings/:id" });
 };
