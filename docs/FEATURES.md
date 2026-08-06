@@ -73,8 +73,8 @@
 | Привязка к задаче | ✅ каркас | linked_task_id |
 | Фильтр по профилю | ✅ | profileId (querystring) |
 | Архивирование | ✅ | isArchived, мягкое удаление |
-| Markdown-рендеринг | 📋 | На сервере, заголовок как plain text |
-| Dictation-диктовка | 📋 | Запись голоса → распознавание → AI-форматирование |
+| Markdown-рендеринг | ✅ | Серверный рендер body, заголовок как plain text |
+| Dictation-диктовка | ✅ | Запись голоса → распознавание (STT) → AI-форматирование: POST /transcribe (multipart) |
 
 ### 4. tasks — Задачи
 
@@ -92,7 +92,7 @@
 | Функция | Статус | Описание |
 |---------|--------|----------|
 | CRUD задач | ✅ каркас | Статус, приоритет, вес, описание, assignee, дедлайн |
-| Kanban-доска | 📋 | Колонки с drag-and-drop между статусами |
+| Kanban-доска | ✅ | Колонки с drag-and-drop между статусами (frontend) |
 | Динамические колонки | 📋 | Настраиваются через settings (kanban_columns) |
 | Ручная сортировка в колонке | 📋 | Drag-and-drop reorder |
 | Рекуррентные задачи | ✅ | По расписанию, автозакрытие и создание новой |
@@ -122,8 +122,8 @@
 | Рекуррентные встречи | ✅ | Правило recurrence (freq, interval, until) |
 | ICS экспорт | ✅ | GET /api/calendar/:id/ics → .ics файл (RFC5545) |
 | ICS импорт | ✅ | Сага §4: external_events.created → встреча (RFC5545, RRULE) |
-| Drag-and-drop в календаре | 📋 | Перенос и изменение длительности |
-| Напоминания | 📋 | fire_at + WebSocket push |
+| Drag-and-drop в календаре | ✅ | Перенос и изменение длительности (frontend week-grid) |
+| Напоминания | ✅ | fire_at + WebSocket push (P2) |
 | Фильтр по профилю | ✅ | profileId (querystring), диапазон from/to |
 | Привязка к проекту | ✅ каркас | linked_project_id |
 
@@ -215,7 +215,7 @@
 | Timeout | ✅ | 30s timeout на вызов, abort + эвристика |
 | Regex-парсинг ответа | ✅ | `/^ТЕЛ[ОА]:\s*(.*)/is` (parseDictation) |
 | Модели: Ollama | ✅ | Локальные GGUF, MLX |
-| Модели: облачные | 📋 | Прокси до cloud API (OpenAI, Anthropic, Google) |
+| Модели: облачные | ✅ | Прокси до cloud API (OpenAI, Anthropic, Google) с fallback на Ollama |
 
 ### 10. agent — AI-ассистент
 
@@ -235,13 +235,13 @@
 | Daily digest | ✅ | Утром: сводка встреч и задач на сегодня |
 | Weekly digest | ✅ | Сводка на неделю |
 | Inbox сообщений | ✅ | Список с действиями (accept/reject/reply) |
-| Триггер: meeting_ended | 📋 | После встречи: предложение создать заметку |
+| Триггер: meeting_ended | ✅ | После встречи: предложение создать заметку |
 | Триггер: deadline_soon | ✅ | За N часов до дедлайна: напоминание |
 | Триггер: task_no_assignee | ✅ | Неназначенные задачи в проекте |
-| Триггер: project_plan | 📋 | План проекта на основе goal |
-| DND-окно | 📋 | Не беспокоить в заданные часы |
-| Дневной лимит | 📋 | Не более N сообщений в день |
-| WebSocket push | 📋 | Новое сообщение → WS → клиент |
+| Триггер: project_plan | ✅ | План проекта на основе goal |
+| DND-окно | ✅ | Не беспокоить в заданные часы |
+| Дневной лимит | ✅ | Не более N сообщений в день |
+| WebSocket push | ✅ | Новое сообщение → WS → клиент (agent + calendar reminders) |
 
 ### 11. email — IMAP Email
 

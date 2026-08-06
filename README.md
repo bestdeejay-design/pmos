@@ -11,20 +11,20 @@ connected through an asynchronous event bus.
 [![Fastify](https://img.shields.io/badge/Fastify-5-000000)](https://fastify.dev/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)](https://www.postgresql.org/)
 [![NATS](https://img.shields.io/badge/NATS-2.10_JetStream-27aae1)](https://nats.io/)
-[![Tests](https://img.shields.io/badge/tests-90/90-green)](./services)
+[![Tests](https://img.shields.io/badge/tests-600%2B-green)](./services)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **Status:** all 17 services are implemented and verified (16 CRUD + ops/DLQ panel).
 > 5 cross-service sagas from `docs/SAGA.md` work and are covered by
 > integration tests against real Postgres + NATS. Checks: typecheck 19/19, contract 17/17,
-> unit + integration 90/90 green.
+> unit + integration green (600+ tests), frontend 151/151.
 
 > **Try it:** the docs are also published as a static website — <https://bestdeejay-design.github.io/pmos/>
 
 ## Stack
 
 - **Node.js 22**, **pnpm 10+** (workspaces), **TypeScript** (strict).
-- **React 18** + **Vite** + **Tailwind CSS v4** — SPA frontend (`services/frontend/`).
+- **React 19** + **Vite** + **Tailwind CSS v4** — SPA frontend (`services/frontend/`).
 - **Fastify 5** + **TypeBox** — HTTP, routes mounted at `/api/<svc>/v1`.
 - **PostgreSQL 16** — schema-per-service isolation (ADR-004).
 - **NATS 2.10 JetStream** — event bus (`@pmos/event-bus`), at-least-once.
@@ -178,7 +178,10 @@ The full and current list of **actually published** subjects is in
 `contracts/asyncapi/events.yaml` → `x-implemented-wire-events`. Cross-service chains
 (sagas) from `docs/SAGA.md` are working: AI note-title generation (§1), agent triggers
 on task status change (§2), file text extraction & indexing (§3), external calendar
-import (§4), webhook delivery (§5). Public API mirror (`/api/v1/notes|tasks|projects|calendar` по API-ключам)
+import (§4), webhook delivery (§5). Agent messages and calendar reminders are pushed to
+the browser in real time over WebSocket (agent `/ws`), and AI features cover cloud LLM
+providers (OpenAI / Anthropic / Google) with fallback to local Ollama, audio dictation
+(`/transcribe`), and agent meeting/project/DND triggers. Public API mirror (`/api/v1/notes|tasks|projects|calendar` по API-ключам)
 и авто-экспорт заметок в `.md` (sync auto-export по событиям `notes.*`) тоже работают.
 
 ## Checks
@@ -191,7 +194,7 @@ pnpm --filter "./services/*" run build         # tsc → dist
 
 # Frontend
 cd services/frontend
-pnpm test              # unit tests (vitest), 123 tests
+pnpm test              # unit tests (vitest), 151 tests
 pnpm test:e2e          # E2E tests (Playwright), 10 tests
 ```
 
@@ -206,7 +209,7 @@ Full catalog — **~4,200 lines of docs + ~10,600 lines of contracts ≈ 14,800 
 | File | Lines | Purpose |
 |------|------:|---------|
 | `docs/ARCHITECTURE.md` | 183 | Overall architecture: services, bus, data flows |
-| `docs/FEATURES.md` | 477 | Functional requirements per service (✅ 87 done / 📋 16 planned) |
+| `docs/FEATURES.md` | 477 | Functional requirements per service (✅ 98 done / 📋 5 planned) |
 | `docs/SAGA.md` | 426 | 5 cross-service scenarios (§1–§5): events, idempotency, verification |
 | `docs/REVIEW.md` | 106 | Status matrix: CRUD / filters / soft-delete / events / business logic |
 | `docs/TEST_CASES.md` | 1,420 | Gherkin test cases for **all 16 services** + sagas + infra |
