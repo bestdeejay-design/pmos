@@ -97,6 +97,7 @@
 | Ручная сортировка в колонке | 📋 | Drag-and-drop reorder |
 | Рекуррентные задачи | ✅ | По расписанию, автозакрытие и создание новой |
 | Streaks (серии) | ✅ | current_streak / best_streak |
+| Шаблоны задач | ✅ | CRUD /templates (зеркало notes), события pmos.tasks.templates.* |
 | Зависимости задач | ✅ | task_dependencies: блокирующие задачи |
 | Приоритеты (ранжирование) | ✅ каркас | Вес + ручной ранг, сортированный список |
 | Фильтр по профилю | ✅ | profileId (querystring) |
@@ -126,6 +127,7 @@
 | Напоминания | ✅ | fire_at + WebSocket push (P2) |
 | Фильтр по профилю | ✅ | profileId (querystring), диапазон from/to |
 | Привязка к проекту | ✅ каркас | linked_project_id |
+| Шаблоны встреч | ✅ | CRUD /templates (зеркало notes), события pmos.calendar.templates.* |
 
 ### 6. projects — Проекты
 
@@ -186,6 +188,7 @@
 | Функция | Статус | Описание |
 |---------|--------|----------|
 | Текстовый поиск (ILIKE) | ✅ | PostgreSQL ILIKE по body_md, title, description, extracted_text |
+| Semantics (FTS) | ✅ | Tsvector-колонка + GIN-индекс + websearch FTS по вложениям |
 | Семантический поиск | ✅ | Ollama embedding (nomic-embed-text) + cosine similarity |
 | Фильтры: тип | ✅ | note/task/meeting/file |
 | Фильтры: тег | ✅ | tags |
@@ -377,6 +380,11 @@
 | **Подписки** | Все события для WS push |
 | **Зависимости** | Все сервисы |
 | **Статус** | ✅ (nginx уже работает) |
+
+| Функция | Статус | Описание |
+|---------|--------|----------|
+| Rate limiting | ✅ | limit_req (zone internal 100r/s + public 100r/m), JSON-429 через error_page @rate_limited |
+| Локализация ошибок | ✅ | localizeApiError в @pmos/shared, выбор языка по Accept-Language / x-language |
 
 ### 18. event-bus — Шина событий
 
