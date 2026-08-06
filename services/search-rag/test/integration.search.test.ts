@@ -44,6 +44,34 @@ describe.skipIf(!HAS_DB)("search-rag (real Postgres)", () => {
     expect(hit.content).toContain("молоко");
   });
 
+  it("ranks FTS hits via tsvector and returns ts_headline snippet + highlights", async () => {
+    await db.insert(embeddings).values({
+      entityType: "note",
+      entityId: randomUUID(),
+      content: "Нужно купить молоко и хлеб в магазине",
+      profileIds: [],
+    });
+    const res = await app.inject({ method: "POST", url: `${BASE}/search`, payload: { query: "молоко" } });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    const hit = (body.results as any[]).find((r) => r.content.includes("молоко"));
+    expect(hit).toBeTruthy();
+    expect(typeof hit.snippet).toBe("string");
+    expect(hit.snippet).toContain("молоко");
+    expect(Array.isArray(hit.highlights)).toBe(true);
+    expect(hit.highlights.some((h: string) => h.toLowerCase().includes("молоко"))).toBe(true);
+    expect(typeof hit.rank).toBe("number");
+    expect(body.total).toBeGreaterThanOrEqual(1);
+  });
+
+  it("falls back to ILIKE on unusual FTS input (! / *) — no crash, results still served", async () => {
+    const a = await app.inject({ method: "POST", url: `${BASE}/search`, payload: { query: "!" } });
+    expect(a.statusCode).toBe(200);
+    expect(a.json().semantic).toBe(false);
+    const b = await app.inject({ method: "POST", url: `${BASE}/search`, payload: { query: "*" } });
+    expect(b.statusCode).toBe(200);
+  });
+
   it("escapes LIKE wildcards — literal % does not act as a wildcard", async () => {
     await db.insert(embeddings).values({
       entityType: "note",

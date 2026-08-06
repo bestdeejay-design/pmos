@@ -1,20 +1,30 @@
-import { pgTable, uuid, text, timestamp, jsonb, vector, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, jsonb, vector, uniqueIndex, index, customType } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+
+// Postgres full-text search vector type (no third-party extension needed).
+const tsvector = customType<{ data: string }>({ dataType() { return "tsvector"; } });
+
+const content = text("content").notNull();
 
 // pgvector embedding table. Requires 'vector' extension in Postgres (docker-compose enables it).
 export const embeddings = pgTable("embeddings", {
   id: uuid("id").defaultRandom().primaryKey(),
   entityType: text("entity_type").notNull(), // note | task | meeting | file
   entityId: uuid("entity_id").notNull(),
-  content: text("content").notNull(),
+  content,
   // nullable — Ollama may be down, rows must still be insertable (migration 0002)
   embedding: vector("embedding", { dimensions: 1536 }),
   profileIds: uuid("profile_ids").array().notNull().default([]),
   // extra searchable data carried by source events (tags, linked projectId, ...)
   metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  // Generated tsvector over content — Postgres 16 STORED column, auto-maintained (migration 0003)
+  contentVector: tsvector("content_vector").generatedAlwaysAs(sql`to_tsvector('simple', ${content})`),
   createdAt: timestamp("created_at", { mode: "string", withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   // idempotent upserts keyed by source entity (migration 0002)
   entityIdx: uniqueIndex("embeddings_entity_idx").on(t.entityType, t.entityId),
+  // GIN index for tsvector @@ tsquery lookups (migration 0003)
+  contentVectorIdx: index("embeddings_content_vector_idx").using("gin", t.contentVector),
 }));
 
 // Event idempotency ledger (SAGA.md): stores event ids already processed.

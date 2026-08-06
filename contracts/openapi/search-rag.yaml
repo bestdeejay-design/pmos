@@ -4,7 +4,8 @@ info:
   title: Search & RAG Service
   version: 1.0.0
   description: >
-    Полнотекстовый (ILIKE) и семантический (embedding) поиск по всем сущностям с graceful degradation.
+    Полнотекстовый (tsvector/GIN FTS + ILIKE fallback) и семантический (embedding) поиск
+    по всем сущностям с graceful degradation.
 
 servers:
   - url: /api/search-rag/v1
@@ -202,7 +203,7 @@ components:
         results:
           type: array
           items:
-            type: object
+            $ref: '#/components/schemas/SearchResultItem'
           description: 'Найденные сущности'
         semantic:
           type: boolean
@@ -219,6 +220,64 @@ components:
           snippet: Нужно купить молоко...
           semantic: true
           total: 1
+
+    SearchResultItem:
+      type: object
+      description: Найденная сущность (attachment/finding content)
+      required:
+        - id
+        - type
+        - entityId
+        - content
+        - profileIds
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 'Идентификатор записи поискового индекса'
+        type:
+          type: string
+          description: 'Тип сущности: note|task|meeting|file'
+        entityId:
+          type: string
+          format: uuid
+          description: 'Идентификатор исходной сущности'
+        content:
+          type: string
+          description: 'Индексируемый текст (attachment/finding content)'
+        profileIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: 'Профили, которым доступна сущность'
+        createdAt:
+          type: string
+          format: date-time
+          description: 'Время создания записи индекса'
+        snippet:
+          type: string
+          description: 'Фрагмент текста вокруг совпадений (ts_headline, ~250-300 символов)'
+        highlights:
+          type: array
+          items:
+            type: string
+          description: 'Плоские фрагменты совпавших терминов (без разметки)'
+        rank:
+          type: number
+          description: 'Ранжирование полнотекстового совпадения (ts_rank)'
+      example:
+        id: n1a2b3c4-d5e6-7890-abcd-ef1234567890
+        type: note
+        entityId: e1a2b3c4-d5e6-7890-abcd-ef1234567890
+        content: Нужно купить молоко и хлеб
+        profileIds: []
+        createdAt: '2026-01-01T00:00:00.000Z'
+        snippet: Нужно купить <mark>молоко</mark> и хлеб
+        highlights:
+          - молоко
+        rank: 0.0607927
 
   responses:
     ValidationError:

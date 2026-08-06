@@ -32,8 +32,22 @@ function escapeLike(s: string): string {
   return s.replace(/[\\%_]/g, (m) => "\\" + m);
 }
 
+// ts_headline wraps matched terms in <mark>…</mark> — collect them as the plain-text highlights.
+function extractHighlights(snippet: string | null): string[] {
+  if (!snippet) return [];
+  const out: string[] = [];
+  const re = /<mark>([^<]+)<\/mark>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(snippet)) !== null) {
+    const frag = (m[1] ?? "").trim();
+    if (frag) out.push(frag);
+  }
+  return out;
+}
+
 // Public result shape — never leaks the (potentially huge) embedding vector.
-function toResult(r: schema.EmbeddingRow): Record<string, unknown> {
+// FTS metadata (rank/snippet/highlights) is appended when the full-text slice produced it.
+function toResult(r: { id: string; entityType: string; entityId: string; content: string; profileIds: string[]; createdAt: string }, extra?: { rank?: number; snippet?: string; highlights?: string[] }): Record<string, unknown> {
   return {
     id: r.id,
     type: r.entityType,
@@ -41,6 +55,9 @@ function toResult(r: schema.EmbeddingRow): Record<string, unknown> {
     content: r.content,
     profileIds: r.profileIds,
     createdAt: r.createdAt,
+    ...(extra?.rank != null ? { rank: extra.rank } : {}),
+    ...(extra?.snippet ? { snippet: extra.snippet } : {}),
+    ...(extra?.highlights?.length ? { highlights: extra.highlights } : {}),
   };
 }
 
@@ -107,37 +124,72 @@ export const search_ragRoutes: FastifyPluginAsync = async (app) => {
       : [];
     const total = await totalOf(schema.embeddings, likeWhere);
 
+    // PostgreSQL full-text slice (tsvector/GIN, migration 0003). websearch_to_tsquery
+    // is safe for arbitrary user input; on parse failures (e.g. bare `!`/`*`) we fall
+    // back to the ILIKE slice below. Ranks via ts_rank, snippet via ts_headline.
+    let ftsRows: {
+      id: string; entityType: string; entityId: string; content: string;
+      profileIds: string[]; createdAt: string; rank: number; snippet: string;
+    }[] = [];
+    if (query) {
+      try {
+        const tsquery = sql`websearch_to_tsquery('simple', ${query})`;
+        const ftsWhere = and(...[...conds, sql`${schema.embeddings.contentVector} @@ ${tsquery}`]);
+        ftsRows = await db.select({
+          id: schema.embeddings.id,
+          entityType: schema.embeddings.entityType,
+          entityId: schema.embeddings.entityId,
+          content: schema.embeddings.content,
+          profileIds: schema.embeddings.profileIds,
+          createdAt: schema.embeddings.createdAt,
+          rank: sql<number>`ts_rank(${schema.embeddings.contentVector}, ${tsquery})`,
+          snippet: sql<string>`ts_headline('pg_catalog.simple', ${schema.embeddings.content}, ${tsquery}, 'MaxWords=40, MinWords=10, MaxFragments=3, StartSel=<mark>, StopSel=</mark>')`,
+        }).from(schema.embeddings).where(ftsWhere)
+          .orderBy(sql`ts_rank(${schema.embeddings.contentVector}, ${tsquery}) desc, ${schema.embeddings.createdAt} desc`)
+          .limit(limit).offset(offset);
+      } catch {
+        ftsRows = [];
+      }
+    }
+
     let semantic = false;
     let results: Record<string, unknown>[] = [];
 
     if (query) {
       const vec = await embed(query);
+      let semRows: schema.EmbeddingRow[] = [];
       if (vec && vec.length) {
         // Semantic slice over the same filters (embedding present), cosine distance.
         const semConds = conds.length ? and(...conds, sql`${schema.embeddings.embedding} IS NOT NULL`)
           : sql`${schema.embeddings.embedding} IS NOT NULL`;
         const vecLit = `[${vec.join(",")}]`;
-        const semRows = await db.select().from(schema.embeddings).where(semConds)
+        semRows = await db.select().from(schema.embeddings).where(semConds)
           .orderBy(sql`${schema.embeddings.embedding} <=> ${vecLit}::vector`).limit(limit + offset);
-        if (semRows.length) {
-          semantic = true;
-          // Merge/rank: semantic hits first (dedup), then ILIKE hits fill the page.
-          const seen = new Set<string>();
-          results = semRows.slice(offset, offset + limit).map(toResult);
-          for (const r of results) seen.add(String(r.id));
-          for (const r of likeRows) {
-            if (seen.has(r.id)) continue;
-            results.push(toResult(r));
-            seen.add(r.id);
-            if (results.length >= limit) break;
-          }
+        if (semRows.length) semantic = true;
+      }
+
+      // Merge/rank: semantic hits first (dedup), then FTS-ranked hits, then ILIKE fills the page.
+      const seen = new Set<string>();
+      if (semantic) {
+        for (const r of semRows.slice(offset, offset + limit)) {
+          results.push(toResult(r));
+          seen.add(String(r.id));
         }
+      }
+      for (const f of ftsRows) {
+        if (seen.has(f.id)) continue;
+        results.push(toResult(f, { rank: f.rank, snippet: f.snippet, highlights: extractHighlights(f.snippet) }));
+        seen.add(f.id);
+        if (results.length >= limit) break;
+      }
+      for (const r of likeRows) {
+        if (seen.has(r.id)) continue;
+        results.push(toResult(r));
+        seen.add(r.id);
+        if (results.length >= limit) break;
       }
     }
 
-    if (!semantic) {
-      results = likeRows.map(toResult);
-    }
     return reply.send({ results, semantic, total });
   });
 };

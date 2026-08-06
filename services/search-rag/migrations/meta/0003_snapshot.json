@@ -1,0 +1,148 @@
+{
+  "id": "4f3a2c1e-8b6d-4e5f-9a0b-2c3d4e5f6a7b",
+  "prevId": "de807c5f-e679-4307-964e-0fc1565ff084",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.embeddings": {
+      "name": "embeddings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "entity_type": {
+          "name": "entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "embedding": {
+          "name": "embedding",
+          "type": "vector(1536)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "profile_ids": {
+          "name": "profile_ids",
+          "type": "uuid[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "content_vector": {
+          "name": "content_vector",
+          "type": "tsvector",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "as": "to_tsvector('simple', $1)",
+            "type": "stored"
+          }
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "embeddings_entity_idx": {
+          "name": "embeddings_entity_idx",
+          "columns": [
+            {
+              "expression": "entity_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "embeddings_content_vector_idx": {
+          "name": "embeddings_content_vector_idx",
+          "columns": [
+            {
+              "expression": "content_vector",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gin",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.processed_events": {
+      "name": "processed_events",
+      "schema": "",
+      "columns": {
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
