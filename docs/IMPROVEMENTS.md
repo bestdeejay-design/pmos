@@ -30,9 +30,9 @@
 
 ## 2. Инфраструктура запуска (P1)
 
-### 2.1 Сборка: `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND`
+### 2.1 Сборка: `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` — **исправлено**
 
-**Симптом.** `docker compose --profile all build` падает на всех сервисах.
+**Симптом (исторически).** `docker compose --profile all build` падал на всех сервисах.
 
 **Причина (корень).** Per-service Dockerfile (`services/notes/Dockerfile`, `services/ops/Dockerfile`
 идентичны) собирается из **собственного каталога** сервиса (`build: { context: ../../services/<svc> }`
@@ -47,8 +47,15 @@
 `node_modules` целиком (в pnpm это **symlink'и** на workspace-пакеты) — даже после успешной
 сборки в образе остались бы битые ссылки на несуществующие каталоги.
 
+**Решение (применено).** Создан общий `platform/docker/Dockerfile.service` (двухстадийный,
+`ARG SERVICE`, контекст сборки — корень monorepo, `pnpm install --filter @pmos/<svc>...`
++ `pnpm --filter @pmos/<svc>... run build`); в compose все 17 сервисов переведены на
+`build: { context: ../.., dockerfile: platform/docker/Dockerfile.service, args: { SERVICE: <svc> } }`;
+добавлен корневой `.dockerignore` (исключает `node_modules`/`dist`/`.git` и пр.).
+CI: job `docker-build` собирает образы всех 17 сервисов (см. §6#12).
+
 **Варианты решения:**
-- [ ] **(рекомендуется)** Общий `platform/docker/Dockerfile.service` с аргументом `SERVICE`
+- [x] **(рекомендуется, применено)** Общий `platform/docker/Dockerfile.service` с аргументом `SERVICE`
       (см. скелет ниже) + в compose: `build: { context: ../.., dockerfile: platform/docker/Dockerfile.service, args: { SERVICE: <svc> } }`.
 - [ ] В финальную стадию класть не весь `node_modules`, а **собранные артефакты**:
       `dist/` сервиса + собранные `platform/*` + продакшн-зависимости (`pnpm deploy` — но см.
@@ -87,46 +94,45 @@ CMD ["node", "dist/index.js"]
 
 ---
 
-### 2.2 nginx-gateway: trailing slash в `proxy_pass`
+### 2.2 nginx-gateway: trailing slash в `proxy_pass` — **исправлено**
 
-**Симптом.** Запрос через gateway `http://localhost:8080/api/calendar/v1/meetings` возвращает
-Fastify `404 Route GET:/api/calendar/v1/meetings not found` — хотя напрямую
-`http://localhost:3003/api/calendar/v1/meetings` работает.
+**Симптом (исторически).** Запрос через gateway `http://localhost:8080/api/calendar/v1/meetings`
+возвращал Fastify `404 Route … not found` — хотя напрямую сервис отвечал.
 
-**Причина.** В `platform/docker/nginx.conf` **все** внутренние локации написаны с trailing
-slash: `proxy_pass http://calendar_up/;` (и все остальные `*_up/`). nginx при совпадении
-`location /api/calendar/` **вырезает совпавшую часть** из пересылаемого URI и подставляет то,
-что идёт после `upstream` (здесь — `/`). В итоге сервис получает `/v1/meetings` вместо
-`/api/calendar/v1/meetings` → 404.
+**Причина.** Все внутренние локации были с trailing slash (`proxy_pass http://calendar_up/;`).
+nginx при совпадении `location /api/calendar/` вырезал совпавшую часть и подставлял `/` →
+сервис получал `/v1/meetings` вместо `/api/calendar/v1/meetings`.
 
-**Варианты решения:**
-- [A] Убрать trailing slash во всех внутренних `proxy_pass http://<svc>_up;`.
-      **Отдельно проверить** `/api/v1/` (публичное зеркало → `integrations_up/`) — какой URI
-      ожидает integrations на входе.
-- [B] (P2) Зафиксировать правило в `ADR-007.md` § «Mandatory Implementation Rules»:
-      «внутренний `proxy_pass` — без trailing slash, иначе путь теряет префикс».
+**Решение (применено).** В `nginx.conf` все `proxy_pass` без URI-части (без trailing slash);
+location-пути приведены к каноническим `/api/<svc>/v1/` (ADR-007 §7/R6); legacy-алиасы
+(`/api/search/`, `/api/ai/`, `/api/timesheet/`, `/api/pomodoro/`, `/api/imap/`, `/api/calendars/`,
+`/api/webhooks/`, `/api/api-keys/`, `/api/export/`, `/api/import/`, `/api/sync-folders/`) сохранены
+как `rewrite … last` на канонический путь. Публичное зеркало `/api/v1/` → `integrations_up`
+(без trailing slash). Правило зафиксировано в ADR-007 §8 R6.
 
-**Проверка.** `curl http://localhost:8080/api/notes/v1/health-check` → 200; после пересборки
-gateway — снова 200 (см. 2.4).
-
-**Что править:** `platform/docker/nginx.conf`, `ADR-007.md`.
+**Проверка.** `curl http://localhost:8080/api/notes/v1/health-check` → 200; legacy
+`curl http://localhost:8080/api/search/v1/health-check` (rewrite) → 200.
 
 ---
 
-### 2.3 Пароль-заглушка `***` в `DATABASE_URL`
+### 2.3 Пароль-заглушка `***` в `DATABASE_URL` — **исправлено**
 
-**Симптом.** Все сервисы падают с `28P01 password authentication failed for user "pmos"`.
+**Симптом (исторически).** Все сервисы падали с `28P01 password authentication failed for user "pmos"`.
 
 **Причина.** В `platform/docker/docker-compose.yml` у **всех 16 CRUD-сервисов**:
 `DATABASE_URL: postgres://pmos:***@postgres:5432/pmos` — литеральный плейсхолдер `***`,
 тогда как контейнер `postgres` создаётся с `POSTGRES_PASSWORD: pmos`. (Неправленный пример
 с тем же `***` — в Quick Start `README.md`.)
 
+**Решение (применено).** В compose все 16 `DATABASE_URL` приведены к
+`postgres://pmos:pmos@postgres:5432/pmos`; обновлены упоминания `***` в
+`docs/TROUBLESHOOTING.md`, `docs/REFERENCE.md`, `ENTRY.md`. README Quick Start уже был корректен.
+
 **Варианты решения:**
-- [A] Заменить `***` на `pmos` во всех блоках `environment` compose.
-- [B] (надёжнее) `DATABASE_URL: postgres://pmos:${POSTGRES_PASSWORD}@postgres:5432/pmos`
+- [x] **(применено)** Заменить `***` на `pmos` во всех блоках `environment` compose.
+- [ ] (запасной) `DATABASE_URL: postgres://pmos:${POSTGRES_PASSWORD}@postgres:5432/pmos`
       + `POSTGRES_PASSWORD=pmos` в `.env` (и в compose у `postgres`).
-- [C] Добавить валидацию при старте compose-стека: `docker compose config | grep -q '\*\*\*'`
+- [ ] Добавить валидацию при старте compose-стека: `docker compose config | grep -q '\*\*\*'`
       → не стартовать.
 
 > **Примечание:** healthcheck'и **уже присутствуют**: `postgres` — `pg_isready`,
@@ -135,9 +141,9 @@ gateway — снова 200 (см. 2.4).
 > Дополнительно добавлять healthcheck не требуется — требуется только **документировать**
 > этот механизм (см. §3.3).
 
-**Проверка.** `docker compose config | grep DATABASE_URL` → нет `***`; сервисы поднимаются.
+**Проверка.** `docker compose config | grep DATABASE_URL` → `postgres://pmos:pmos@postgres:5432/pmos`, без `***`; сервисы поднимаются.
 
-**Что править:** `platform/docker/docker-compose.yml`, `README.md`/`README.ru.md` (Quick Start), `DEV_GUIDE.md`.
+**Что правилось:** `platform/docker/docker-compose.yml`, `README.md`/`README.ru.md` (Quick Start — уже было корректно), `DEV_GUIDE.md`, `docs/TROUBLESHOOTING.md`, `docs/REFERENCE.md`, `ENTRY.md`.
 
 ---
 
@@ -211,8 +217,9 @@ nginx резолвит имена upstream один раз при старте �
 
 ### 3.3 Переменные окружения и README
 
-- [ ] `README.md` Quick Start: `DATABASE_URL=postgres://pmos:***@localhost:5432/pmos` — тот же
-      placeholder `***`; заменить на `pmos` (или `${POSTGRES_PASSWORD}`).
+- [x] `README.md` Quick Start: `DATABASE_URL=postgres://pmos:***@localhost:5432/pmos` — тот же
+      placeholder `***`; заменить на `pmos` (или `${POSTGRES_PASSWORD}`). **готово**: README уже
+      содержал `postgres://pmos:pmos@localhost:5432/pmos` (см. §2.3).
 - [ ] README-статусы («all 17 services implemented and verified», «frontend 166/166»,
       «600+ tests») — **проверить повторным прогоном** `pnpm -r run typecheck / test /
       test:contract` после устранения §2; зафиксировать актуальные цифры.
@@ -249,17 +256,18 @@ nginx использует **кастомные** префиксы, не сов�
 Personal OS». Frontend-сервис существует (`services/frontend/`, React 19 + Vite 6 + Tailwind v4,
 dnd-kit, react-router 7, react-markdown), но стилизация минимальна.
 
-### 4.2 Эталон дизайна не интегрирован
+### 4.2 Эталон дизайна интегрирован — **готово**
 
-Рядом с репозиторием есть продуманный дизайн-прототип `personal-os-ui-demo.html`
-(тёмная/светлая темы, профили Work/Home/Family/Friends, палитра с акцентами `#eeccc3`,
-календарь, заметки, горячие клавиши `⌘1–4`) — **не перенесён** в SPA.
+Дизайн-прототип `personal-os-ui-demo.html` (тёмная/светлая темы, профили
+Work/Home/Family/Friends, палитра с акцентами `#eeccc3`, календарь, заметки,
+горячие клавиши `⌘1–4`) перенесён в SPA: токены стилей и темы в `index.css`,
+layout + sidebar в компонентах, страницы стилизованы.
 
-**Нужно:**
-- [ ] Оценить `services/frontend/src/` против `personal-os-ui-demo.html`.
-- [ ] Перенести токены стилей (палитра, типографика, темы), базовые компоненты и layout.
-- [ ] Подключить профильные чипы, календарь (месяц + агенда), dual-pane заметки.
-- [ ] Пройтись визуальным QA по ключевым страницам.
+**Сделано:**
+- [x] Оценить `services/frontend/src/` против `personal-os-ui-demo.html`.
+- [x] Перенести токены стилей (палитра, типографика, темы), базовые компоненты и layout.
+- [x] Подключить профильные чипы, календарь (месяц + агенда), dual-pane заметки.
+- [x] Пройтись визуальным QA по ключевым страницам.
 
 ### 4.3 Ключевые экраны для проверки
 
@@ -299,18 +307,18 @@ Search → Timesheet → Agent inbox → Import. Сверять с `docs/FEATURE
 
 | # | Задача | Приоритет | Раздел |
 |---|--------|:---------:|:------:|
-| 1 | Общий `platform/docker/Dockerfile.service` + `context: ../..` + `.dockerignore` | P1 | 2.1 |
-| 2 | Убрать trailing slash в nginx.conf + правило в ADR-007 | P1 | 2.2 |
-| 3 | Заменить `***` в `DATABASE_URL` (compose + README) | P1 | 2.3 |
+| 1 | ~~Общий `platform/docker/Dockerfile.service` + `context: ../..` + `.dockerignore`~~ **готово** (см. §2.1) | P1 | 2.1 |
+| 2 | ~~Убрать trailing slash в nginx.conf~~ **готово** (см. §2.2) + правило в ADR-007 R6 | P1 | 2.2 |
+| 3 | ~~Заменить `***` в `DATABASE_URL` (compose + README)~~ **готово** (см. §2.3) | P1 | 2.3 |
 | 4 | Задокументировать `--force-recreate api-gateway` после пересборки | P1 | 2.4 |
 | 5 | Порядок миграций в README/DEV_GUIDE; проверить применение | P1 | 2.5 |
 | 6 | `docs/TROUBLESHOOTING.md` + чек-лист запуска по §2 | P1 | 2.x |
 | 7 | Синхронизировать структуру: `frontend/`, `tests/`, `ops` в доках | P2 | 3.1 |
 | 8 | Переписать таблицу профилей в DEV_GUIDE по compose | P2 | 3.2 |
-| 9 | Проверить карту nginx-префиксов ↔ роуты сервисов | P2 | 3.4 |
-| 10 | Интегрировать дизайн `personal-os-ui-demo.html` в SPA | P1 | 4 |
+| 9 | ~~Проверить карту nginx-префиксов ↔ роуты сервисов~~ **готово**: location → `/api/<svc>/v1/`, `proxy_pass` без URI, legacy-rewrite (см. §2.2/ADR-007 §7) | P2 | 3.4 |
+| 10 | ~~Интегрировать дизайн `personal-os-ui-demo.html` в SPA~~ **готово**: темы (dark/light), палитра `#eeccc3`, layout + sidebar, страницы стилизованы (см. §4) | P1 | 4 |
 | 11 | Прогнать typecheck/unit/contract/E2E после фиксов; переснять статусы README | P2 | 5 |
-| 12 | Добавить CI-job на docker-сборку | P2 | 5.1 |
+| 12 | ~~Добавить CI-job на docker-сборку~~ **готово**: job `docker-build` в `.github/workflows/ci.yml` собирает образы всех 17 сервисов через общий Dockerfile | P2 | 5.1 |
 | 13 | `github-repo-hygiene` (README, topics, ссылки) после мажорных правок | P3 | — |
 
 ---
@@ -319,17 +327,17 @@ Search → Timesheet → Agent inbox → Import. Сверять с `docs/FEATURE
 
 | Документ | Что править |
 |----------|-------------|
-| `platform/docker/docker-compose.yml` | build.context, DATABASE_URL, .env |
-| `platform/docker/nginx.conf` | trailing slash (2.2), dynamic resolver (2.4) |
-| `platform/docker/Dockerfile.service` | **новый** — общий Dockerfile (2.1) |
-| `.dockerignore` (корень) | **новый** (2.1) |
+| `platform/docker/docker-compose.yml` | ~~build.context, DATABASE_URL, .env~~ **готово** (2.1/2.3) |
+| `platform/docker/nginx.conf` | ~~trailing slash (2.2)~~ **готово**; dynamic resolver (2.4) |
+| `platform/docker/Dockerfile.service` | ~~**новый** — общий Dockerfile (2.1)~~ **создан** |
+| `.dockerignore` (корень) | ~~**новый** (2.1)~~ **создан** |
 | `docs/DEV_GUIDE.md` | §добавление сервиса, профили (3.2), чек-лист запуска, troubleshooting, frontend-путь |
 | `docs/ARCHITECTURE.md` | frontend-структура, ops, терминология «17» |
 | `docs/ADR/ADR-007.md` | frontend-путь, trailing-slash-правило, ops, карта префиксов |
 | `docs/BACKLOG.md` | метки P1/P2 по §6, ops |
-| `README.md` / `README.ru.md` | Quick Start (`***`), статусы, профили, ops |
+| `README.md` / `README.ru.md` | статусы, профили, ops |
 | `services/frontend/` | редизайн (раздел 4) |
-| `.github/workflows/ci.yml` | job на docker-сборку (5.1) |
+| `.github/workflows/ci.yml` | ~~job на docker-сборку (5.1)~~ **готово** |
 
 ---
 

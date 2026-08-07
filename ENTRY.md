@@ -56,7 +56,7 @@ docker compose -f platform/docker/docker-compose.yml --profile core up -d
 pnpm --filter "./services/*" run db:migrate
 
 # 4. Один сервис (пример notes)
-DATABASE_URL=postgres://pmos:***@localhost:5432/pmos \
+DATABASE_URL=postgres://pmos:pmos@localhost:5432/pmos \
 DATABASE_SCHEMA=notes_ NATS_URL=nats://localhost:4222 \
 PORT=3001 SERVICE_NAME=notes pnpm --filter @pmos/notes start
 

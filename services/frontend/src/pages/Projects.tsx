@@ -58,52 +58,52 @@ function ProjectModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"
+        className="card w-full max-w-lg rounded-xl border p-6 shadow-xl"
       >
         <h2 className="mb-4 text-lg font-bold">
           {initial ? 'Edit Project' : 'New Project'}
         </h2>
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               Name
             </label>
             <input
               value={name}
               onChange={e => setName(e.target.value)}
               required
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              className="input"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               Description
             </label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={3}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              className="input"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               Goal
             </label>
             <input
               value={goal}
               onChange={e => setGoal(e.target.value)}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              className="input"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               Status
             </label>
             <select
               value={status}
               onChange={e => setStatus(e.target.value as ProjectStatus)}
-              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              className="input"
             >
               {STATUS_OPTIONS.map(s => (
                 <option key={s} value={s}>
@@ -118,14 +118,14 @@ function ProjectModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+            className="btn btn-secondary"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800 disabled:opacity-50"
+            className="btn btn-primary"
           >
             {saving ? 'Saving…' : 'Save'}
           </button>
@@ -161,29 +161,29 @@ export default function Projects() {
     }
   }
 
-  if (loading) return <div className="animate-pulse text-neutral-400">Loading…</div>
+  if (loading) return <div className="animate-pulse text-muted">Loading…</div>
   if (error) return <div className="text-red-500">Error: {error}</div>
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Projects</h1>
+        <h1 className="section-title">Projects</h1>
         <button
           onClick={() => setModal({ mode: 'create' })}
-          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800"
+          className="btn btn-primary"
         >
           + New Project
         </button>
       </div>
 
       {projects.length === 0 ? (
-        <p className="text-neutral-500">No projects yet.</p>
+        <p className="text-muted">No projects yet.</p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {projects.map(project => (
             <div
               key={project.id}
-              className="rounded-lg border border-neutral-200 bg-white p-4 transition-shadow hover:shadow-sm"
+              className="card rounded-lg border p-4 transition-shadow hover:shadow-md"
             >
               <div className="flex items-start justify-between gap-3">
                 <h2 className="font-semibold">{project.name}</h2>
@@ -194,23 +194,23 @@ export default function Projects() {
                 </span>
               </div>
               {project.description && (
-                <p className="mt-1 line-clamp-2 text-sm text-neutral-500">
+                <p className="mt-1 line-clamp-2 text-sm text-muted">
                   {project.description}
                 </p>
               )}
               {project.goal && (
-                <p className="mt-1 text-xs text-neutral-400">🎯 {project.goal}</p>
+                <p className="mt-1 text-xs text-muted">🎯 {project.goal}</p>
               )}
               <div className="mt-3 flex gap-2">
                 <button
                   onClick={() => setModal({ mode: 'edit', project })}
-                  className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+                  className="btn btn-secondary btn-sm"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => handleDelete(project.id)}
-                  className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                  className="btn btn-danger btn-sm"
                 >
                   Delete
                 </button>

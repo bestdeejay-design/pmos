@@ -1,0 +1,50 @@
+# syntax=docker/dockerfile:1
+# Общий Dockerfile для сборки любого сервиса monorepo pmOS.
+#
+# Контекст сборки — корень monorepo (../.. от platform/docker), поэтому
+# workspace-зависимости (@pmos/shared, @pmos/event-bus) резолвятся корректно.
+# .dockerignore в корне исключает node_modules/dist/.git и пр.
+#
+# Использование (из корня репозитория):
+#   docker build -f platform/docker/Dockerfile.service \
+#     --build-arg SERVICE=notes -t pmos/notes .
+#   docker compose --profile phase1 build   # см. docker-compose.yml
+
+ARG SERVICE=notes
+
+# ── Build stage ──────────────────────────────────────────────────
+FROM node:22-alpine AS build
+ARG SERVICE
+WORKDIR /app
+
+# Корень pnpm workspace: манифест, lockfile, workspace-конфиг, базовый tsconfig, .npmrc
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json .npmrc ./
+
+# Workspace-пакеты (platform + services). .dockerignore исключает node_modules/dist.
+COPY platform/ ./platform/
+COPY services/ ./services/
+
+# Установка зависимостей только для целевого сервиса и его workspace-зависимостей
+# (суффикс "..." включает зависимости). --frozen-lockfile=false: lockfile в контексте.
+RUN corepack enable && pnpm install --frozen-lockfile=false --filter @pmos/${SERVICE}...
+
+# Сборка сервиса и его workspace-зависимостей (shared, event-bus)
+RUN pnpm --filter @pmos/${SERVICE}... run build
+
+# ── Runtime stage ────────────────────────────────────────────────
+FROM node:22-alpine
+ARG SERVICE
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Корневой node_modules: virtual store (.pnpm) + hoisted-зависимости
+COPY --from=build /app/node_modules ./node_modules
+# Workspace-пакеты (platform): их собранный dist + собственные node_modules
+COPY --from=build /app/platform ./platform
+# Сервис целиком: dist + package.json + собственный node_modules
+# (симлинки на workspace-пакеты @pmos/* и на .pnpm virtual store)
+COPY --from=build /app/services/${SERVICE} ./services/${SERVICE}
+
+WORKDIR /app/services/${SERVICE}
+EXPOSE 3000
+CMD ["node", "dist/index.js"]

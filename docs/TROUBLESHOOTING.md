@@ -51,21 +51,20 @@ curl http://localhost:8080/api/notes/v1/health-check   # → 200 {"ok":true,...}
 
 ---
 
-## 3. E2 — `28P01 password authentication failed`
+## 3. E2 — `28P01 password authentication failed` — **исправлено**
 
-**Симптом.** Сервисы не подключаются к БД.
+**Симптом (исторически).** Сервисы не подключались к БД.
 
-**Причина.** Плейсхолдер `***` в `DATABASE_URL` у всех сервисов:
+**Причина.** В `platform/docker/docker-compose.yml` у сервисов стоял литеральный плейсхолдер
 `postgres://pmos:***@postgres:5432/pmos`, тогда как `postgres` создаётся с
 `POSTGRES_PASSWORD: pmos`.
 
-**Решение.**
-- `docker compose -f platform/docker/docker-compose.yml config | grep -n 'DATABASE_URL'`
-  — убедиться, что `***` отсутствует;
-- заменить на `postgres://pmos:pmos@postgres:5432/pmos` либо на
-  `postgres://pmos:${POSTGRES_PASSWORD}@postgres:5432/pmos` + `POSTGRES_PASSWORD` в `.env`.
+**Решение (применено).** Заглушка `***` заменена на реальный пароль:
+`DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos` во всех блоках `environment` compose.
 
-**Проверка.** `docker compose up -d` → сервисы стартуют, логи без `28P01`.
+**Проверка.** `docker compose -f platform/docker/docker-compose.yml config | grep DATABASE_URL`
+→ все строки `postgres://pmos:pmos@postgres:5432/pmos`, без `***`; `docker compose up -d`
+→ сервисы стартуют, логи без `28P01`.
 
 ---
 
@@ -74,22 +73,21 @@ curl http://localhost:8080/api/notes/v1/health-check   # → 200 {"ok":true,...}
 **Симптом.** Запрос через `http://localhost:8080/api/calendar/v1/meetings` → 404, хотя
 напрямую `http://localhost:3003/api/calendar/v1/meetings` работает.
 
-**Причина.** В `platform/docker/nginx.conf` внутренние `proxy_pass` написаны с trailing
-slash (`proxy_pass http://calendar_up/;`). nginx при совпадении `location /api/calendar/`
-вырезает совпавшую часть и подставляет то, что идёт после upstream (`/`) → сервис получает
-`/v1/meetings` вместо `/api/calendar/v1/meetings`.
+**Причина (историческая, исправлено).** Раньше в `platform/docker/nginx.conf` внутренние
+`proxy_pass` были написаны с trailing slash (`proxy_pass http://calendar_up/;`). nginx при
+совпадении `location /api/calendar/` вырезает совпавшую часть и подставляет то, что идёт
+после upstream (`/`) → сервис получал `/v1/meetings` вместо `/api/calendar/v1/meetings`.
+Плюс часть location-префиксов не совпадала с mount-путями (`/api/search/` vs `/api/search-rag/v1`).
 
-**Решение.** Убрать trailing slash: `proxy_pass http://calendar_up;` (правило — ADR-007 §R6).
-После правки: `docker compose up -d --force-recreate api-gateway`.
+**Решение (применено).** В `nginx.conf` все `proxy_pass` без trailing slash (без URI-части) —
+nginx передаёт полный исходный URI, и сервис всегда получает `/api/<svc>/v1/...`; location-пути
+приведены к каноническим `/api/<svc>/v1/` (ADR-007 §7/R6). Legacy-алиасы (`/api/search/`,
+`/api/ai/`, `/api/timesheet/`, `/api/imap/` и т.д.) сохранены как `rewrite … last` на
+канонический путь. После правки: `docker compose up -d --force-recreate api-gateway`.
 
-**Проверка.** `curl http://localhost:8080/api/notes/v1/health-check` → 200.
-
-> **Внимание (§3.4 IMPROVEMENTS).** У части сервисов (search-rag, ai-gateway,
-> time-tracking, email, external-calendars, integrations, export-import, sync)
-> nginx-префиксы (`/api/search/`, `/api/ai/`, `/api/timesheet/` и т.д.) **не совпадают**
-> с фактическими mount-префиксами сервисов (`/api/search-rag/v1`, `/api/ai-gateway/v1`,
-> `/api/time-tracking/v1` …). Пока это расхождение не устранено, обращение к таким роутам
-> через gateway не работает. Карта соответствий — `docs/ADR/ADR-007.md` §7.
+**Проверка.** `curl http://localhost:8080/api/notes/v1/health-check` → 200, а также
+`curl http://localhost:8080/api/search-rag/v1/health-check` и legacy
+`curl http://localhost:8080/api/search/v1/health-check` (rewrite) → 200.
 
 ---
 

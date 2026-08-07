@@ -34,7 +34,7 @@ export function MeetingBlock({ meeting, onEdit, onDelete }: MeetingBlockProps) {
         opacity: drag.isDragging ? 0.6 : 1,
         zIndex: drag.isDragging ? 20 : 10,
       }}
-      className="absolute inset-x-1 overflow-hidden rounded-md border border-blue-200 bg-blue-50 shadow-sm"
+      className="absolute inset-x-1 overflow-hidden rounded-md border border-accent/40 bg-accent/10 shadow-sm"
     >
       <div
         {...drag.attributes}
@@ -42,13 +42,13 @@ export function MeetingBlock({ meeting, onEdit, onDelete }: MeetingBlockProps) {
         className="cursor-grab p-1.5 active:cursor-grabbing"
       >
         <div className="flex items-center justify-between gap-1">
-          <p className="truncate text-xs font-semibold text-blue-900">{meeting.title}</p>
+          <p className="truncate text-xs font-semibold text-ink">{meeting.title}</p>
           <span className="flex shrink-0 gap-0.5">
             <button
               type="button"
               onClick={() => onEdit(meeting)}
               aria-label={`Edit ${meeting.title}`}
-              className="rounded px-1 text-[10px] text-blue-600 hover:bg-blue-100"
+              className="rounded px-1 text-[10px] text-accent hover:bg-accent/15"
             >
               ✎
             </button>
@@ -56,13 +56,13 @@ export function MeetingBlock({ meeting, onEdit, onDelete }: MeetingBlockProps) {
               type="button"
               onClick={() => onDelete(meeting.id)}
               aria-label={`Delete ${meeting.title}`}
-              className="rounded px-1 text-[10px] text-red-500 hover:bg-red-50"
+              className="rounded px-1 text-[10px] text-red-400 hover:bg-red-500/15"
             >
               ✕
             </button>
           </span>
         </div>
-        <p className="text-[10px] text-blue-600">
+        <p className="text-[10px] text-muted">
           {timeLabel(start)}–{timeLabel(new Date(meeting.endTime))}
         </p>
       </div>
@@ -73,7 +73,7 @@ export function MeetingBlock({ meeting, onEdit, onDelete }: MeetingBlockProps) {
         data-testid={`resize-${meeting.id}`}
         aria-label="Resize meeting"
         style={{ transform: CSS.Transform.toString(resize.transform) }}
-        className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize bg-blue-200 hover:bg-blue-300"
+        className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize bg-accent/30 hover:bg-accent/50"
       />
     </div>
   )

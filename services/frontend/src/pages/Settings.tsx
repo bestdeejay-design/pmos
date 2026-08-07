@@ -52,14 +52,14 @@ function SettingModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"
+        className="card w-full max-w-lg rounded-xl border p-6 shadow-xl"
       >
         <h2 className="mb-4 text-lg font-bold">
           {initial ? 'Edit Setting' : 'New Setting'}
         </h2>
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               Key
             </label>
             <input
@@ -67,11 +67,11 @@ function SettingModal({
               onChange={e => setKey(e.target.value)}
               required
               disabled={initial !== null}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none disabled:bg-neutral-100"
+              className="input"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               Value (JSON)
             </label>
             <textarea
@@ -80,7 +80,7 @@ function SettingModal({
               required
               rows={6}
               spellCheck={false}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 font-mono text-xs focus:border-neutral-500 focus:outline-none"
+              className="input font-mono text-xs"
             />
           </div>
         </div>
@@ -89,14 +89,14 @@ function SettingModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+            className="btn btn-secondary"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800 disabled:opacity-50"
+            className="btn btn-primary"
           >
             {saving ? 'Saving…' : 'Save'}
           </button>
@@ -147,27 +147,27 @@ export default function Settings() {
     }
   }
 
-  if (loading) return <div className="animate-pulse text-neutral-400">Loading…</div>
+  if (loading) return <div className="animate-pulse text-muted">Loading…</div>
   if (error) return <div className="text-red-500">Error: {error}</div>
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Settings</h1>
+        <h1 className="section-title">Settings</h1>
         <button
           onClick={() => setModal({ mode: 'create' })}
-          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800"
+          className="btn btn-primary"
         >
           + Add Setting
         </button>
       </div>
 
       {settings.length === 0 ? (
-        <p className="text-neutral-500">No settings configured.</p>
+        <p className="text-muted">No settings configured.</p>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+        <div className="card overflow-hidden rounded-lg border">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-neutral-200 bg-neutral-50 text-neutral-500">
+            <thead className="border-b border-line bg-panel-2 text-muted">
               <tr>
                 <th className="px-4 py-2 font-medium">Key</th>
                 <th className="px-4 py-2 font-medium">Value</th>
@@ -176,22 +176,22 @@ export default function Settings() {
             </thead>
             <tbody>
               {settings.map(setting => (
-                <tr key={setting.key} className="border-b border-neutral-100 last:border-0">
+                <tr key={setting.key} className="border-b border-line last:border-0">
                   <td className="px-4 py-2 font-medium">{setting.key}</td>
-                  <td className="max-w-md truncate px-4 py-2 font-mono text-xs text-neutral-500">
+                  <td className="max-w-md truncate px-4 py-2 font-mono text-xs text-muted">
                     {JSON.stringify(setting.value)}
                   </td>
                   <td className="px-4 py-2 text-right">
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => setModal({ mode: 'edit', setting })}
-                        className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+                        className="btn btn-secondary btn-sm"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(setting.key)}
-                        className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                        className="btn btn-danger btn-sm"
                       >
                         Delete
                       </button>
@@ -204,21 +204,18 @@ export default function Settings() {
         </div>
       )}
 
-      <div className="mt-8 rounded-lg border border-neutral-200 bg-white p-4">
+      <div className="card mt-8 rounded-lg border p-4">
         <h2 className="mb-2 font-semibold">Ollama Models</h2>
         {modelsDegraded ? (
-          <p className="text-sm text-neutral-500">
+          <p className="text-sm text-muted">
             Ollama is unavailable — running in degraded mode.
           </p>
         ) : models.length === 0 ? (
-          <p className="text-sm text-neutral-500">No models available.</p>
+          <p className="text-sm text-muted">No models available.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {models.map(model => (
-              <span
-                key={model}
-                className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600"
-              >
+              <span key={model} className="tag">
                 {model}
               </span>
             ))}

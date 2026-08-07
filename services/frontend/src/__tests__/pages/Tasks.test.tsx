@@ -73,10 +73,14 @@ describe('Tasks page', () => {
   it('renders kanban column headers', async () => {
     render(<Tasks />)
     await waitFor(() => {
-      expect(screen.getByText('Backlog')).toBeInTheDocument()
-      expect(screen.getByText('To Do')).toBeInTheDocument()
-      expect(screen.getByText('In Progress')).toBeInTheDocument()
-      expect(screen.getByText('Done')).toBeInTheDocument()
+      expect(
+        screen.getByRole('heading', { name: 'Backlog' })
+      ).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'To Do' })).toBeInTheDocument()
+      expect(
+        screen.getByRole('heading', { name: 'In Progress' })
+      ).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Done' })).toBeInTheDocument()
     })
   })
 
@@ -127,10 +131,14 @@ describe('Tasks page', () => {
     mockedSettingsApi.list.mockResolvedValue([])
     render(<Tasks />)
     await waitFor(() => {
-      expect(screen.getByText('Backlog')).toBeInTheDocument()
-      expect(screen.getByText('To Do')).toBeInTheDocument()
-      expect(screen.getByText('In Progress')).toBeInTheDocument()
-      expect(screen.getByText('Done')).toBeInTheDocument()
+      expect(
+        screen.getByRole('heading', { name: 'Backlog' })
+      ).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'To Do' })).toBeInTheDocument()
+      expect(
+        screen.getByRole('heading', { name: 'In Progress' })
+      ).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Done' })).toBeInTheDocument()
     })
   })
 

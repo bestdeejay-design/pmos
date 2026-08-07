@@ -124,7 +124,7 @@ pmos/
 
 #### `DELIVERY.md`
 - **Назначение**: что входит в поставку, как собирать/проверять, что НЕ входит.
-- **Ключевые факты**: интеграционные тесты 90/90; **E2E (Playwright) НЕ входит в поставку** (противоречит README/AGENT — §5.3); упоминает пароль `pmos:pmos` (противоречит `***` в compose — §5.6).
+- **Ключевые факты**: интеграционные тесты 90/90; **E2E (Playwright) НЕ входит в поставку** (противоречит README/AGENT — §5.3); пароль `pmos:pmos` согласован с compose (см. §5.6 — закрыто).
 - **Связи**: с AGENT.md, IMPROVEMENTS.md.
 
 #### `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md` (EN)
@@ -177,7 +177,7 @@ pmos/
 
 #### `docs/IMPROVEMENTS.md`
 - **Назначение**: каталог проблем/расхождений по факту запуска + приоритетный план доработок.
-- **Структура**: 1. Хроника запуска → 2. Инфраструктура запуска (P1: pnpm workspace, nginx trailing slash, пароль `***`, nginx cache, миграции) → 3. Расхождения «документация vs факт» (структура, профили, env, nginx-префиксы) → 4. UI/Frontend (P1) → 5. Качество и тесты (E2E, contract, monorepo hygiene) → 6. Приоритетный план → 7. Связанные документы.
+- **Структура**: 1. Хроника запуска → 2. Инфраструктура запуска (P1: pnpm workspace, nginx trailing slash, пароль БД, nginx cache, миграции) → 3. Расхождения «документация vs факт» (структура, профили, env, nginx-префиксы) → 4. UI/Frontend (P1) → 5. Качество и тесты (E2E, contract, monorepo hygiene) → 6. Приоритетный план → 7. Связанные документы.
 - **Ключевые факты**: основной источник расхождений §5 этого файла.
 - **Связи**: REVIEW.md, README, DEV_GUIDE, compose.
 
@@ -243,10 +243,10 @@ pmos/
 | 5.3 | E2E Playwright | README: «10 E2E tests»; AGENT: «≥3»; DELIVERY: «E2E не входит в поставку»; TEST_CASES §19: 2 сценария; на диске 6 спек-файлов | факт диска + DELIVERY |
 | 5.4 | Фазы | AGENT.md: phase1–phase5; README.ru: phase1–phase4 (ops=phase5 отсутствует) | compose: phase1–4 (+all), ops=all |
 | 5.5 | SAGA.md «Связанные ADR» | Ссылки на ADR-003/004/005 не соответствуют их темам | ADR-007 (канон) |
-| 5.6 | Пароль БД | DELIVERY: `pmos:pmos`; compose/README: `pmos:***` | compose (факт запуска) |
+| 5.6 | Пароль БД | ~~DELIVERY: `pmos:pmos`; compose/README: `pmos:***`~~ **Закрыто**: compose и README приведены к `pmos:pmos` (см. IMPROVEMENTS §2.3) | compose (факт запуска) |
 | 5.7 | settings-события | FEATURES: `settings.changed`; фактически `pmos.settings.settings.{created,updated,deleted}` | `contracts/asyncapi/events.yaml`, commit 45d83f6 |
 | 5.8 | Contract tests | DEV_GUIDE/TEST_CASES упоминают Pact; фактически OpenAPI-conformance через `gen-contract-tests.mjs` | scripts/ + REVIEW RESOLVED |
-| 5.9 | nginx-префиксы | nginx.conf uses alias prefixes (`/api/search/`, `/api/ai/`, `/api/timesheet/`, `/api/imap/`, `/api/calendars/`, `/api/webhooks/`, `/api/api-keys/`, `/api/export/`, `/api/import/`, `/api/sync-folders/`) that **do NOT match** the services' actual mount prefixes (`/api/search-rag/v1`, `/api/ai-gateway/v1`, `/api/time-tracking/v1`, `/api/email/v1`, `/api/external-calendars/v1`, `/api/integrations/v1`, `/api/export-import/v1`, `/api/sync/v1`). Gateway routes for these will 404 (see ADR-007 §7 ⚠️ + R6 + TROUBLESHOOTING §4) | факт `src/app.ts` каждого сервиса |
+| 5.9 | nginx-префиксы | ~~nginx.conf used alias prefixes~~ **Закрыто**: nginx.conf приведён к каноническим location `/api/<svc>/v1/` + `proxy_pass` без trailing slash; legacy-алиасы (`/api/search/`, `/api/ai/`, `/api/timesheet/`, `/api/pomodoro/`, `/api/imap/`, `/api/calendars/`, `/api/webhooks/`, `/api/api-keys/`, `/api/export/`, `/api/import/`, `/api/sync-folders/`) сохранены как `rewrite … last` на канонический путь. Все сервисы доступны через gateway; см. ADR-007 §7 + TROUBLESHOOTING E3 | `platform/docker/nginx.conf` |
 | 5.10 | ops в доках | ops отсутствует в ARCHITECTURE/FEATURES/DEV_GUIDE/BACKLOG (grep: 0 вхождений) | факт: services/ops + ops.yaml |
 | 5.11 | frontend-путь | DEV_GUIDE/ADR-007: `services/frontend`; README: `frontend/` в корне | факт: `services/frontend` |
 | 5.12 | Healthcheck-путь | DEV_GUIDE: `:3000/health`; канон ADR-007: `/api/<svc>/v1/health-check` | ADR-007 |

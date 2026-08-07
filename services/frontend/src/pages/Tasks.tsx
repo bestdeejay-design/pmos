@@ -60,10 +60,10 @@ function NewTaskForm({ onCreated }: { onCreated: () => void }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-neutral-200 bg-white p-4"
+      className="card mb-6 flex flex-wrap items-end gap-3 rounded-lg border p-4"
     >
       <div className="min-w-64 flex-1">
-        <label className="mb-1 block text-sm font-medium text-neutral-700">
+        <label className="mb-1 block text-sm font-medium text-muted">
           Title
         </label>
         <input
@@ -71,11 +71,11 @@ function NewTaskForm({ onCreated }: { onCreated: () => void }) {
           onChange={e => setTitle(e.target.value)}
           required
           placeholder="New task…"
-          className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+          className="input"
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium text-neutral-700">
+        <label className="mb-1 block text-sm font-medium text-muted">
           Priority
         </label>
         <input
@@ -83,13 +83,13 @@ function NewTaskForm({ onCreated }: { onCreated: () => void }) {
           min={0}
           value={priority}
           onChange={e => setPriority(Number(e.target.value))}
-          className="w-24 rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+          className="input w-24"
         />
       </div>
       <button
         type="submit"
         disabled={saving}
-        className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800 disabled:opacity-50"
+        className="btn btn-primary"
       >
         {saving ? 'Adding…' : '+ Add Task'}
       </button>
@@ -98,12 +98,24 @@ function NewTaskForm({ onCreated }: { onCreated: () => void }) {
   )
 }
 
+const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
+  { value: 'backlog', label: 'Backlog' },
+  { value: 'todo', label: 'To Do' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'done', label: 'Done' },
+]
+
 interface SortableTaskCardProps {
   task: Task
   onDelete: (id: string) => void
+  onStatusChange: (id: string, status: TaskStatus) => void
 }
 
-function SortableTaskCard({ task, onDelete }: SortableTaskCardProps) {
+function SortableTaskCard({
+  task,
+  onDelete,
+  onStatusChange,
+}: SortableTaskCardProps) {
   const {
     attributes,
     listeners,
@@ -123,7 +135,7 @@ function SortableTaskCard({ task, onDelete }: SortableTaskCardProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className="rounded-md border border-neutral-200 bg-white p-3 shadow-sm"
+      className="rounded-md border border-line bg-panel p-3 shadow-sm"
     >
       <div
         {...attributes}
@@ -133,13 +145,25 @@ function SortableTaskCard({ task, onDelete }: SortableTaskCardProps) {
         <p className="text-sm font-medium">{task.title}</p>
         <button
           onClick={() => onDelete(task.id)}
-          className="shrink-0 text-xs text-red-500 hover:text-red-700"
+          className="shrink-0 text-xs text-red-400 hover:text-red-300"
           aria-label="Delete task"
         >
           ✕
         </button>
       </div>
-      <p className="mt-1 text-xs text-neutral-500">P{task.priority}</p>
+      <p className="mt-1 text-xs text-muted">P{task.priority}</p>
+      <select
+        value={task.status}
+        onChange={e => onStatusChange(task.id, e.target.value as TaskStatus)}
+        aria-label="Task status"
+        className="mt-2 w-full cursor-pointer rounded border border-line bg-panel-2 px-1.5 py-1 text-xs text-muted"
+      >
+        {STATUS_OPTIONS.map(opt => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
     </div>
   )
 }
@@ -148,9 +172,15 @@ interface KanbanColumnProps {
   column: KanbanColumn
   tasks: Task[]
   onDelete: (id: string) => void
+  onStatusChange: (id: string, status: TaskStatus) => void
 }
 
-function KanbanColumn({ column, tasks, onDelete }: KanbanColumnProps) {
+function KanbanColumn({
+  column,
+  tasks,
+  onDelete,
+  onStatusChange,
+}: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.status })
 
   return (
@@ -159,20 +189,25 @@ function KanbanColumn({ column, tasks, onDelete }: KanbanColumnProps) {
       onDragOver={e => e.preventDefault()}
       data-column-status={column.status}
       className={`rounded-lg p-4 ${column.color} ${
-        isOver ? 'ring-2 ring-neutral-400' : ''
+        isOver ? 'ring-2 ring-accent' : ''
       }`}
     >
-      <h2 className="mb-3 font-semibold">{column.label}</h2>
+      <h2 className="mb-3 font-semibold text-ink">{column.label}</h2>
       <SortableContext
         items={tasks.map(t => t.id)}
         strategy={verticalListSortingStrategy}
       >
         <div className="space-y-2 min-h-[200px]">
           {tasks.map(task => (
-            <SortableTaskCard key={task.id} task={task} onDelete={onDelete} />
+            <SortableTaskCard
+              key={task.id}
+              task={task}
+              onDelete={onDelete}
+              onStatusChange={onStatusChange}
+            />
           ))}
           {tasks.length === 0 && (
-            <p className="text-xs text-neutral-400 text-center py-4">Empty</p>
+            <p className="text-xs text-muted text-center py-4">Empty</p>
           )}
         </div>
       </SortableContext>
@@ -184,7 +219,7 @@ function DragOverlayComponent({ task }: { task: Task | null }) {
   return (
     <DragOverlay>
       {task ? (
-        <div className="rounded-md border border-neutral-300 bg-white p-3 shadow-lg rotate-1 scale-105">
+        <div className="rounded-md border border-line bg-panel-2 p-3 shadow-lg rotate-1 scale-105">
           <p className="text-sm font-medium">{task.title}</p>
         </div>
       ) : null}
@@ -277,12 +312,21 @@ export default function Tasks() {
     }
   }
 
-  if (loading) return <div className="animate-pulse text-neutral-400">Loading…</div>
+  const handleStatusChange = async (id: string, status: TaskStatus) => {
+    try {
+      const updated = await tasksApi.update(id, { status })
+      setTasks(prev => prev.map(t => (t.id === updated.id ? updated : t)))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update status')
+    }
+  }
+
+  if (loading) return <div className="animate-pulse text-muted">Loading…</div>
   if (error) return <div className="text-red-500">Error: {error}</div>
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">Tasks</h1>
+      <h1 className="section-title mb-6">Tasks</h1>
       <NewTaskForm onCreated={loadTasks} />
       <DndContext
         sensors={sensors}
@@ -297,6 +341,7 @@ export default function Tasks() {
               column={column}
               tasks={tasks.filter(t => t.status === column.status)}
               onDelete={handleDelete}
+              onStatusChange={handleStatusChange}
             />
           ))}
         </div>

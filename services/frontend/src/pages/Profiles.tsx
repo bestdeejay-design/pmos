@@ -42,25 +42,25 @@ function ProfileModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+        className="card w-full max-w-md rounded-xl border p-6 shadow-xl"
       >
         <h2 className="mb-4 text-lg font-bold">
           {initial ? 'Edit Profile' : 'New Profile'}
         </h2>
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               Name
             </label>
             <input
               value={name}
               onChange={e => setName(e.target.value)}
               required
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              className="input"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               Color
             </label>
             <div className="flex items-center gap-3">
@@ -68,9 +68,9 @@ function ProfileModal({
                 type="color"
                 value={color}
                 onChange={e => setColor(e.target.value)}
-                className="h-10 w-14 cursor-pointer rounded border border-neutral-300"
+                className="h-10 w-14 cursor-pointer rounded border border-line bg-surface"
               />
-              <span className="text-sm text-neutral-500">{color}</span>
+              <span className="text-sm text-muted">{color}</span>
             </div>
           </div>
         </div>
@@ -79,14 +79,14 @@ function ProfileModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+            className="btn btn-secondary"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800 disabled:opacity-50"
+            className="btn btn-primary"
           >
             {saving ? 'Saving…' : 'Save'}
           </button>
@@ -152,26 +152,26 @@ export default function Profiles() {
 
   const visibleProfiles = showHidden ? profiles : profiles.filter(p => !p.hidden)
 
-  if (loading) return <div className="animate-pulse text-neutral-400">Loading…</div>
+  if (loading) return <div className="animate-pulse text-muted">Loading…</div>
   if (error) return <div className="text-red-500">Error: {error}</div>
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Profiles</h1>
+        <h1 className="section-title">Profiles</h1>
         <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 text-sm text-neutral-700">
+          <label className="flex items-center gap-2 text-sm text-ink">
             <input
               type="checkbox"
               checked={showHidden}
               onChange={e => setShowHidden(e.target.checked)}
-              className="rounded border-neutral-300 text-neutral-900 focus:ring-neutral-500"
+              className="rounded border-line accent-[var(--accent)]"
             />
             Show hidden
           </label>
           <button
             onClick={() => setModal({ mode: 'create' })}
-            className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800"
+            className="btn btn-primary"
           >
             + New Profile
           </button>
@@ -179,7 +179,7 @@ export default function Profiles() {
       </div>
 
       {visibleProfiles.length === 0 ? (
-        <p className="text-neutral-500">
+        <p className="text-muted">
           {showHidden ? 'No profiles yet.' : 'No visible profiles. Check "Show hidden" to see hidden profiles.'}
         </p>
       ) : (
@@ -187,7 +187,7 @@ export default function Profiles() {
           {visibleProfiles.map(profile => (
             <div
               key={profile.id}
-              className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-white p-4 transition-shadow hover:shadow-sm"
+              className="card flex items-center justify-between gap-3 rounded-lg border p-4 transition-shadow hover:shadow-md"
             >
               <div className="flex items-center gap-3">
                 <span
@@ -208,14 +208,14 @@ export default function Profiles() {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-neutral-400">{profile.color}</p>
+                  <p className="text-xs text-muted">{profile.color}</p>
                 </div>
               </div>
               <div className="flex shrink-0 gap-2">
                 {!profile.isActive && (
                   <button
                     onClick={() => handleActivate(profile.id)}
-                    className="rounded-md border border-green-300 px-2 py-1 text-xs text-green-700 hover:bg-green-50"
+                    className="btn btn-secondary btn-sm"
                     title="Set as active"
                   >
                     Activate
@@ -224,7 +224,7 @@ export default function Profiles() {
                 {profile.hidden ? (
                   <button
                     onClick={() => handleUnhide(profile.id)}
-                    className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+                    className="btn btn-secondary btn-sm"
                     title="Unhide profile"
                   >
                     Unhide
@@ -232,7 +232,7 @@ export default function Profiles() {
                 ) : (
                   <button
                     onClick={() => handleHide(profile.id)}
-                    className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+                    className="btn btn-secondary btn-sm"
                     title="Hide profile"
                   >
                     Hide
@@ -240,13 +240,13 @@ export default function Profiles() {
                 )}
                 <button
                   onClick={() => setModal({ mode: 'edit', profile })}
-                  className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+                  className="btn btn-secondary btn-sm"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => handleDelete(profile.id)}
-                  className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                  className="btn btn-danger btn-sm"
                 >
                   Delete
                 </button>

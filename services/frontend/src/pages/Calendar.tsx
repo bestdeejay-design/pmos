@@ -85,7 +85,7 @@ export default function Calendar() {
     }
   }
 
-  if (loading) return <div className="animate-pulse text-neutral-400">Loading…</div>
+  if (loading) return <div className="animate-pulse text-muted">Loading…</div>
   if (error) return <div className="text-red-500">Error: {error}</div>
 
   const sorted = [...meetings].sort(
@@ -95,16 +95,16 @@ export default function Calendar() {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Calendar</h1>
+        <h1 className="section-title">Calendar</h1>
         <div className="flex items-center gap-2">
-          <div className="flex overflow-hidden rounded-lg border border-neutral-300">
+          <div className="flex overflow-hidden rounded-lg border border-line">
             <button
               type="button"
               onClick={() => setView('week')}
               className={`px-3 py-1.5 text-sm ${
                 view === 'week'
-                  ? 'bg-neutral-900 text-white'
-                  : 'bg-white text-neutral-700 hover:bg-neutral-50'
+                  ? 'bg-accent text-white'
+                  : 'bg-panel-2 text-ink hover:bg-panel'
               }`}
             >
               Week view
@@ -114,8 +114,8 @@ export default function Calendar() {
               onClick={() => setView('list')}
               className={`px-3 py-1.5 text-sm ${
                 view === 'list'
-                  ? 'bg-neutral-900 text-white'
-                  : 'bg-white text-neutral-700 hover:bg-neutral-50'
+                  ? 'bg-accent text-white'
+                  : 'bg-panel-2 text-ink hover:bg-panel'
               }`}
             >
               List view
@@ -123,7 +123,7 @@ export default function Calendar() {
           </div>
           <button
             onClick={() => setModal({ mode: 'create' })}
-            className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800"
+            className="btn btn-primary"
           >
             + New Meeting
           </button>
@@ -136,25 +136,25 @@ export default function Calendar() {
             <button
               type="button"
               onClick={() => setWeekStart(d => new Date(d.getTime() - WEEK_MS))}
-              className="rounded-md border border-neutral-300 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-50"
+              className="btn btn-secondary btn-sm"
             >
               ← Prev
             </button>
             <button
               type="button"
               onClick={() => setWeekStart(startOfWeek(new Date()))}
-              className="rounded-md border border-neutral-300 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-50"
+              className="btn btn-secondary btn-sm"
             >
               Today
             </button>
             <button
               type="button"
               onClick={() => setWeekStart(d => new Date(d.getTime() + WEEK_MS))}
-              className="rounded-md border border-neutral-300 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-50"
+              className="btn btn-secondary btn-sm"
             >
               Next →
             </button>
-            <span className="text-sm text-neutral-500">
+            <span className="text-sm text-muted">
               {formatWeekRange(weekStart)}
             </span>
           </div>
@@ -167,13 +167,13 @@ export default function Calendar() {
           />
         </div>
       ) : sorted.length === 0 ? (
-        <p className="text-neutral-500">No meetings scheduled.</p>
+        <p className="text-muted">No meetings scheduled.</p>
       ) : (
         <div className="space-y-3">
           {sorted.map(meeting => (
             <div
               key={meeting.id}
-              className="flex items-start justify-between gap-4 rounded-lg border border-neutral-200 bg-white p-4 transition-shadow hover:shadow-sm"
+              className="card flex items-start justify-between gap-4 rounded-lg border p-4 transition-shadow hover:shadow-md"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -182,11 +182,11 @@ export default function Calendar() {
                     <span title="Reminder set">🔔</span>
                   )}
                 </div>
-                <p className="mt-1 text-sm text-neutral-500">
+                <p className="mt-1 text-sm text-muted">
                   {formatRange(meeting)}
                 </p>
                 {meeting.description && (
-                  <p className="mt-1 line-clamp-1 text-sm text-neutral-400">
+                  <p className="mt-1 line-clamp-1 text-sm text-muted">
                     {meeting.description}
                   </p>
                 )}
@@ -194,13 +194,13 @@ export default function Calendar() {
               <div className="flex shrink-0 gap-2">
                 <button
                   onClick={() => setModal({ mode: 'edit', meeting })}
-                  className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+                  className="btn btn-secondary btn-sm"
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => handleDelete(meeting.id)}
-                  className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                  className="btn btn-danger btn-sm"
                 >
                   Delete
                 </button>

@@ -81,13 +81,17 @@ services:
   # Each service: build from services/<name>, internal port 3000,
   # host port per AGENT.md §4. Schema isolation via DATABASE_SCHEMA (ADR-004).
   notes:
-    build: { context: ../../services/notes }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: notes
     profiles: ["phase1", "all"]
     ports: ["3001:3000"]
     environment:
       SERVICE_NAME: notes
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: notes_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -97,13 +101,17 @@ services:
       nats: { condition: service_healthy }
 
   tasks:
-    build: { context: ../../services/tasks }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: tasks
     profiles: ["phase1", "all"]
     ports: ["3002:3000"]
     environment:
       SERVICE_NAME: tasks
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: tasks_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -113,13 +121,17 @@ services:
       nats: { condition: service_healthy }
 
   profiles:
-    build: { context: ../../services/profiles }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: profiles
     profiles: ["phase1", "all"]
     ports: ["3006:3000"]
     environment:
       SERVICE_NAME: profiles
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: profiles_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -129,13 +141,17 @@ services:
       nats: { condition: service_healthy }
 
   settings:
-    build: { context: ../../services/settings }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: settings
     profiles: ["phase1", "all"]
     ports: ["3007:3000"]
     environment:
       SERVICE_NAME: settings
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: settings_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -145,13 +161,17 @@ services:
       nats: { condition: service_healthy }
 
   calendar:
-    build: { context: ../../services/calendar }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: calendar
     profiles: ["phase2", "all"]
     ports: ["3003:3000"]
     environment:
       SERVICE_NAME: calendar
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: calendar_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -161,13 +181,17 @@ services:
       nats: { condition: service_healthy }
 
   projects:
-    build: { context: ../../services/projects }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: projects
     profiles: ["phase2", "all"]
     ports: ["3004:3000"]
     environment:
       SERVICE_NAME: projects
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: projects_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -177,13 +201,17 @@ services:
       nats: { condition: service_healthy }
 
   files:
-    build: { context: ../../services/files }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: files
     profiles: ["phase2", "all"]
     ports: ["3005:3000"]
     environment:
       SERVICE_NAME: files
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: files_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -193,13 +221,17 @@ services:
       nats: { condition: service_healthy }
 
   search-rag:
-    build: { context: ../../services/search-rag }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: search-rag
     profiles: ["phase2", "all"]
     ports: ["3008:3000"]
     environment:
       SERVICE_NAME: search-rag
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: search_rag_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -209,13 +241,17 @@ services:
       nats: { condition: service_healthy }
 
   ai-gateway:
-    build: { context: ../../services/ai-gateway }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: ai-gateway
     profiles: ["phase3", "all"]
     ports: ["3009:3000"]
     environment:
       SERVICE_NAME: ai-gateway
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: ai_gateway_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -225,13 +261,17 @@ services:
       nats: { condition: service_healthy }
 
   agent:
-    build: { context: ../../services/agent }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: agent
     profiles: ["phase3", "all"]
     ports: ["3010:3000"]
     environment:
       SERVICE_NAME: agent
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: agent_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -241,13 +281,17 @@ services:
       nats: { condition: service_healthy }
 
   integrations:
-    build: { context: ../../services/integrations }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: integrations
     profiles: ["phase3", "all"]
     ports: ["3014:3000"]
     environment:
       SERVICE_NAME: integrations
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: integrations_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -257,13 +301,17 @@ services:
       nats: { condition: service_healthy }
 
   export-import:
-    build: { context: ../../services/export-import }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: export-import
     profiles: ["phase3", "all"]
     ports: ["3015:3000"]
     environment:
       SERVICE_NAME: export-import
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: export_import_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -273,13 +321,17 @@ services:
       nats: { condition: service_healthy }
 
   email:
-    build: { context: ../../services/email }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: email
     profiles: ["phase4", "all"]
     ports: ["3012:3000"]
     environment:
       SERVICE_NAME: email
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: email_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -289,13 +341,17 @@ services:
       nats: { condition: service_healthy }
 
   external-calendars:
-    build: { context: ../../services/external-calendars }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: external-calendars
     profiles: ["phase4", "all"]
     ports: ["3013:3000"]
     environment:
       SERVICE_NAME: external-calendars
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: external_calendars_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -305,13 +361,17 @@ services:
       nats: { condition: service_healthy }
 
   time-tracking:
-    build: { context: ../../services/time-tracking }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: time-tracking
     profiles: ["phase4", "all"]
     ports: ["3011:3000"]
     environment:
       SERVICE_NAME: time-tracking
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: time_tracking_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -321,13 +381,17 @@ services:
       nats: { condition: service_healthy }
 
   sync:
-    build: { context: ../../services/sync }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: sync
     profiles: ["phase4", "all"]
     ports: ["3016:3000"]
     environment:
       SERVICE_NAME: sync
       PORT: "3000"
-      DATABASE_URL: postgres://pmos:***@postgres:5432/pmos
+      DATABASE_URL: postgres://pmos:pmos@postgres:5432/pmos
       DATABASE_SCHEMA: sync_
       NATS_URL: nats://nats:4222
       LOG_LEVEL: info
@@ -337,7 +401,11 @@ services:
       nats: { condition: service_healthy }
 
   ops:
-    build: { context: ../../services/ops }
+    build:
+      context: ../..
+      dockerfile: platform/docker/Dockerfile.service
+      args:
+        SERVICE: ops
     profiles: ["all"]
     ports: ["3017:3000"]
     environment:

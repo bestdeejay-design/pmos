@@ -1,0 +1,19 @@
+# ── pmOS monorepo — docker build context exclusions ──
+# Контекст сборки — корень репозитория (см. platform/docker/Dockerfile.service).
+
+# Зависимости и артефакты сборки
+node_modules
+**/node_modules
+dist
+**/dist
+.pnpm-store
+coverage
+**/coverage
+
+# VCS / окружение / локальные данные
+.git
+.env
+**/.env
+.codegraph
+*.log
+.DS_Store

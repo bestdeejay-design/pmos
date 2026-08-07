@@ -49,37 +49,37 @@ function NoteModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"
+        className="card w-full max-w-lg rounded-xl border p-6 shadow-xl"
       >
         <h2 className="mb-4 text-lg font-bold">
           {initial ? 'Edit Note' : 'New Note'}
         </h2>
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               Title
             </label>
             <input
               value={title}
               onChange={e => setTitle(e.target.value)}
               required
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              className="input"
             />
           </div>
           <div className="flex items-center justify-between">
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               Body (Markdown)
             </label>
             <button
               type="button"
               onClick={() => setPreview(p => !p)}
-              className="text-sm text-neutral-500 underline hover:text-neutral-700"
+              className="text-sm text-muted underline hover:text-ink"
             >
               {preview ? 'Edit' : 'Preview'}
             </button>
           </div>
           {preview ? (
-            <div className="min-h-[120px] rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm prose prose-sm max-w-none">
+            <div className="min-h-[120px] rounded-lg border border-line bg-surface px-3 py-2 text-sm prose prose-sm max-w-none">
               <ReactMarkdown>{bodyMd}</ReactMarkdown>
             </div>
           ) : (
@@ -88,18 +88,18 @@ function NoteModal({
               onChange={e => setBodyMd(e.target.value)}
               required
               rows={5}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              className="input"
             />
           )}
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               Tags (comma-separated)
             </label>
             <input
               value={tagsText}
               onChange={e => setTagsText(e.target.value)}
               placeholder="work, ideas, inbox"
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              className="input"
             />
           </div>
         </div>
@@ -108,14 +108,14 @@ function NoteModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+            className="btn btn-secondary"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800 disabled:opacity-50"
+            className="btn btn-primary"
           >
             {saving ? 'Saving…' : 'Save'}
           </button>
@@ -160,53 +160,53 @@ export default function Notes() {
     }
   }
 
-  if (loading) return <div className="animate-pulse text-neutral-400">Loading…</div>
+  if (loading) return <div className="animate-pulse text-muted">Loading…</div>
   if (error) return <div className="text-red-500">Error: {error}</div>
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Notes</h1>
+        <h1 className="section-title">Notes</h1>
         <button
           onClick={() => setModal({ mode: 'create' })}
-          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800"
+          className="btn btn-primary"
         >
           + New Note
         </button>
       </div>
 
       {notes.length === 0 ? (
-        <p className="text-neutral-500">No notes yet.</p>
+        <p className="text-muted">No notes yet.</p>
       ) : (
         <div className="grid gap-4">
           {notes.map(note => (
             <div
               key={note.id}
-              className="rounded-lg border border-neutral-200 bg-white p-4 transition-shadow hover:shadow-sm"
+              className="card rounded-lg border p-4 transition-shadow hover:shadow-md"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <h2 className="font-semibold">{note.title}</h2>
-                  <div className="mt-1 max-h-24 overflow-hidden text-sm text-neutral-500 prose prose-sm max-w-none">
+                  <div className="mt-1 max-h-24 overflow-hidden text-sm text-muted prose prose-sm max-w-none">
                     <ReactMarkdown>{note.bodyMd}</ReactMarkdown>
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-2">
                   <button
                     onClick={() => setModal({ mode: 'edit', note })}
-                    className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+                    className="btn btn-secondary btn-sm"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleArchive(note)}
-                    className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+                    className="btn btn-secondary btn-sm"
                   >
                     {note.isArchived ? 'Unarchive' : 'Archive'}
                   </button>
                   <button
                     onClick={() => handleDelete(note.id)}
-                    className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                    className="btn btn-danger btn-sm"
                   >
                     Delete
                   </button>
@@ -214,17 +214,12 @@ export default function Notes() {
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
                 {note.tags.map(tag => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600"
-                  >
+                  <span key={tag} className="tag">
                     {tag}
                   </span>
                 ))}
                 {note.isArchived && (
-                  <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-500">
-                    archived
-                  </span>
+                  <span className="badge">archived</span>
                 )}
               </div>
             </div>

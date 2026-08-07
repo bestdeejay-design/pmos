@@ -45,3 +45,29 @@ jobs:
         run: pnpm --filter "./services/*" run build
       # Integration + e2e добавляются строящим агентом по ADR-002 / AGENT.md
       # template-service (legacy boilerplate) is excluded — it has its own env-gated tests.
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+        # version is taken from package.json "packageManager" (single source of truth)
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile=false
+      - name: Build all 17 service images via shared Dockerfile
+        run: |
+          set -euo pipefail
+          for svc in notes tasks profiles settings calendar projects files search-rag \
+                     ai-gateway agent integrations export-import email external-calendars \
+                     time-tracking sync ops; do
+            echo "▶ Building pmos/$svc:ci"
+            docker build \
+              -f platform/docker/Dockerfile.service \
+              --build-arg SERVICE="$svc" \
+              -t "pmos/$svc:ci" \
+              .
+          done

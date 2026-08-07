@@ -65,28 +65,28 @@ export default function Search() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Search</h1>
+        <h1 className="section-title">Search</h1>
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-neutral-200 bg-white p-4"
+        className="card mb-6 flex flex-wrap items-end gap-3 rounded-lg border p-4"
       >
         <div className="min-w-64 flex-1">
-          <label className="mb-1 block text-sm font-medium text-neutral-700">
+          <label className="mb-1 block text-sm font-medium text-muted">
             Query
           </label>
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search notes, tasks, meetings, files…"
-            className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+            className="input"
           />
         </div>
         <button
           type="submit"
           disabled={loading || !query.trim()}
-          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800 disabled:opacity-50"
+          className="btn btn-primary"
         >
           {loading ? 'Searching…' : 'Search'}
         </button>
@@ -96,10 +96,10 @@ export default function Search() {
       {history.length > 0 && (
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-neutral-700">Recent</h2>
+            <h2 className="text-sm font-semibold text-ink">Recent</h2>
             <button
               onClick={clearHistory}
-              className="text-xs text-neutral-400 underline hover:text-neutral-600"
+              className="text-xs text-muted underline hover:text-ink"
             >
               Clear
             </button>
@@ -112,7 +112,7 @@ export default function Search() {
                   setQuery(q)
                   runSearch(q)
                 }}
-                className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-100"
+                className="chip"
               >
                 {q}
               </button>
@@ -123,27 +123,25 @@ export default function Search() {
 
       {result && (
         <div>
-          <p className="mb-3 text-sm text-neutral-500">
+          <p className="mb-3 text-sm text-muted">
             {result.total} result{result.total === 1 ? '' : 's'}
             {result.semantic ? ' · semantic' : ''}
           </p>
           {result.results.length === 0 ? (
-            <p className="text-neutral-500">No results.</p>
+            <p className="text-muted">No results.</p>
           ) : (
             <div className="space-y-2">
               {result.results.map((hit: SearchHit) => (
                 <div
                   key={hit.id}
-                  className="rounded-lg border border-neutral-200 bg-white p-4"
+                  className="card rounded-lg border p-4"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs uppercase text-neutral-500">
-                      {hit.type}
-                    </span>
+                    <span className="badge uppercase">{hit.type}</span>
                     <h3 className="font-semibold">{hit.title}</h3>
                   </div>
                   {hit.snippet && (
-                    <p className="mt-1 text-sm text-neutral-500">{hit.snippet}</p>
+                    <p className="mt-1 text-sm text-muted">{hit.snippet}</p>
                   )}
                 </div>
               ))}

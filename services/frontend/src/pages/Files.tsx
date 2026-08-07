@@ -65,13 +65,13 @@ export default function Files() {
     }
   }
 
-  if (loading) return <div className="animate-pulse text-neutral-400">Loading…</div>
+  if (loading) return <div className="animate-pulse text-muted">Loading…</div>
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Files</h1>
-        <label className="cursor-pointer rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800">
+        <h1 className="section-title">Files</h1>
+        <label className="btn btn-primary cursor-pointer">
           {uploading ? 'Uploading…' : '+ Upload File'}
           <input
             ref={fileInputRef}
@@ -86,11 +86,11 @@ export default function Files() {
       {error && <div className="mb-4 text-red-500">Error: {error}</div>}
 
       {files.length === 0 ? (
-        <p className="text-neutral-500">No files uploaded.</p>
+        <p className="text-muted">No files uploaded.</p>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+        <div className="card overflow-hidden rounded-lg border">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-neutral-200 bg-neutral-50 text-neutral-500">
+            <thead className="border-b border-line bg-panel-2 text-muted">
               <tr>
                 <th className="px-4 py-2 font-medium">Name</th>
                 <th className="px-4 py-2 font-medium">Type</th>
@@ -101,26 +101,26 @@ export default function Files() {
             </thead>
             <tbody>
               {files.map(file => (
-                <tr key={file.id} className="border-b border-neutral-100 last:border-0">
+                <tr key={file.id} className="border-b border-line last:border-0">
                   <td className="px-4 py-2 font-medium">{file.filename}</td>
-                  <td className="px-4 py-2 text-neutral-500">{file.mimeType}</td>
-                  <td className="px-4 py-2 text-neutral-500">
+                  <td className="px-4 py-2 text-muted">{file.mimeType}</td>
+                  <td className="px-4 py-2 text-muted">
                     {formatSize(file.size)}
                   </td>
-                  <td className="px-4 py-2 text-neutral-500">
+                  <td className="px-4 py-2 text-muted">
                     {new Date(file.uploadedAt).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-2 text-right">
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => handleDownload(file)}
-                        className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+                        className="btn btn-secondary btn-sm"
                       >
                         Download
                       </button>
                       <button
                         onClick={() => handleDelete(file.id)}
-                        className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                        className="btn btn-danger btn-sm"
                       >
                         Delete
                       </button>

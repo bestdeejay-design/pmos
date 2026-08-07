@@ -93,7 +93,7 @@ export default function TimeStats() {
     load()
   }, [period, customFrom, customTo])
 
-  if (loading) return <div className="animate-pulse text-neutral-400">Loading…</div>
+  if (loading) return <div className="animate-pulse text-muted">Loading…</div>
   if (error) return <div className="text-red-500">Error: {error}</div>
   if (!stats) return null
 
@@ -102,8 +102,8 @@ export default function TimeStats() {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Time Stats</h1>
-        <div className="flex overflow-hidden rounded-lg border border-neutral-300">
+        <h1 className="section-title">Time Stats</h1>
+        <div className="flex overflow-hidden rounded-lg border border-line">
           {PERIODS.map(({ value, label }) => (
             <button
               key={value}
@@ -111,8 +111,8 @@ export default function TimeStats() {
               onClick={() => setPeriod(value)}
               className={`px-3 py-1.5 text-sm ${
                 period === value
-                  ? 'bg-neutral-900 text-white'
-                  : 'bg-white text-neutral-700 hover:bg-neutral-50'
+                  ? 'bg-accent text-white'
+                  : 'bg-panel-2 text-ink hover:bg-panel'
               }`}
             >
               {label}
@@ -122,55 +122,63 @@ export default function TimeStats() {
       </div>
 
       {period === 'custom' && (
-        <div className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-neutral-200 bg-white p-4">
+        <div className="card mb-6 flex flex-wrap items-end gap-3 rounded-lg border p-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               От
             </label>
             <input
               type="date"
               value={customFrom ?? ''}
               onChange={e => setCustomFrom(e.target.value || null)}
-              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              className="input"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               До
             </label>
             <input
               type="date"
               value={customTo ?? ''}
               onChange={e => setCustomTo(e.target.value || null)}
-              className="rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              className="input"
             />
           </div>
         </div>
       )}
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-neutral-200 bg-white p-4">
-          <p className="text-sm text-neutral-500">За период</p>
-          <p className="mt-1 text-2xl font-bold">{formatDuration(stats.total)}</p>
+        <div className="card rounded-lg border p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+            За период
+          </p>
+          <p className="mt-1 text-2xl font-extrabold text-accent">
+            {formatDuration(stats.total)}
+          </p>
         </div>
-        <div className="rounded-lg border border-neutral-200 bg-white p-4">
-          <p className="text-sm text-neutral-500">Сегодня</p>
-          <p className="mt-1 text-2xl font-bold">
+        <div className="card rounded-lg border p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+            Сегодня
+          </p>
+          <p className="mt-1 text-2xl font-extrabold text-accent">
             {formatDuration(stats.todayTotal)}
           </p>
         </div>
-        <div className="rounded-lg border border-neutral-200 bg-white p-4">
-          <p className="text-sm text-neutral-500">Неделя</p>
-          <p className="mt-1 text-2xl font-bold">
+        <div className="card rounded-lg border p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+            Неделя
+          </p>
+          <p className="mt-1 text-2xl font-extrabold text-accent">
             {formatDuration(stats.weekTotal)}
           </p>
         </div>
       </div>
 
-      <div className="mb-6 rounded-lg border border-neutral-200 bg-white p-4">
+      <div className="card mb-6 rounded-lg border p-4">
         <h2 className="mb-4 font-semibold">По дням</h2>
         {stats.perDay.length === 0 ? (
-          <p className="text-sm text-neutral-500">Нет данных за период.</p>
+          <p className="text-sm text-muted">Нет данных за период.</p>
         ) : (
           <div className="flex items-end gap-2">
             {stats.perDay.map(day => (
@@ -181,13 +189,13 @@ export default function TimeStats() {
                 <div className="flex h-32 w-full items-end">
                   <div
                     title={`${day.date}: ${formatDuration(day.total)}`}
-                    className="w-full rounded-t bg-neutral-900"
+                    className="w-full rounded-t bg-accent"
                     style={{
                       height: `${Math.round((day.total / maxPerDay) * 100)}%`,
                     }}
                   />
                 </div>
-                <span className="text-xs text-neutral-400">
+                <span className="text-xs text-muted">
                   {formatDayLabel(day.date)}
                 </span>
               </div>
@@ -197,18 +205,18 @@ export default function TimeStats() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border border-neutral-200 bg-white p-4">
+        <div className="card rounded-lg border p-4">
           <h2 className="mb-3 font-semibold">По задачам</h2>
           <table className="w-full">
             <thead>
-              <tr className="text-left text-xs text-neutral-500">
+              <tr className="text-left text-xs text-muted">
                 <th className="pb-2 font-medium">Задача</th>
                 <th className="pb-2 text-right font-medium">Время</th>
               </tr>
             </thead>
             <tbody>
               {stats.byTask.map(row => (
-                <tr key={row.taskId} className="border-b border-neutral-100">
+                <tr key={row.taskId} className="border-b border-line">
                   <td className="py-2 text-sm">{row.taskTitle ?? '—'}</td>
                   <td className="py-2 text-right text-sm">
                     {formatDuration(row.total)}
@@ -218,18 +226,18 @@ export default function TimeStats() {
             </tbody>
           </table>
         </div>
-        <div className="rounded-lg border border-neutral-200 bg-white p-4">
+        <div className="card rounded-lg border p-4">
           <h2 className="mb-3 font-semibold">По проектам</h2>
           <table className="w-full">
             <thead>
-              <tr className="text-left text-xs text-neutral-500">
+              <tr className="text-left text-xs text-muted">
                 <th className="pb-2 font-medium">Проект</th>
                 <th className="pb-2 text-right font-medium">Время</th>
               </tr>
             </thead>
             <tbody>
               {stats.byProject.map(row => (
-                <tr key={row.projectId} className="border-b border-neutral-100">
+                <tr key={row.projectId} className="border-b border-line">
                   <td className="py-2 text-sm">{row.projectName ?? '—'}</td>
                   <td className="py-2 text-right text-sm">
                     {formatDuration(row.total)}

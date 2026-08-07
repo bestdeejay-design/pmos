@@ -88,26 +88,26 @@ export function MeetingModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"
+        className="card w-full max-w-lg rounded-xl border p-6 shadow-xl"
       >
         <h2 className="mb-4 text-lg font-bold">
           {initial ? 'Edit Meeting' : 'New Meeting'}
         </h2>
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               Title
             </label>
             <input
               value={title}
               onChange={e => setTitle(e.target.value)}
               required
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              className="input"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">
+              <label className="mb-1 block text-sm font-medium text-muted">
                 Start
               </label>
               <input
@@ -115,11 +115,11 @@ export function MeetingModal({
                 value={startTime}
                 onChange={e => setStartTime(e.target.value)}
                 required
-                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+                className="input"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">
+              <label className="mb-1 block text-sm font-medium text-muted">
                 End
               </label>
               <input
@@ -127,32 +127,32 @@ export function MeetingModal({
                 value={endTime}
                 onChange={e => setEndTime(e.target.value)}
                 required
-                className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+                className="input"
               />
             </div>
           </div>
-          <label className="flex items-center gap-2 text-sm text-neutral-700">
+          <label className="flex items-center gap-2 text-sm text-ink">
             <input
               type="checkbox"
               checked={allDay}
               onChange={e => setAllDay(e.target.checked)}
-              className="h-4 w-4"
+              className="h-4 w-4 accent-[var(--accent)]"
             />
             All day
           </label>
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               Description
             </label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={3}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              className="input"
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-muted">
               Remind me before (minutes)
             </label>
             <input
@@ -161,10 +161,10 @@ export function MeetingModal({
               step={5}
               value={remindMin}
               onChange={e => setRemindMin(Number(e.target.value) || 0)}
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              className="input"
             />
             {existing.length > 0 && (
-              <p className="mt-1 text-xs text-neutral-400">
+              <p className="mt-1 text-xs text-muted">
                 Existing reminder:{' '}
                 {new Date(existing[0].remindAt).toLocaleString()}
               </p>
@@ -201,14 +201,14 @@ export function MeetingModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+            className="btn btn-secondary"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-800 disabled:opacity-50"
+            className="btn btn-primary"
           >
             {saving ? 'Saving…' : 'Save'}
           </button>
