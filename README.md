@@ -188,7 +188,7 @@ providers (OpenAI / Anthropic / Google) with fallback to local Ollama, audio dic
 ## Checks
 
 ```bash
-pnpm -r run typecheck        # strict TS, 19 packages
+pnpm -r run typecheck        # strict TS, 20 packages
 pnpm --filter "./services/*" run test          # unit (vitest), no DB
 pnpm --filter "./services/*" run test:contract # OpenAPI-conformance, 17/17
 pnpm --filter "./services/*" run build         # tsc → dist
@@ -236,9 +236,9 @@ Full catalog — **~4,100 lines of docs + ~11,100 lines of contracts ≈ 15,200 
 
 | File | Lines | Purpose |
 |------|------:|---------|
-| `ENTRY.md` | — | Entry point: navigation map + onboarding checklist (start here) |
-| `AGENT.md` | 235 | Main runbook for the autonomous build agent (phases, gates §5) |
-| `DELIVERY.md` | 59 | Delivery Gate: how to run, what's done, limitations |
+| `ENTRY.md` | 146 | Entry point: navigation map + onboarding checklist (start here) |
+| `AGENT.md` | 269 | Main runbook for the autonomous build agent (phases, gates §5) |
+| `DELIVERY.md` | 60 | Delivery Gate: how to run, what's done, limitations |
 | `README.md` | — | ← this file |
 
 ### Contracts (machine truth)

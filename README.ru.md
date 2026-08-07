@@ -200,7 +200,7 @@ stream `TSSRUP` (subject `pmos.>`). Пример: `pmos.notes.notes.created`.
 ## Проверки
 
 ```bash
-pnpm -r run typecheck        # strict TS, 19 пакетов
+pnpm -r run typecheck        # strict TS, 20 пакетов
 pnpm --filter "./services/*" run test          # unit (vitest), без БД
 pnpm --filter "./services/*" run test:contract  # OpenAPI-conformance, 17/17
 pnpm --filter "./services/*" run build         # tsc → dist
@@ -248,9 +248,9 @@ CI (`.github/workflows/ci.yml`) гонит typecheck + unit + contract на ка
 
 | Файл | Строк | Назначение |
 |------|------:|------------|
-| `ENTRY.md` | — | Точка входа: карта навигации + чек-лист онбординга (начни отсюда) |
-| `AGENT.md` | 235 | Главный runbook автономного агента-сборщика (фазы, гейты §5) |
-| `DELIVERY.md` | 59 | Delivery Gate: как запустить, что реализовано, ограничения |
+| `ENTRY.md` | 146 | Точка входа: карта навигации + чек-лист онбординга (начни отсюда) |
+| `AGENT.md` | 269 | Главный runbook автономного агента-сборщика (фазы, гейты §5) |
+| `DELIVERY.md` | 60 | Delivery Gate: как запустить, что реализовано, ограничения |
 | `README.md` | — | ← этот файл |
 
 ### Контракты (машинная правда)
