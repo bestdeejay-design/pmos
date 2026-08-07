@@ -11,13 +11,13 @@ connected through an asynchronous event bus.
 [![Fastify](https://img.shields.io/badge/Fastify-5-000000)](https://fastify.dev/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)](https://www.postgresql.org/)
 [![NATS](https://img.shields.io/badge/NATS-2.10_JetStream-27aae1)](https://nats.io/)
-[![Tests](https://img.shields.io/badge/tests-600%2B-green)](./services)
+[![Tests](https://img.shields.io/badge/tests-unit%20%2B%20contract%20green-green)](./services)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **Status:** all 17 services are implemented and verified (16 CRUD + ops/DLQ panel).
-> 5 cross-service sagas from `docs/SAGA.md` work and are covered by
-> integration tests against real Postgres + NATS. Checks: typecheck 19/19, contract 17/17,
-> unit + integration green (600+ tests), frontend 166/166.
+> 5 cross-service sagas from `docs/SAGA.md` work and are covered by integration tests
+> against real Postgres + NATS. Checks: typecheck (workspace green), contract 17/17,
+> unit+contract green (89 passed across services), frontend unit 168/168.
 
 > **Try it:** the docs are also published as a static website — <https://bestdeejay-design.github.io/pmos/>
 
@@ -30,7 +30,7 @@ connected through an asynchronous event bus.
 - **NATS 2.10 JetStream** — event bus (`@pmos/event-bus`), at-least-once.
 - **Drizzle ORM** — schemas + migrations (`drizzle-kit`).
 - **Vitest** — unit + contract (OpenAPI-conformance) tests.
-- **Playwright** — E2E tests (5 critical scenarios).
+- **Playwright** — E2E tests (10 tests, `services/frontend/test/*.spec.ts`).
 - **Docker / OrbStack** — infrastructure and service builds.
 
 ## Quick start
@@ -115,7 +115,7 @@ pmos/
 ├── contracts/                      machine truth (what actually ships)
 │   ├── openapi/                    17 × <svc>.yaml — OpenAPI specs, conformance 17/17
 │   ├── asyncapi/
-│   │   └── events.yaml             event catalog (2,396 lines)
+│   │   └── events.yaml             event catalog (2,408 lines)
 │   │                               x-implemented-wire-events = what is actually published
 │   └── test/                        contract test fixtures
 │
@@ -139,8 +139,7 @@ pmos/
 │       ├── ADR-001.md … ADR-007.md architecture decision records
 │
 ├── template-service/               excluded from build (scaffold artifact)
-└── tests/                           reserved for E2E (currently empty; E2E is replaced by
-                                     service integration tests — 90/90)
+└── tests/                           reserved for E2E (currently empty; per-service <br/>integration tests cover sagas — run with Postgres+NATS up)
 ```
 
 ### Service template (`services/<name>/`)
@@ -196,7 +195,7 @@ pnpm --filter "./services/*" run build         # tsc → dist
 
 # Frontend
 cd services/frontend
-pnpm test              # unit tests (vitest), 166 tests
+pnpm test              # unit tests (vitest) — frontend 168 tests
 pnpm test:e2e          # E2E tests (Playwright), 10 tests
 ```
 
@@ -204,22 +203,22 @@ CI (`.github/workflows/ci.yml`) runs typecheck + unit + contract on every push.
 
 ## Documentation
 
-Full catalog — **~4,200 lines of docs + ~10,600 lines of contracts ≈ 14,800 lines**:
+Full catalog — **~4,100 lines of docs + ~11,100 lines of contracts ≈ 15,200 lines**:
 
 ### Project docs (docs/)
 
 | File | Lines | Purpose |
 |------|------:|---------|
-| `docs/ARCHITECTURE.md` | 183 | Overall architecture: services, bus, data flows |
-| `docs/FEATURES.md` | 487 | Functional requirements per service (see header for current ✅/📋 counts) |
-| `docs/SAGA.md` | 426 | 5 cross-service scenarios (§1–§5): events, idempotency, verification |
-| `docs/REVIEW.md` | 106 | Status matrix: CRUD / filters / soft-delete / events / business logic |
-| `docs/TEST_CASES.md` | 1,420 | Gherkin test cases for **all 16 services** + sagas + infra |
-| `docs/BACKLOG.md` | 84 | Backlog: ideas, deferred features, UI layer |
-| `docs/DEV_GUIDE.md` | 525 | Local development: env, run, debugging, generators |
+| `docs/ARCHITECTURE.md` | 187 | Overall architecture: services, bus, data flows |
+| `docs/FEATURES.md` | 500 | Functional requirements per service (see header for current ✅/📋 counts) |
+| `docs/SAGA.md` | 430 | 5 cross-service scenarios (§1–§5): events, idempotency, verification |
+| `docs/REVIEW.md` | 130 | Status matrix: CRUD / filters / soft-delete / events / business logic |
+| `docs/TEST_CASES.md` | 1,424 | Gherkin test cases for **all CRUD services** + sagas + infra |
+| `docs/BACKLOG.md` | 86 | Backlog: ideas, deferred features, UI layer |
+| `docs/DEV_GUIDE.md` | 558 | Local development: env, run, debugging, generators |
 | `docs/IMPROVEMENTS.md` | 337 | Known issues + priority plan (launch, infra, doc drift) |
-| `docs/TROUBLESHOOTING.md` | — | Launch error diagnostics (E1–E5) + startup checklist |
-| `docs/REFERENCE.md` | — | **Single documentation map** — start here before editing any doc |
+| `docs/TROUBLESHOOTING.md` | 155 | Launch error diagnostics (E1–E5) + startup checklist |
+| `docs/REFERENCE.md` | 312 | **Single documentation map** — start here before editing any doc |
 
 ### ADR — Architecture Decision Records (docs/ADR/)
 
@@ -231,7 +230,7 @@ Full catalog — **~4,200 lines of docs + ~10,600 lines of contracts ≈ 14,800 
 | `ADR-004.md` | 67 | Postgres schema isolation (search_path per connection) |
 | `ADR-005.md` | 131 | OpenAPI contracts as source of truth + conformance tests |
 | `ADR-006.md` | 170 | Drizzle ORM + migrations, reproducibility |
-| `ADR-007.md` | 233 | **Canonical conventions** (tsrup→pmos rename, camelCase, EventEnvelope versioning) — overrides other docs on conflict |
+| `ADR-007.md` | 262 | **Canonical conventions** (tsrup→pmos rename, camelCase, EventEnvelope versioning, R1–R6) — overrides other docs on conflict |
 
 ### Runbooks & gates
 
@@ -246,8 +245,8 @@ Full catalog — **~4,200 lines of docs + ~10,600 lines of contracts ≈ 14,800 
 
 | File | Lines | Purpose |
 |------|------:|---------|
-| `contracts/openapi/*.yaml` (17 files) | 7,991 | OpenAPI specs per service — conformance 17/17 |
-| `contracts/asyncapi/events.yaml` | 2,396 | Event bus catalog + `x-implemented-wire-events` (what actually ships) |
+| `contracts/openapi/*.yaml` (17 files) | 8,682 | OpenAPI specs per service — conformance 17/17 |
+| `contracts/asyncapi/events.yaml` | 2,408 | Event bus catalog + `x-implemented-wire-events` (what actually ships) |
 
 ## Contributing
 

@@ -23,8 +23,8 @@
 
 ## 2. Что сделано (резолюция)
 
-1. **ADR-007** — канонические конвенции + иерархия источников + таблица resolved conflicts (C1–C9).
-   Любое противоречие теперь однозначно разрешается ADR-007 §2/§3/§4/§5.
+1. **ADR-007** — канонические конвенции + иерархия источников + таблица resolved conflicts (C1–C11).
+   Любое противоречие теперь однозначно разрешается ADR-007 §2/§3/§4/§5/§8 (R1–R6).
 2. **AGENT.md** (корень) — runbook: фазы (0–6), gates, Definition of Done, правила конфликтов.
 3. **Инфраструктура создана:**
    - `package.json` + `pnpm-workspace.yaml` + `tsconfig.base.json` + `.npmrc` + `.gitignore`
@@ -40,7 +40,7 @@
 
 ## 3. Остаточные риски (для строящего агента, не блокируют старт)
 
-- `TEST_CASES.md` покрывает **все 16 сервисов** (Gherkin-секции §1–§16 + cross-service §17).
+- `TEST_CASES.md` покрывает **все 17 сервисов** (Gherkin-секции §1–§16 + cross-service §17).
 - Frontend (React SPA) и desktop (Tauri) — вне backend-DoD; агент фокусируется на бэкенде.
 - **Расхождение settings-событий:** код публикует `pmos.settings.settings.{created,updated,deleted}`,
   но `contracts/asyncapi/events.yaml` описывал канал `pmos.settings.changed` и не включал settings
@@ -83,12 +83,12 @@
 - [x] Единые конвенции зафиксированы (ADR-007) и не противоречат контрактам
 - [x] Корень монорепо существует и поддерживает `pnpm install` / `pnpm -r`
 - [x] `@pmos/shared` + `@pmos/event-bus` собираются
-- [x] 16 сервисов имеют тип-checking каркас + health/test
-- [x] **OpenAPI-контракты для всех 16 сервисов** (16/16 валидны, parse-checked)
-- [x] **Drizzle-схемы для всех 16 сервисов** (typecheck 18/18 Done, тесты 16×2 green)
-- [x] **Роуты (CRUD + сервисные эндпоинты) для всех 16 сервисов**
-- [x] **Contract-тесты (OpenAPI-conformance) для всех 16 сервисов** (CI `test:contract`, 16/16 green)
-- [x] **Миграции БД для всех 16 сервисов** (`migrations/0001_init.sql`, сгенерированы из Drizzle-схем через `drizzle-kit generate`; search-rag содержит `CREATE EXTENSION vector`)
+- [x] 17 сервисов имеют тип-checking каркас + health/test
+- [x] **OpenAPI-контракты для всех 17 сервисов** (17/17 валидны, parse-checked)
+- [x] **Drizzle-схемы для всех 17 сервисов** (typecheck workspace green, тесты green)
+- [x] **Роуты (CRUD + сервисные эндпоинты) для всех 17 сервисов**
+- [x] **Contract-тесты (OpenAPI-conformance) для всех 17 сервисов** (CI `test:contract`, 17/17 green)
+- [x] **Миграции БД для всех 17 сервисов** (`migrations/0001_init.sql`, сгенерированы из Drizzle-схем через `drizzle-kit generate`; search-rag содержит `CREATE EXTENSION vector`)
 - [x] **Шина событий подключена к роутам** (`@pmos/event-bus`): CRUD мутации публикуют `pmos.<svc>.<resource>.(created|updated|deleted)`; `app.ts` делает best-effort `connect()`+`ensureStream()` при старте
 - [x] docker-compose поднимает инфру + gateway
 - [x] Runbook (AGENT.md) описывает путь до сдачи без участия человека

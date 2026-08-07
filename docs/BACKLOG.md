@@ -14,7 +14,7 @@ Backend-API полностью готов и покрыт контрактами
 | Задача | Сервисы | Описание | Приоритет |
 |---|---|---|---|
 | React SPA | frontend | Восстановить/переписать SPA на новом API. В legacy-монолите SPA уже была — перенести страницы, разбить `api.ts` по сервисам. Каркас готов (`services/frontend`, React 19), редизайн по `personal-os-ui-demo.html` — в работе (см. IMPROVEMENTS §4) | ✅ P1 |
-| E2E (Playwright) | e2e | 5 critical scenarios: создать заметку, задача с рекурренсом, встреча+reminder, файл→поиск, webhook. Живут в `services/frontend` (`playwright.config.ts`); `tests/` — резерв | ✅ P1 |
+| E2E (Playwright) | e2e | 10 тестов в `services/frontend/test/*.spec.ts` (notes, tasks/kanban, calendar, files, integrations, smoke), `playwright.config.ts`. `tests/` — резерв | ✅ P1 |
 | ops DLQ-панель | ops | Stateless-сервис (порт 3017): просмотр/очистка dead-letter queue. Контракт `contracts/openapi/ops.yaml`, в compose + nginx `/api/ops/`. Функциональность панели — кандидат на развитие | P2 |
 | Desktop (Tauri) | desktop | Обновить `desktop/` на новый стек: только Docker lifecycle + WebView (ADR без Rust-логики) | P3 |
 | WS-пуши клиенту | agent, calendar | Push сообщений агента / напоминаний в браузер через WebSocket (`/ws` на agent). Частично реализован (сообщения агента); напоминания календаря — доработать | P2 |

@@ -8,8 +8,8 @@
 
 > **Статус:** все 17 сервисов реализованы и проверены (16 CRUD + ops/DLQ-панель).
 > 5 cross-service саг из `docs/SAGA.md` работают и покрыты интеграционными
-> тестами против реального Postgres + NATS. Проверки: typecheck 19/19, contract 17/17,
-> unit + integration green (600+ тестов), frontend 166/166.
+> тестами против реального Postgres + NATS. Проверки: typecheck (workspace green),
+> contract 17/17, unit+contract green (89 passed по сервисам), frontend unit 168/168.
 
 ## Стек
 
@@ -20,7 +20,7 @@
 - **NATS 2.10 JetStream** — шина событий (`@pmos/event-bus`), at-least-once.
 - **Drizzle ORM** — схемы + миграции (`drizzle-kit`).
 - **Vitest** — unit + contract (OpenAPI-conformance) тесты.
-- **Playwright** — E2E-тесты (5 критических сценариев).
+- **Playwright** — E2E-тесты (10 тестов, `services/frontend/test/*.spec.ts`).
 - **Docker / OrbStack** — инфра и сборка сервисов.
 
 ## Быстрый старт
@@ -128,8 +128,7 @@ pmos/
 │       ├── ADR-001.md … ADR-007.md  архитектурные решения
 │
 ├── template-service/               выключен из сборки (артефакт скраффолда)
-└── tests/                           зарезервировано под E2E (сейчас пусто; E2E заменён
-                                    integration-тестами сервисов — 90/90)
+└── tests/                           зарезервировано под E2E (сейчас пусто; per-service<br/>integration-тесты покрывают саги — запуск с Postgres+NATS)
 ```
 
 ### Шаблон сервиса (`services/<name>/`)
@@ -208,7 +207,7 @@ pnpm --filter "./services/*" run build         # tsc → dist
 
 # Фронтенд
 cd services/frontend
-pnpm test              # unit-тесты (vitest), 166 тестов
+pnpm test              # unit-тесты (vitest) — frontend 168 тестов
 pnpm test:e2e          # E2E-тесты (Playwright), 10 тестов
 ```
 
@@ -216,19 +215,22 @@ CI (`.github/workflows/ci.yml`) гонит typecheck + unit + contract на ка
 
 ## Документация
 
-Полный каталог — общий объём **~4 200 строк доков + ~10 600 строк контрактов ≈ 14 800 строк**:
+Полный каталог — общий объём **~4 100 строк доков + ~11 100 строк контрактов ≈ 15 200 строк**:
 
 ### Проектная документация (docs/)
 
 | Файл | Строк | Назначение |
 |------|------:|------------|
-| `docs/ARCHITECTURE.md` | 183 | Общая архитектура: сервисы, шина, потоки данных |
-| `docs/FEATURES.md` | 486 | Функциональные требования по каждому сервису (✅ 103 реализовано / 📋 5 план) |
-| `docs/SAGA.md` | 426 | 5 cross-service сценариев (§1–§5): события, idempotency, проверка |
-| `docs/REVIEW.md` | 106 | Статус-матрица: CRUD / фильтры / soft-delete / события / бизнес-логика |
-| `docs/TEST_CASES.md` | 1,420 | Gherkin-тест-кейсы для **всех CRUD-сервисов** + саги + инфраструктура |
-| `docs/BACKLOG.md` | 84 | Бэклог: идеи, отложенные фичи, UI-слой |
-| `docs/DEV_GUIDE.md` | 525 | Локальная разработка: env, запуск, отладка, генераторы |
+| `docs/ARCHITECTURE.md` | 187 | Общая архитектура: сервисы, шина, потоки данных |
+| `docs/FEATURES.md` | 500 | Функциональные требования по каждому сервису (актуальные ✅/📋 — в шапке) |
+| `docs/SAGA.md` | 430 | 5 cross-service сценариев (§1–§5): события, idempotency, проверка |
+| `docs/REVIEW.md` | 130 | Статус-матрица: CRUD / фильтры / soft-delete / события / бизнес-логика |
+| `docs/TEST_CASES.md` | 1,424 | Gherkin-тест-кейсы для **всех CRUD-сервисов** + саги + инфраструктура |
+| `docs/BACKLOG.md` | 86 | Бэклог: идеи, отложенные фичи, UI-слой |
+| `docs/DEV_GUIDE.md` | 558 | Локальная разработка: env, запуск, отладка, генераторы |
+| `docs/IMPROVEMENTS.md` | 337 | Известные проблемы + приоритетный план (запуск, инфра, расхождения доков) |
+| `docs/TROUBLESHOOTING.md` | 155 | Диагностика ошибок запуска (E1–E5) + чек-лист |
+| `docs/REFERENCE.md` | 312 | **Единая карта документации** — начинать отсюда перед правкой любого doc |
 
 ### ADR — архитектурные решения (docs/ADR/)
 
@@ -240,7 +242,7 @@ CI (`.github/workflows/ci.yml`) гонит typecheck + unit + contract на ка
 | `ADR-004.md` | 67 | Изоляция схем в Postgres (search_path на соединении) |
 | `ADR-005.md` | 131 | Контракты OpenAPI как источник правды + conformance-тесты |
 | `ADR-006.md` | 170 | Drizzle ORM + миграции, воспроизводимость |
-| `ADR-007.md` | 233 | **Канонические конвенции** (переименование tsrup→pmos, camelCase, версии EventEnvelope) — при конфликте с другими доками переименовывает их |
+| `ADR-007.md` | 262 | **Канонические конвенции** (переименование tsrup→pmos, camelCase, версии EventEnvelope, R1–R6) — при конфликте с другими доками канон побеждает |
 
 ### Runbook и гейты
 
@@ -255,8 +257,8 @@ CI (`.github/workflows/ci.yml`) гонит typecheck + unit + contract на ка
 
 | Файл | Строк | Назначение |
 |------|------:|------------|
-| `contracts/openapi/*.yaml` (17 шт.) | 7 991 | OpenAPI-спеки сервисов — conformance 17/17 |
-| `contracts/asyncapi/events.yaml` | 2 396 | Каталог событий шины + `x-implemented-wire-events` (реально шлётся) |
+| `contracts/openapi/*.yaml` (17 шт.) | 8 682 | OpenAPI-спеки сервисов — conformance 17/17 |
+| `contracts/asyncapi/events.yaml` | 2 408 | Каталог событий шины + `x-implemented-wire-events` (реально шлётся) |
 
 ## Лицензия
 
