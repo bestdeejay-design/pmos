@@ -1,6 +1,7 @@
 # Архитектура ЦУП — Personal OS (PMOS)
 
-> **Статус:** backend-ядро реализовано и проверено — 16 сервисов, 5 саг, 90/90 тестов.
+> **Статус:** backend-ядро реализовано и проверено — 17 сервисов (16 CRUD + ops/DLQ-панель),
+> 5 саг, 90/90 интеграционных тестов.
 > Конвенции, перекрывающие этот документ при конфликте: **ADR-007** (канонические).
 
 ## Общая схема
@@ -80,9 +81,9 @@ Service A → NATS JetStream → Service B (и Service C, D...)
 | База данных | PostgreSQL 16 | Схема на сервис (`<svc>_`), изоляция через search_path (ADR-004) |
 | ORM | Drizzle ORM + drizzle-kit | Миграции в репозитории, воспроизводимость (ADR-006) |
 | Event bus | NATS 2.10 JetStream | Асинхронность, durable consumers, DLQ (ADR-002) |
-| API specification | OpenAPI 3.0 — **по контракту на каждый сервис** (ADR-005) | 16 спецификаций в `contracts/openapi/`, conformance 16/16 |
+| API specification | OpenAPI 3.0 — **по контракту на каждый сервис** (ADR-005) | 17 спецификаций в `contracts/openapi/`, conformance 17/17 |
 | Event catalog | AsyncAPI — `contracts/asyncapi/events.yaml` | Канонический каталог, `x-implemented-wire-events` = факт |
-| Containerization | Docker + Docker Compose | Профили core / all, 16 сервисов + nginx |
+| Containerization | Docker + Docker Compose | Профили core / phase1–4 / all / monitoring, 17 сервисов + nginx |
 | Desktop | Tauri v2 — 📋 запланировано (BACKLOG §1) | Без Rust-логики, только lifecycle + WebView |
 
 ## Событийная модель
@@ -149,26 +150,29 @@ pmos/
 │   ├── event-bus/     # @pmos/event-bus — NATS JetStream publisher/consumer (durable, DLQ)
 │   ├── shared-types/  # @pmos/shared — EventEnvelope, доменные типы, DTO
 │   └── docker/        # docker-compose.yml (profiles: core / all) + nginx.conf (api-gateway)
-├── services/          # 16 сервисов, единый шаблон (см. README «Service template»)
-│   ├── notes/ 3001  notes_      ├── search-rag/ 3008  search_rag_
-│   ├── tasks/ 3002  tasks_      ├── ai-gateway/ 3009  ai_gateway_
-│   ├── calendar/ 3003  calendar_│   ├── agent/ 3010  agent_
-│   ├── projects/ 3004  projects_│   ├── time-tracking/ 3011  time_tracking_
-│   ├── files/ 3005  files_      ├── email/ 3012  email_
-│   ├── profiles/ 3006  profiles_│   ├── external-calendars/ 3013  external_calendars_
-│   └── settings/ 3007  settings_│   ├── integrations/ 3014  integrations_
-│                               ├── export-import/ 3015  export_import_
-│                               └── sync/ 3016  sync_
+├── services/          # 17 сервисов (16 CRUD + ops), единый шаблон (+ frontend SPA)
+│   ├── notes/ 3001  notes_            ├── search-rag/ 3008  search_rag_
+│   ├── tasks/ 3002  tasks_            ├── ai-gateway/ 3009  ai_gateway_
+│   ├── calendar/ 3003  calendar_      ├── agent/ 3010  agent_
+│   ├── projects/ 3004  projects_      ├── time-tracking/ 3011  time_tracking_
+│   ├── files/ 3005  files_            ├── email/ 3012  email_
+│   ├── profiles/ 3006  profiles_      ├── external-calendars/ 3013  external_calendars_
+│   ├── settings/ 3007  settings_      ├── integrations/ 3014  integrations_
+│   │                                  ├── export-import/ 3015  export_import_
+│   │                                  ├── sync/ 3016  sync_
+│   │                                  └── ops/ 3017  (stateless, DLQ-панель, без БД)
+│   └── frontend/      # React SPA (Vite + React 19 + Tailwind v4, dev :5173)
 ├── contracts/         # Машинно-проверяемые контракты (source of truth)
-│   ├── openapi/       # 16 × <svc>.yaml — OpenAPI (ADR-005, conformance 16/16)
+│   ├── openapi/       # 17 × <svc>.yaml — OpenAPI (conformance 17/17)
 │   ├── asyncapi/      # events.yaml — каталог событий + x-implemented-wire-events
 │   └── test/          # фикстуры контрактных тестов
 ├── scripts/           # Генераторы (scaffold-services, gen-openapi, gen-schemas, gen-routes,
 │                      #  gen-semantics, gen-contract-tests) — воспроизводимость каркаса
 ├── template-service/  # Scaffold-артефакт (исключён из сборки)
-├── tests/             # Резерв для E2E (Playwright) — сейчас заменено integration 90/90
-└── docs/              # Документация (ARCHITECTURE, FEATURES, SAGA, REVIEW, TEST_CASES,
-                       #  BACKLOG, DEV_GUIDE, ADR/ADR-001..007)
+├── tests/             # Резерв для E2E — сейчас пуст (см. IMPROVEMENTS §3.1)
+└── docs/              # Документация (см. docs/REFERENCE.md ас карту; ARCHITECTURE, FEATURES,
+                       #  SAGA, REVIEW, TEST_CASES, BACKLOG, DEV_GUIDE, IMPROVEMENTS,
+                       #  TROUBLESHOOTING, ADR/ADR-001..007)
 ```
 
 ## Правила для разработчиков

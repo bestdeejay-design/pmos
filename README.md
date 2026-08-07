@@ -39,14 +39,14 @@ connected through an asynchronous event bus.
 # 1. Install
 pnpm install
 
-# 2. Infrastructure (Postgres + NATS)
+# 2. Infrastructure (Postgres + NATS) — start core first
 docker compose -f platform/docker/docker-compose.yml --profile core up -d
 
-# 3. Migrations for all services (needs Postgres)
+# 3. Migrations for all services (needs Postgres, BEFORE services start)
 pnpm --filter "./services/*" run db:migrate
 
 # 4. Run a single service locally
-DATABASE_URL=postgres://pmos:***@localhost:5432/pmos \
+DATABASE_URL=postgres://pmos:pmos@localhost:5432/pmos \
 DATABASE_SCHEMA=notes_ NATS_URL=nats://localhost:4222 \
 PORT=3001 SERVICE_NAME=notes pnpm --filter @pmos/notes start
 
@@ -54,7 +54,9 @@ PORT=3001 SERVICE_NAME=notes pnpm --filter @pmos/notes start
 curl http://localhost:3001/api/notes/v1/health-check
 ```
 
-The full stack (17 services + gateway) starts with the `all` profile:
+The full stack (17 services + gateway) starts with the `all` profile — restart the gateway
+after rebuilding any service (`docker compose up -d --force-recreate api-gateway`,
+see `docs/TROUBLESHOOTING.md`):
 
 ```bash
 docker compose -f platform/docker/docker-compose.yml --profile all up -d
@@ -127,7 +129,7 @@ pmos/
 │
 ├── docs/                            architecture & project documentation
 │   ├── ARCHITECTURE.md             overall architecture
-│   ├── FEATURES.md                 functional requirements (✅ 87 done / 📋 16 planned)
+│   ├── FEATURES.md                 functional requirements (✅/📋 counts — see header)
 │   ├── SAGA.md                     cross-service scenarios (§1–§5 + §DLQ)
 │   ├── REVIEW.md                   status matrix per service
 │   ├── TEST_CASES.md               test cases
@@ -209,12 +211,15 @@ Full catalog — **~4,200 lines of docs + ~10,600 lines of contracts ≈ 14,800 
 | File | Lines | Purpose |
 |------|------:|---------|
 | `docs/ARCHITECTURE.md` | 183 | Overall architecture: services, bus, data flows |
-| `docs/FEATURES.md` | 485 | Functional requirements per service (✅ 103 done / 📋 5 planned) |
+| `docs/FEATURES.md` | 487 | Functional requirements per service (see header for current ✅/📋 counts) |
 | `docs/SAGA.md` | 426 | 5 cross-service scenarios (§1–§5): events, idempotency, verification |
 | `docs/REVIEW.md` | 106 | Status matrix: CRUD / filters / soft-delete / events / business logic |
 | `docs/TEST_CASES.md` | 1,420 | Gherkin test cases for **all 16 services** + sagas + infra |
-| `docs/BACKLOG.md` | 82 | Backlog: ideas, deferred features, UI layer |
+| `docs/BACKLOG.md` | 84 | Backlog: ideas, deferred features, UI layer |
 | `docs/DEV_GUIDE.md` | 525 | Local development: env, run, debugging, generators |
+| `docs/IMPROVEMENTS.md` | 337 | Known issues + priority plan (launch, infra, doc drift) |
+| `docs/TROUBLESHOOTING.md` | — | Launch error diagnostics (E1–E5) + startup checklist |
+| `docs/REFERENCE.md` | — | **Single documentation map** — start here before editing any doc |
 
 ### ADR — Architecture Decision Records (docs/ADR/)
 

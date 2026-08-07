@@ -2,8 +2,8 @@
 
 > Документ содержит конкретные Given-When-Then сценарии для unit, integration и contract тестов.
 > Формат: **Gherkin** (`Given ... When ... Then ...`).
-> Инструмент: **Vitest** (unit + integration), **Pact** (contract), **Playwright** (E2E).
-> Покрытие: **все 16 сервисов** (§1–§16) + cross-service саги (§17) + инфраструктура (§18–§19).
+> Инструмент: **Vitest** (unit + integration), **OpenAPI-conformance** (contract, из `contracts/`), **Playwright** (E2E).
+> Покрытие: **все CRUD-сервисы** (§1–§16) + ops (§18.2 health) + cross-service саги (§17) + инфраструктура (§18–§19).
 
 ---
 
@@ -46,9 +46,9 @@ Scenario: Строгий CRUD-роут матчится на runtime (hasRoute g
 ### 0.4 Обязательный набор проверок (commit gate)
 
 ```bash
-pnpm -r run typecheck                 # 18/18 — ловит :id / Date / регрессии типов
-pnpm --filter './services/*' run build       # 16/16
-pnpm --filter './services/*' run test:contract # 16/16 — hasRoute()-гард активен
+pnpm -r run typecheck                 # strict — ловит :id / Date / регрессии типов
+pnpm --filter './services/*' run build       # 16 CRUD сервисов
+pnpm --filter './services/*' run test:contract # 17/17 — hasRoute()-гард активен
 pnpm --filter './services/*' run test         # unit (health)
 ```
 

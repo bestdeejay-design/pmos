@@ -36,7 +36,7 @@ docker compose -f platform/docker/docker-compose.yml --profile core up -d
 pnpm --filter "./services/*" run db:migrate
 
 # 4. Запуск одного сервиса локально
-DATABASE_URL=postgres://pmos:***@localhost:5432/pmos \
+DATABASE_URL=postgres://pmos:pmos@localhost:5432/pmos \
 DATABASE_SCHEMA=notes_ NATS_URL=nats://localhost:4222 \
 PORT=3001 SERVICE_NAME=notes pnpm --filter @pmos/notes start
 
@@ -44,7 +44,9 @@ PORT=3001 SERVICE_NAME=notes pnpm --filter @pmos/notes start
 curl http://localhost:3001/api/notes/v1/health-check
 ```
 
-Полный стек (17 сервисов + gateway) поднимается профилем `all`:
+Полный стек (17 сервисов + gateway) поднимается профилем `all`. После пересборки любого
+сервиса перезапусти gateway (`docker compose up -d --force-recreate api-gateway`), т.к. nginx
+кэширует IP upstream при старте (см. `docs/TROUBLESHOOTING.md`):
 
 ```bash
 docker compose -f platform/docker/docker-compose.yml --profile all up -d
@@ -224,7 +226,7 @@ CI (`.github/workflows/ci.yml`) гонит typecheck + unit + contract на ка
 | `docs/FEATURES.md` | 486 | Функциональные требования по каждому сервису (✅ 103 реализовано / 📋 5 план) |
 | `docs/SAGA.md` | 426 | 5 cross-service сценариев (§1–§5): события, idempotency, проверка |
 | `docs/REVIEW.md` | 106 | Статус-матрица: CRUD / фильтры / soft-delete / события / бизнес-логика |
-| `docs/TEST_CASES.md` | 1,420 | Gherkin-тест-кейсы для **всех 16 сервисов** + саги + инфраструктура |
+| `docs/TEST_CASES.md` | 1,420 | Gherkin-тест-кейсы для **всех CRUD-сервисов** + саги + инфраструктура |
 | `docs/BACKLOG.md` | 84 | Бэклог: идеи, отложенные фичи, UI-слой |
 | `docs/DEV_GUIDE.md` | 525 | Локальная разработка: env, запуск, отладка, генераторы |
 

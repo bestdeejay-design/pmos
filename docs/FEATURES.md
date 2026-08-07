@@ -43,7 +43,7 @@
 | **Назначение** | Хранилище ключ-значение для любых настроек |
 | **API** | `GET/POST /api/settings`, `GET /api/settings/ollama-models` |
 | **Сущности** | `settings: { key, value }` |
-| **События** | `settings.changed` |
+| **События** | `settings.settings.created` / `.updated` / `.deleted` (фактические субъекты; `settings.changed` — устаревшее описание, не публикуется) |
 | **Зависимости** | — (Shared Kernel, читается всеми) |
 | **Фронтенд** | AgentSettings (все вкладки) |
 | **Статус** | ✅ каркас KV CRUD | ✅ Ollama models list (/settings/ollama-models) |
@@ -405,6 +405,16 @@
 | **Назначение** | Пакет `@pmos/shared` с интерфейсами, event schemas, DTO, branded types |
 | **Статус** | ✅ реализован (platform/shared-types) |
 
+### 20. ops — DLQ-панель
+
+| | |
+|---|---|
+| **Назначение** | Stateless-панель управления dead-letter queue (порт 3017, без БД) |
+| **Ввод** | Просмотр `GET /dlq`, повтор `POST /dlq/:id/replay` |
+| **Компоненты** | Слушает `*.dlq` subject'ы шины |
+| **Зависимости** | event-bus (NATS), контракт `contracts/openapi/ops.yaml` |
+| **Статус** | ✅ реализован каркас (роут `/api/ops/v1`); функциональность панели — кандидат на развитие (см. BACKLOG) |
+
 ---
 
 ## Матрица событий
@@ -414,7 +424,9 @@
 | **profiles** | `profiles.created` | notes, tasks, calendar, projects, files, search-rag, agent, export-import |
 | | `profiles.updated` | same |
 | | `profiles.deleted` | same |
-| **settings** | `settings.changed` | api-gateway, all (при старте) |
+| **settings** | `settings.settings.created` | api-gateway, all (при старте, кэш) |
+| | `settings.settings.updated` | api-gateway, all (при старте, кэш) |
+| | `settings.settings.deleted` | api-gateway, all (при старте, кэш) |
 | **notes** | `notes.created` | search-rag, agent, export-import, sync, integrations |
 | | `notes.updated` | search-rag, agent, export-import, sync |
 | | `notes.deleted` | search-rag, files, integrations |
@@ -438,6 +450,7 @@
 | | `punctuation.restored` | api-gateway (WS) |
 | **agent** | `agent.message_created` | api-gateway (WS push), integrations (webhook) |
 | | `agent.trigger_evaluated` | — (лог) |
+| **ops** | `*.dlq` (dead-letter) | ops управляет: GET /dlq, POST /dlq/:id/replay (см. SAGA.md §DLQ) |
 
 ---
 

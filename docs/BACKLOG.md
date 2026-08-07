@@ -1,8 +1,9 @@
 # BACKLOG.md — Идеи, отложенные функции и UI-слой
 
-> **Статус:** backend-ядро ЦУП **сдано** (Delivery Gate, см. `DELIVERY.md`): 16 сервисов,
-> 5 саг, CI. Ниже — то, что осознанно отложено за пределы backend-DoD,
-> и идеи, не имеющие пока владельца. Приоритеты: P1 (ближайшие), P2 (плановые), P3 (когда-нибудь).
+> **Статус:** backend-ядро ЦУП **сдано** (Delivery Gate, см. `DELIVERY.md`): 17 сервисов
+> (16 CRUD + ops/DLQ-панель), 5 саг, CI. Ниже — то, что осознанно отложено за пределы
+> backend-DoD, и идеи, не имеющие пока владельца. Приоритеты: P1 (ближайшие), P2 (плановые),
+> P3 (когда-нибудь). Актуальные счётчики функциональности — в `docs/FEATURES.md` (шапка).
 
 ---
 
@@ -12,14 +13,15 @@ Backend-API полностью готов и покрыт контрактами
 
 | Задача | Сервисы | Описание | Приоритет |
 |---|---|---|---|
-| React SPA | frontend | Восстановить/переписать SPA на новом API. В legacy-монолите SPA уже была — перенести страницы, разбить `api.ts` по сервисам | ✅ P1 |
-| E2E (Playwright) | e2e | 5 critical scenarios: создать заметку, задача с рекурренсом, встреча+reminder, файл→поиск, webhook. Директория `tests/` зарезервирована (сейчас пуста — заменена integration 90/90) | ✅ P1 |
+| React SPA | frontend | Восстановить/переписать SPA на новом API. В legacy-монолите SPA уже была — перенести страницы, разбить `api.ts` по сервисам. Каркас готов (`services/frontend`, React 19), редизайн по `personal-os-ui-demo.html` — в работе (см. IMPROVEMENTS §4) | ✅ P1 |
+| E2E (Playwright) | e2e | 5 critical scenarios: создать заметку, задача с рекурренсом, встреча+reminder, файл→поиск, webhook. Живут в `services/frontend` (`playwright.config.ts`); `tests/` — резерв | ✅ P1 |
+| ops DLQ-панель | ops | Stateless-сервис (порт 3017): просмотр/очистка dead-letter queue. Контракт `contracts/openapi/ops.yaml`, в compose + nginx `/api/ops/`. Функциональность панели — кандидат на развитие | P2 |
 | Desktop (Tauri) | desktop | Обновить `desktop/` на новый стек: только Docker lifecycle + WebView (ADR без Rust-логики) | P3 |
-| WS-пуши клиенту | agent, calendar | Push сообщений агента / напоминаний в браузер через WebSocket (механизм описан в ARCHITECTURE.md, не реализован) | P2 |
+| WS-пуши клиенту | agent, calendar | Push сообщений агента / напоминаний в браузер через WebSocket (`/ws` на agent). Частично реализован (сообщения агента); напоминания календаря — доработать | P2 |
 
 ## 2. Отложенные функции backend (из `FEATURES.md` 📋)
 
-Каталог функций: `docs/FEATURES.md` (✅ 87 сдано / 📋 16 отложено).
+Каталог функций: `docs/FEATURES.md` (актуальные ✅/📋 — в шапке файла).
 
 ### P2 — функциональные расширения
 
@@ -55,7 +57,7 @@ Backend-API полностью готов и покрыт контрактами
 
 | Задача | Где | Описание |
 |---|---|---|
-| Pact-брокер (consumer-driven) | contracts | Заменить OpenAPI-conformance на Pact (ADR-002 §3 TODO, ADR-005) |
+| Pact-брокер (consumer-driven) | contracts | Заменить OpenAPI-conformance на Pact — договорились НЕ делать: OpenAPI-conformance из `contracts/` — канон (ADR-007 C7); Pact-подход снят с повестки |
 | Perf: caching, query opt | все | Медленные запросы, N+1 (после появления реальной нагрузки) |
 | Healthchecks в docker-compose | platform/docker | Graceful startup/shutdown для профиля `all` |
 | mTLS между сервисами | platform | Опционально для production (ARCHITECTURE.md §Безопасность) |
@@ -73,11 +75,11 @@ Backend-API полностью готов и покрыт контрактами
 
 ## Сводка
 
-| Приоритет | Задач | Тип |
+| Приоритет | Что осталось |
 |---|---|---|
-| P1 | 3 | UI-слой: SPA, E2E, desktop |
-| P2 | 12 | Функциональные (6) + WS-пуши + инфраструктура (5) |
-| P3 | 11 | AI-расширения (5) ✅ + расширения поиска/API (4) ✅ + desktop — 9/11 выполнены |
+| P1 | UI-слой: редизайн React SPA (IMPROVEMENTS §4) |
+| P2 | WS-напоминания календаря, наполнение ops-панели, инфраструктура P2 |
+| P3 | Desktop (Tauri), идеи без владельца |
 
 Все backend-задачи P0–P4 из исходного плана миграции **выполнены** (см. `docs/REVIEW.md`,
 `docs/SAGA.md`); исходный «план миграции 10-12 недель» более не актуален — репозиторий уже

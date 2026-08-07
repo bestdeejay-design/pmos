@@ -28,12 +28,13 @@ pmos/
 │   ├── REFERENCE.md     # ★ ЭТОТ ФАЙЛ — карта документации
 │   ├── ARCHITECTURE.md  # Общая схема, стек, событийная модель, саги, безопасность
 │   ├── DEV_GUIDE.md     # Локальная разработка: установка, запуск, env, миграции, тесты
-│   ├── FEATURES.md      # Каталог функций 19 сервисов + матрицы событий/данных
+│   ├── FEATURES.md      # Каталог функций 20 сервисов (17 backend + event-bus + shared-types + ops) + матрицы событий/данных
 │   ├── BACKLOG.md       # Идеи, отложенные функции (UI P1, backend P2/P3, идеи P3)
 │   ├── REVIEW.md        # Аудит документации: найденные проблемы, резолюции, чек-лист
 │   ├── SAGA.md          # Хореографические сценарии с компенсацией (5 саг)
 │   ├── TEST_CASES.md    # Gherkin-сценарии по сервисам + E2E + матрица покрытия
 │   ├── IMPROVEMENTS.md  # Каталог проблем/расхождений по факту запуска + план доработок
+│   ├── TROUBLESHOOTING.md  # Диагностика ошибок запуска (E1–E5) + чек-лист
 │   └── ADR/
 │       ├── ADR-001.md   # Монорепозиторий pnpm workspace
 │       ├── ADR-002.md   # Стек: TypeScript, Fastify, Postgres, NATS (исторический)
@@ -180,6 +181,12 @@ pmos/
 - **Ключевые факты**: основной источник расхождений §5 этого файла.
 - **Связи**: REVIEW.md, README, DEV_GUIDE, compose.
 
+#### `docs/TROUBLESHOOTING.md`
+- **Назначение**: диагностика ошибок запуска + обязательный чек-лист.
+- **Структура**: чек-лист запуска → E1 (сборка `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND`) → E2 (`28P01` пароль) → E3 (nginx 404 через gateway) → E4 (nginx кэш IP upstream) → E5 (миграции) → инфраструктурные проверки → связанные документы.
+- **Ключевые факты**: порядок core → db:migrate → all; `--force-recreate api-gateway` после пересборки; карта nginx-prefix vs mount-prefix (ссылка на ADR-007 §7).
+- **Связи**: IMPROVEMENTS.md §2, ADR-007 R6, DEV_GUIDE.
+
 ### 3.3 ADR
 
 | ADR | Тема | Статус |
@@ -239,7 +246,7 @@ pmos/
 | 5.6 | Пароль БД | DELIVERY: `pmos:pmos`; compose/README: `pmos:***` | compose (факт запуска) |
 | 5.7 | settings-события | FEATURES: `settings.changed`; фактически `pmos.settings.settings.{created,updated,deleted}` | `contracts/asyncapi/events.yaml`, commit 45d83f6 |
 | 5.8 | Contract tests | DEV_GUIDE/TEST_CASES упоминают Pact; фактически OpenAPI-conformance через `gen-contract-tests.mjs` | scripts/ + REVIEW RESOLVED |
-| 5.9 | nginx-префиксы | README/AGENT пишут `/api/<svc>`; nginx.conf использует спец-префиксы (напр. `/api/search/`, `/api/ai/`, `/api/timesheet+promodoro`) | `platform/docker/nginx.conf` |
+| 5.9 | nginx-префиксы | nginx.conf uses alias prefixes (`/api/search/`, `/api/ai/`, `/api/timesheet/`, `/api/imap/`, `/api/calendars/`, `/api/webhooks/`, `/api/api-keys/`, `/api/export/`, `/api/import/`, `/api/sync-folders/`) that **do NOT match** the services' actual mount prefixes (`/api/search-rag/v1`, `/api/ai-gateway/v1`, `/api/time-tracking/v1`, `/api/email/v1`, `/api/external-calendars/v1`, `/api/integrations/v1`, `/api/export-import/v1`, `/api/sync/v1`). Gateway routes for these will 404 (see ADR-007 §7 ⚠️ + R6 + TROUBLESHOOTING §4) | факт `src/app.ts` каждого сервиса |
 | 5.10 | ops в доках | ops отсутствует в ARCHITECTURE/FEATURES/DEV_GUIDE/BACKLOG (grep: 0 вхождений) | факт: services/ops + ops.yaml |
 | 5.11 | frontend-путь | DEV_GUIDE/ADR-007: `services/frontend`; README: `frontend/` в корне | факт: `services/frontend` |
 | 5.12 | Healthcheck-путь | DEV_GUIDE: `:3000/health`; канон ADR-007: `/api/<svc>/v1/health-check` | ADR-007 |
@@ -287,6 +294,7 @@ node scripts/scaffold-services.mjs
 | Тест-сценарии | `docs/TEST_CASES.md` |
 | Локальный запуск/env/миграции | `docs/DEV_GUIDE.md` |
 | Проблемы запуска/план доработок | `docs/IMPROVEMENTS.md` |
+| Диагностика ошибок запуска | `docs/TROUBLESHOOTING.md` |
 | Идеи/бэклог | `docs/BACKLOG.md` |
 | Статус аудита доков | `docs/REVIEW.md` |
 | Правила агента (runbook) | `AGENT.md` |

@@ -63,21 +63,33 @@ cd pmos
 # 2. Установить зависимости (всех воркспейсов)
 pnpm install
 
-# 3. Запустить инфраструктуру (PostgreSQL + NATS + все сервисы)
-docker compose --profile all up -d
+# 3. Запустить только инфраструктуру (PostgreSQL + NATS)
+docker compose --profile core up -d
 
 # 4. Выполнить миграции БД (создание схем, таблиц, индексов)
-pnpm run db:migrate
+pnpm run db:migrate        # или: pnpm --filter "./services/*" run db:migrate
 
-# 5. Запустить все сервисы в dev-режиме (tsx watch — hot reload)
+# 5. Запустить остальной стек (все сервисы + api-gateway)
+docker compose --profile all up -d
+
+# 6. Запустить сервисы в dev-режиме (tsx watch — hot reload) — опционально
 pnpm run dev
 ```
+
+> **Порядок обязателен (см. `docs/TROUBLESHOOTING.md`):** миграции (`db:migrate`) выполняются
+> **после** подъёма `core` (Postgres) и **до** старта сервисов — иначе схемы не согласованы
+> (напр. profiles требует `is_active`/`hidden`, которых нет) и сервисы отвечают ошибками БД.
+> `ops` — stateless, скрипта `db:migrate` у него нет (это норм).
+>
+> **После пересборки любого сервиса** обязательно перезапустить gateway (nginx кэширует IP
+> upstream при старте):
+> `docker compose up -d --force-recreate api-gateway`
 
 После этого:
 
 | Что | Где |
 |-----|-----|
-| SPA (фронтенд) | http://localhost:8080 |
+| SPA (фронтенд, dev) | http://localhost:5173 (Vite; проксирует /api → :8080) |
 | Healthcheck | http://localhost:8080/api/health |
 | Метрики сервиса | http://localhost:3xxx/metrics |
 | NATS монитор | nats://localhost:4222 |
@@ -106,20 +118,29 @@ pmos/
 │   ├── time-tracking/       #   :3011 — timesheet + pomodoro
 │   ├── export-import/       #   :3015 — экспорт ZIP / импорт
 │   ├── sync/                #   :3016 — Obsidian-style sync с файловой системой
+│   ├── ops/                 #   :3017 — stateless DLQ-панель (без БД)
+│   ├── frontend/            #   React SPA (Vite + React 19 + Tailwind v4, dev :5173)
 │   └── api-gateway/         #   nginx — единый вход (:8080)
 ├── platform/                # Общая инфраструктура
 │   ├── event-bus/           #   NATS клиент, SDK (publish/subscribe wrapper)
 │   ├── shared-types/        #   @pmos/shared — типы, интерфейсы, event schemas
 │   └── docker/              #   Dockerfile'ы, docker-compose, nginx.conf
-├── frontend/                # React SPA (Vite + React 18 + TypeScript)
-├── desktop/                 # Tauri v2 desktop app (только Docker lifecycle)
-├── scripts/                 # Генераторы сервисов (scaffold-services, gen-openapi, gen-schemas, gen-routes)
-├── tests/                   # Интеграционные и E2E тесты
-│   └── contract/            #   Контрактные тесты (Pact)
+├── contracts/               # Машинная истина по API/событиям
+│   ├── openapi/             #   17 × <svc>.yaml — OpenAPI-спеки
+│   ├── asyncapi/events.yaml #   Каталог событий + x-implemented-wire-events
+│   └── test/helper.ts       #   фикстуры контракт-тестов
+├── scripts/                 # Генераторы сервисов (scaffold-services, gen-openapi, gen-schemas, gen-routes, gen-contract-tests, gen-semantics)
+├── tests/                   # Резерв под E2E (сейчас пусто; см. IMPROVEMENTS §3.1)
 └── docs/                    # Документация
+    ├── REFERENCE.md         #   Единый справочник по документации (начинать отсюда)
     ├── ADR/                 #   Architecture Decision Records
     ├── ARCHITECTURE.md      #   Общая архитектура
     ├── FEATURES.md          #   Полный каталог функций
+    ├── REVIEW.md            #   Аудит документации + статусы по сервисам
+    ├── TEST_CASES.md        #   Gherkin-сценарии
+    ├── SAGA.md              #   Хореографические сценарии
+    ├── IMPROVEMENTS.md      #   Проблемы запуска + план доработок
+    ├── TROUBLESHOOTING.md   #   Диагностика ошибок запуска
     ├── BACKLOG.md           #   План работ
     └── DEV_GUIDE.md         #   Этот файл
 ```
@@ -146,7 +167,7 @@ services/profiles/
 └── tsconfig.json            # strict mode
 ```
 
-См. [`scripts/scaffold-services.mjs`](../scripts/scaffold-services.mjs) — генератор всех 16 сервисов.
+См. [`scripts/scaffold-services.mjs`](../scripts/scaffold-services.mjs) — генератор всех CRUD-сервисов (16 из 17; `ops` — stateless, без БД).
 Для нового сервиса добавьте запись в массив `SERVICES` в скрипте и запустите `node scripts/scaffold-services.mjs`.
 
 ---
@@ -443,26 +464,28 @@ docker compose --profile monitoring up -d
 
 ## Docker Compose Profiles
 
-Файл: `platform/docker/docker-compose.yml`
+Файл: `platform/docker/docker-compose.yml` (источник истины)
 
-| Профиль | Включает | Использование |
-|---------|----------|---------------|
-| `core` | PostgreSQL, NATS | Всегда нужен для работы любого сервиса |
-| `phase1` | profiles, settings, api-gateway | Базовая функциональность |
-| `phase2` | notes, tasks, calendar, projects, files | Основные фичи |
-| `phase3` | search-rag, ai-gateway, agent | AI-возможности |
-| `phase4` | email, external-calendars, integrations sync, time-tracking, export-import | Интеграции и продуктивность |
-| `all` | Всё перечисленное | Полный стек |
-| `monitoring` | Prometheus, Grafana | Метрики (опционально) |
+| Профиль | Сервисы (по compose) |
+|---------|----------------------|
+| `core` | PostgreSQL, NATS |
+| `phase1` | notes, tasks, profiles, settings (+ core + api-gateway) |
+| `phase2` | calendar, projects, files, search-rag |
+| `phase3` | ai-gateway, agent, integrations, export-import |
+| `phase4` | email, external-calendars, time-tracking, sync |
+| `all` | Все перечисленные + ops |
+| `monitoring` | Prometheus, Grafana (метрики, опционально) |
+
+> `api-gateway` входит в `all` и `phase1..phase4`; `ops` — только в `all`.
 
 ### Примеры
 
 ```bash
-# Разработка profiles — только core
-docker compose --profile core up -d
+# Разработка profiles — только core + phase1
+docker compose --profile core --profile phase1 up -d
 
 # Разработка notes + search-rag (нужны notes)
-docker compose --profile core --profile phase2 up -d
+docker compose --profile core --profile phase1 --profile phase2 up -d
 
 # Полный стек + мониторинг
 docker compose --profile all --profile monitoring up -d
@@ -494,19 +517,29 @@ pnpm --filter <service> test:watch
 pnpm --filter <service> test -- --coverage
 ```
 
-### Контрактные тесты (Pact)
+### Контрактные тесты (OpenAPI-conformance)
+
+Контракт-тесты генерируются сценарием `scripts/gen-contract-tests.mjs` из
+`contracts/openapi/<svc>.yaml` и проверяют, что роуты сервиса совпадают с контрактом
+(включая guard-проверку `{id}` vs `:id` — см. ADR-007 §R1).
 
 ```bash
-# Проверить контракты потребителей
-pnpm --filter <service> test:contract
+# Проверить соответствие контракту
+pnpm --filter "./services/*" run test:contract
 ```
+
+> **Abandoned `Pact`.** Файлы `tests/contract/` и Pact-подход удалены; вместо них —
+> OpenAPI-conformance из `contracts/` (см. ADR-007 §7, C7).
 
 ### E2E тесты (Playwright)
 
 ```bash
-pnpm --filter tests run test:e2e
+# E2E живут внутри frontend-сервиса
+cd services/frontend
+pnpm test:e2e
 ```
-Требуют запущенного полного стека (`docker compose --profile all up -d`).
+Требуют запущенного полного стека (`docker compose --profile all up -d`) и SPA
+(`pnpm dev` в `services/frontend`). Число сценариев и статус — см. `docs/IMPROVEMENTS.md` §5.1.
 
 ---
 
